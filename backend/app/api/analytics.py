@@ -44,13 +44,44 @@ class UsageStatsResponse(BaseModel):
 @router.get("/usage-rates")
 async def get_usage_rates(
     material_id: Optional[int] = Query(None, description="Filter by material ID"),
-    days: int = Query(30, description="Number of days to analyze"),
+    days: Optional[int] = Query(None, description="Number of days to analyze"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Get usage rates for materials"""
     now = datetime.utcnow()
-    start_date = now - timedelta(days=days)
+    
+    # Determine date range: custom dates take precedence over days
+    if start_date and end_date:
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+            end = datetime.strptime(end_date, "%Y-%m-%d")
+            # Set end date to end of day
+            end = end.replace(hour=23, minute=59, second=59)
+            if start > end:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Start date must be before end date"
+                )
+            date_range_days = (end - start).days + 1
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid date format. Use YYYY-MM-DD"
+            )
+    elif days:
+        start = now - timedelta(days=days)
+        end = now
+        date_range_days = days
+    else:
+        # Default to 30 days if neither specified
+        start = now - timedelta(days=30)
+        end = now
+        date_range_days = 30
+    
+    start_date = start
     
     # Base query
     query = db.query(Material)
@@ -67,20 +98,21 @@ async def get_usage_rates(
         usage_events = db.query(MaterialUsage).filter(
             and_(
                 MaterialUsage.material_id == material.id,
-                MaterialUsage.used_at >= start_date
+                MaterialUsage.used_at >= start_date,
+                MaterialUsage.used_at <= end
             )
         ).all()
         
         total_usage = len(usage_events)
         
         # Calculate daily, weekly, monthly usage
-        daily_usage = total_usage / days if days > 0 else 0
+        daily_usage = total_usage / date_range_days if date_range_days > 0 else 0
         weekly_usage = daily_usage * 7
         monthly_usage = daily_usage * 30
         
         # Calculate trend (compare first half vs second half of period)
         if len(usage_events) >= 2:
-            midpoint = start_date + timedelta(days=days / 2)
+            midpoint = start_date + timedelta(days=date_range_days / 2)
             first_half = len([e for e in usage_events if e.used_at < midpoint])
             second_half = len([e for e in usage_events if e.used_at >= midpoint])
             
@@ -118,13 +150,41 @@ async def get_usage_rates(
 
 @router.get("/usage-stats")
 async def get_usage_stats(
-    days: int = Query(30, description="Number of days to analyze"),
+    days: Optional[int] = Query(None, description="Number of days to analyze"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Get overall usage statistics"""
     now = datetime.utcnow()
-    start_date = now - timedelta(days=days)
+    
+    # Determine date range: custom dates take precedence over days
+    if start_date and end_date:
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+            end = datetime.strptime(end_date, "%Y-%m-%d")
+            # Set end date to end of day
+            end = end.replace(hour=23, minute=59, second=59)
+            if start > end:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Start date must be before end date"
+                )
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid date format. Use YYYY-MM-DD"
+            )
+    elif days:
+        start = now - timedelta(days=days)
+        end = now
+    else:
+        # Default to 30 days if neither specified
+        start = now - timedelta(days=30)
+        end = now
+    
+    start_date = start
     
     # Total materials
     total_materials = db.query(Material).count()
@@ -138,14 +198,16 @@ async def get_usage_stats(
     total_downloads = db.query(MaterialUsage).filter(
         and_(
             MaterialUsage.action == "download",
-            MaterialUsage.used_at >= start_date
+            MaterialUsage.used_at >= start_date,
+            MaterialUsage.used_at <= end
         )
     ).count()
     
     total_views = db.query(MaterialUsage).filter(
         and_(
             MaterialUsage.action == "view",
-            MaterialUsage.used_at >= start_date
+            MaterialUsage.used_at >= start_date,
+            MaterialUsage.used_at <= end
         )
     ).count()
     
@@ -224,7 +286,9 @@ async def get_usage_stats(
 @router.get("/material/{material_id}/usage-history")
 async def get_material_usage_history(
     material_id: int,
-    days: int = Query(30, description="Number of days to retrieve"),
+    days: Optional[int] = Query(None, description="Number of days to retrieve"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -234,13 +298,40 @@ async def get_material_usage_history(
         raise HTTPException(status_code=404, detail="Material not found")
     
     now = datetime.utcnow()
-    start_date = now - timedelta(days=days)
+    
+    # Determine date range: custom dates take precedence over days
+    if start_date and end_date:
+        try:
+            start = datetime.strptime(start_date, "%Y-%m-%d")
+            end = datetime.strptime(end_date, "%Y-%m-%d")
+            # Set end date to end of day
+            end = end.replace(hour=23, minute=59, second=59)
+            if start > end:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Start date must be before end date"
+                )
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid date format. Use YYYY-MM-DD"
+            )
+    elif days:
+        start = now - timedelta(days=days)
+        end = now
+    else:
+        # Default to 30 days if neither specified
+        start = now - timedelta(days=30)
+        end = now
+    
+    start_date = start
     
     # Get usage events
     usage_events = db.query(MaterialUsage).filter(
         and_(
             MaterialUsage.material_id == material_id,
-            MaterialUsage.used_at >= start_date
+            MaterialUsage.used_at >= start_date,
+            MaterialUsage.used_at <= end
         )
     ).order_by(MaterialUsage.used_at.desc()).all()
     

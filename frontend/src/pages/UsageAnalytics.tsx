@@ -12,30 +12,59 @@ import {
   Calendar,
   ArrowUp,
   ArrowDown,
-  Minus
+  Minus,
+  X
 } from 'lucide-react'
 
+type PeriodType = 'preset' | 'custom'
+
 export default function UsageAnalytics() {
+  const [periodType, setPeriodType] = useState<PeriodType>('preset')
   const [days, setDays] = useState(30)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [selectedMaterial, setSelectedMaterial] = useState<number | null>(null)
 
+  // Build query parameters based on period type
+  const buildQueryParams = () => {
+    if (periodType === 'custom' && startDate && endDate) {
+      return `start_date=${startDate}&end_date=${endDate}`
+    }
+    return `days=${days}`
+  }
+
+  const queryParams = buildQueryParams()
+
   const { data: usageRates, isLoading: ratesLoading } = useQuery({
-    queryKey: ['usage-rates', days],
-    queryFn: () => api.get(`/analytics/usage-rates?days=${days}`).then(res => res.data),
+    queryKey: ['usage-rates', periodType, days, startDate, endDate],
+    queryFn: () => api.get(`/analytics/usage-rates?${queryParams}`).then(res => res.data),
   })
 
   const { data: usageStats, isLoading: statsLoading } = useQuery({
-    queryKey: ['usage-stats', days],
-    queryFn: () => api.get(`/analytics/usage-stats?days=${days}`).then(res => res.data),
+    queryKey: ['usage-stats', periodType, days, startDate, endDate],
+    queryFn: () => api.get(`/analytics/usage-stats?${queryParams}`).then(res => res.data),
   })
 
   const { data: materialHistory } = useQuery({
-    queryKey: ['material-usage-history', selectedMaterial, days],
-    queryFn: () => api.get(`/analytics/material/${selectedMaterial}/usage-history?days=${days}`).then(res => res.data),
+    queryKey: ['material-usage-history', selectedMaterial, periodType, days, startDate, endDate],
+    queryFn: () => api.get(`/analytics/material/${selectedMaterial}/usage-history?${queryParams}`).then(res => res.data),
     enabled: selectedMaterial !== null,
   })
 
   const isLoading = ratesLoading || statsLoading
+
+  // Set default end date to today when switching to custom
+  const handlePeriodTypeChange = (type: PeriodType) => {
+    setPeriodType(type)
+    if (type === 'custom' && !endDate) {
+      const today = new Date().toISOString().split('T')[0]
+      setEndDate(today)
+      // Set start date to 30 days ago by default
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      setStartDate(thirtyDaysAgo.toISOString().split('T')[0])
+    }
+  }
 
   if (isLoading) {
     return (
@@ -76,18 +105,82 @@ export default function UsageAnalytics() {
           <h1 className="text-2xl font-semibold text-primary-700">Usage Analytics</h1>
           <p className="mt-1 text-slate-500">Monitor material usage rates and trends</p>
         </div>
-        <div className="mt-4 sm:mt-0 flex items-center space-x-4">
-          <label className="text-sm font-medium text-slate-700">Time Period:</label>
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="input-ovh w-auto"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-            <option value={180}>Last 6 months</option>
-          </select>
+        <div className="mt-4 sm:mt-0">
+          {/* Period Type Selector */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-lg">
+              <button
+                onClick={() => handlePeriodTypeChange('preset')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  periodType === 'preset'
+                    ? 'bg-white text-primary-600 shadow-sm'
+                    : 'text-slate-600 hover:text-primary-600'
+                }`}
+              >
+                Preset
+              </button>
+              <button
+                onClick={() => handlePeriodTypeChange('custom')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  periodType === 'custom'
+                    ? 'bg-white text-primary-600 shadow-sm'
+                    : 'text-slate-600 hover:text-primary-600'
+                }`}
+              >
+                Custom
+              </button>
+            </div>
+
+            {periodType === 'preset' ? (
+              <select
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+                className="input-ovh w-auto"
+              >
+                <option value={7}>Last 7 days</option>
+                <option value={30}>Last 30 days</option>
+                <option value={90}>Last 90 days</option>
+                <option value={180}>Last 6 months</option>
+              </select>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm font-medium text-slate-700">From:</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    max={endDate || new Date().toISOString().split('T')[0]}
+                    className="input-ovh w-auto"
+                  />
+                </div>
+                <span className="text-slate-400">to</span>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm font-medium text-slate-700">To:</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="input-ovh w-auto"
+                  />
+                </div>
+                {startDate && endDate && (
+                  <button
+                    onClick={() => {
+                      setStartDate('')
+                      setEndDate('')
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100"
+                    title="Clear dates"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
