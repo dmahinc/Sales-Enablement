@@ -10,26 +10,33 @@ class Segment(BaseModel):
     __tablename__ = "segments"
     
     # Basic Information
-    name = Column(String(255), nullable=False, unique=True, index=True)
-    display_name = Column(String(255), nullable=False)
+    name = Column(String(100), nullable=False, unique=True, index=True)
     
-    # Characteristics
-    characteristics = Column(Text)  # Description of segment characteristics
-    firmographics = Column(Text)  # Company size, revenue, employees
-    technographics = Column(Text)  # Technology stack, cloud maturity
-    buying_behavior = Column(Text)  # Description of buying behavior
-    pain_points = Column(Text)  # JSON array or text
-    messaging_preferences = Column(Text)  # What messaging resonates
+    # Segment Details (matching Product Brief and frontend)
+    description = Column(Text)  # Detailed description
+    industry = Column(String(100))  # Target industry
+    company_size = Column(String(50))  # Company size range
+    region = Column(String(50))  # Geographic region
+    key_drivers = Column(Text)  # Business drivers
+    pain_points = Column(Text)  # Common pain points
+    buying_criteria = Column(Text)  # Purchase factors
     
-    # Hierarchy
+    # Legacy fields (kept for backward compatibility)
+    display_name = Column(String(255))  # Deprecated: use name instead
+    characteristics = Column(Text)  # Deprecated: use description instead
+    firmographics = Column(Text)  # Deprecated: use company_size instead
+    technographics = Column(Text)  # Deprecated
+    buying_behavior = Column(Text)  # Deprecated: use buying_criteria instead
+    messaging_preferences = Column(Text)  # Deprecated
+    
+    # Hierarchy (optional)
     parent_segment_id = Column(Integer, ForeignKey("segments.id"))
     parent_segment = relationship("Segment", remote_side="Segment.id", backref="sub_segments")
     
     # Metadata
-    description = Column(Text)
     version = Column(String(50), default="1.0")
     
-    # Governance
+    # Governance (optional)
     created_by_id = Column(Integer, ForeignKey("users.id"))
     approved_by_ids = Column(JSON)  # Array of user IDs who approved
     approval_count = Column(Integer, default=0)

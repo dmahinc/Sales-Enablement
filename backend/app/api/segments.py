@@ -1,17 +1,19 @@
 """
 Market Segments API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.segment import Segment
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
+from app.schemas.segment import SegmentCreate, SegmentUpdate, SegmentResponse
+from datetime import datetime
 
 router = APIRouter(prefix="/api/segments", tags=["segments"])
 
-@router.get("")
+@router.get("", response_model=List[SegmentResponse])
 async def list_segments(
     parent_segment_id: Optional[int] = None,
     skip: int = 0,
@@ -31,7 +33,7 @@ async def list_segments(
     segments = query.offset(skip).limit(limit).all()
     return segments
 
-@router.get("/{segment_id}")
+@router.get("/{segment_id}", response_model=SegmentResponse)
 async def get_segment(
     segment_id: int,
     db: Session = Depends(get_db),
@@ -40,75 +42,65 @@ async def get_segment(
     """Get a specific segment"""
     segment = db.query(Segment).filter(Segment.id == segment_id).first()
     if not segment:
-        raise HTTPException(status_code=404, detail="Segment not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Segment not found"
+        )
     return segment
 
-@router.get("/{segment_id}/personas")
-async def get_segment_personas(
-    segment_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get personas for a segment"""
-    segment = db.query(Segment).filter(Segment.id == segment_id).first()
-    if not segment:
-        raise HTTPException(status_code=404, detail="Segment not found")
-    return segment.personas
-
-@router.post("")
+@router.post("", response_model=SegmentResponse, status_code=status.HTTP_201_CREATED)
 async def create_segment(
-    segment_data: dict,
+    segment_data: SegmentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new segment"""
-    segment = Segment(**segment_data)
-    db.add(segment)
-    db.commit()
-    db.refresh(segment)
-    return segment
+    try:
+        segment_dict = segment_data.dict()
+        segment = Segment(**segment_dict)
+        db.add(segment)
+        db.commit()
+        db.refresh(segment)
+        return segment
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create segment: {str(e)}"
+        )
 
-@router.put("/{segment_id}")
+@router.put("/{segment_id}", response_model=SegmentResponse)
 async def update_segment(
     segment_id: int,
-    segment_data: dict,
+    segment_data: SegmentUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a segment"""
     segment = db.query(Segment).filter(Segment.id == segment_id).first()
     if not segment:
-        raise HTTPException(status_code=404, detail="Segment not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Segment not found"
+        )
     
-    for key, value in segment_data.items():
-        setattr(segment, key, value)
-    
-    db.commit()
-    db.refresh(segment)
-    return segment
-
-@router.post("/{segment_id}/approve")
-async def approve_segment(
-    segment_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Approve a segment (collaborative governance)"""
-    segment = db.query(Segment).filter(Segment.id == segment_id).first()
-    if not segment:
-        raise HTTPException(status_code=404, detail="Segment not found")
-    
-    approved_by = segment.approved_by_ids or []
-    if current_user.id not in approved_by:
-        approved_by.append(current_user.id)
-        segment.approved_by_ids = approved_by
-        segment.approval_count = len(approved_by)
+    try:
+        update_data = segment_data.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(segment, key, value)
+        
+        segment.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(segment)
-    
-    return segment
+        return segment
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update segment: {str(e)}"
+        )
 
-@router.delete("/{segment_id}")
+@router.delete("/{segment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_segment(
     segment_id: int,
     db: Session = Depends(get_db),
@@ -117,8 +109,18 @@ async def delete_segment(
     """Delete a segment"""
     segment = db.query(Segment).filter(Segment.id == segment_id).first()
     if not segment:
-        raise HTTPException(status_code=404, detail="Segment not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Segment not found"
+        )
     
-    db.delete(segment)
-    db.commit()
-    return {"message": "Segment deleted"}
+    try:
+        db.delete(segment)
+        db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete segment: {str(e)}"
+        )

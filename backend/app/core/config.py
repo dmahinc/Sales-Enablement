@@ -2,6 +2,7 @@
 Application configuration
 """
 from pydantic_settings import BaseSettings
+from pydantic import Field
 from typing import List
 
 class Settings(BaseSettings):
@@ -19,10 +20,10 @@ class Settings(BaseSettings):
     STORAGE_TYPE: str = "local"  # local, sharepoint, drive
     STORAGE_PATH: str = "./storage"
     
-    # Authentication (to be implemented)
-    SECRET_KEY: str = "your-secret-key-here"
+    # Authentication
+    SECRET_KEY: str = Field(..., description="Secret key for JWT tokens. MUST be set in environment.")
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours (default)
     
     class Config:
         env_file = ".env"

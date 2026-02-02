@@ -1,17 +1,20 @@
 """
 Materials API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Response
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.material import Material, MaterialType, MaterialAudience, MaterialStatus
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
+from app.schemas.material import MaterialCreate, MaterialUpdate, MaterialResponse
+from app.schemas.error import ErrorResponse
+from datetime import datetime
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
-@router.get("")
+@router.get("", response_model=List[MaterialResponse])
 async def list_materials(
     material_type: Optional[str] = None,
     audience: Optional[str] = None,
@@ -40,7 +43,7 @@ async def list_materials(
     materials = query.offset(skip).limit(limit).all()
     return materials
 
-@router.get("/{material_id}")
+@router.get("/{material_id}", response_model=MaterialResponse)
 async def get_material(
     material_id: int,
     db: Session = Depends(get_db),
@@ -49,42 +52,84 @@ async def get_material(
     """Get a specific material"""
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
-        raise HTTPException(status_code=404, detail="Material not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
     return material
 
-@router.post("")
+@router.post("", response_model=MaterialResponse, status_code=status.HTTP_201_CREATED)
 async def create_material(
-    material_data: dict,
+    material_data: MaterialCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Create a new material (metadata only, file upload separate)"""
-    material = Material(**material_data)
-    db.add(material)
-    db.commit()
-    db.refresh(material)
-    return material
+    try:
+        # Convert lists to JSON strings for storage
+        material_dict = material_data.dict()
+        material_dict['tags'] = str(material_dict.get('tags', [])) if material_dict.get('tags') else None
+        material_dict['keywords'] = str(material_dict.get('keywords', [])) if material_dict.get('keywords') else None
+        material_dict['use_cases'] = str(material_dict.get('use_cases', [])) if material_dict.get('use_cases') else None
+        material_dict['pain_points'] = str(material_dict.get('pain_points', [])) if material_dict.get('pain_points') else None
+        material_dict['owner_id'] = current_user.id
+        
+        material = Material(**material_dict)
+        db.add(material)
+        db.commit()
+        db.refresh(material)
+        return material
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create material: {str(e)}"
+        )
 
-@router.put("/{material_id}")
+@router.put("/{material_id}", response_model=MaterialResponse)
 async def update_material(
     material_id: int,
-    material_data: dict,
+    material_data: MaterialUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Update a material"""
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
-        raise HTTPException(status_code=404, detail="Material not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
     
-    for key, value in material_data.items():
-        setattr(material, key, value)
-    
-    db.commit()
-    db.refresh(material)
-    return material
+    try:
+        # Update only provided fields
+        update_data = material_data.dict(exclude_unset=True)
+        
+        # Handle list fields
+        if 'tags' in update_data and update_data['tags'] is not None:
+            update_data['tags'] = str(update_data['tags'])
+        if 'keywords' in update_data and update_data['keywords'] is not None:
+            update_data['keywords'] = str(update_data['keywords'])
+        if 'use_cases' in update_data and update_data['use_cases'] is not None:
+            update_data['use_cases'] = str(update_data['use_cases'])
+        if 'pain_points' in update_data and update_data['pain_points'] is not None:
+            update_data['pain_points'] = str(update_data['pain_points'])
+        
+        for key, value in update_data.items():
+            setattr(material, key, value)
+        
+        material.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(material)
+        return material
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update material: {str(e)}"
+        )
 
-@router.delete("/{material_id}")
+@router.delete("/{material_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_material(
     material_id: int,
     db: Session = Depends(get_db),
@@ -93,17 +138,35 @@ async def delete_material(
     """Delete a material"""
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
-        raise HTTPException(status_code=404, detail="Material not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
     
-    db.delete(material)
-    db.commit()
-    return {"message": "Material deleted"}
+    try:
+        # Delete file if exists
+        if material.file_path:
+            from app.services.storage import storage_service
+            try:
+                storage_service.delete_file(material.file_path)
+            except Exception:
+                pass  # Continue even if file deletion fails
+        
+        db.delete(material)
+        db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete material: {str(e)}"
+        )
 
-@router.post("/upload")
+@router.post("/upload", response_model=MaterialResponse, status_code=status.HTTP_201_CREATED)
 async def upload_material_file(
     file: UploadFile = File(...),
-    material_type: Optional[str] = Form(None),
-    audience: Optional[str] = Form(None),
+    material_type: str = Form(...),
+    audience: str = Form(...),
     product_name: Optional[str] = Form(None),
     universe_name: str = Form(...),
     db: Session = Depends(get_db),
@@ -112,11 +175,20 @@ async def upload_material_file(
     """Upload a new material file"""
     from app.services.storage import storage_service
     
-    # Validate required fields
-    if not material_type:
-        raise HTTPException(status_code=400, detail="material_type is required")
-    if not audience:
-        raise HTTPException(status_code=400, detail="audience is required")
+    # Validate required fields using Pydantic
+    from app.schemas.material import MaterialUpload
+    try:
+        upload_data = MaterialUpload(
+            material_type=material_type,
+            audience=audience,
+            universe_name=universe_name,
+            product_name=product_name
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
     
     try:
         # Read file content
@@ -126,10 +198,19 @@ async def upload_material_file(
         # Validate file size (50MB limit)
         max_size = 50 * 1024 * 1024  # 50MB
         if file_size > max_size:
-            raise HTTPException(status_code=400, detail=f"File size exceeds maximum allowed size of 50MB")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File size exceeds maximum allowed size of 50MB"
+            )
         
-        # Validate enum values and map to database enum names
-        from app.models.material import MaterialType, MaterialAudience
+        # Validate file type
+        allowed_extensions = ['.pdf', '.pptx', '.ppt', '.docx', '.doc']
+        file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+        if file_ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}"
+            )
         
         # Map frontend values to database enum names
         material_type_mapping = {
@@ -144,30 +225,19 @@ async def upload_material_file(
         audience_mapping = {
             'internal': 'INTERNAL',
             'customer_facing': 'CUSTOMER_FACING',
-            'shared_asset': 'BOTH',  # Assuming shared_asset maps to BOTH
+            'shared_asset': 'BOTH',
         }
         
-        # Validate input values
-        try:
-            material_type_enum = MaterialType(material_type)
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid material_type: {material_type}. Must be one of: {[e.value for e in MaterialType]}")
-        
-        try:
-            audience_enum = MaterialAudience(audience)
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid audience: {audience}. Must be one of: {[e.value for e in MaterialAudience]}")
-        
-        # Get database enum names
         db_material_type = material_type_mapping.get(material_type)
         db_audience = audience_mapping.get(audience)
         
-        if not db_material_type:
-            raise HTTPException(status_code=400, detail=f"Unsupported material_type: {material_type}")
-        if not db_audience:
-            raise HTTPException(status_code=400, detail=f"Unsupported audience: {audience}")
+        if not db_material_type or not db_audience:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid material_type or audience"
+            )
         
-        # Get folder path (use original values for folder structure)
+        # Get folder path
         folder_path = storage_service.get_folder_path(
             material_type=material_type,
             audience=audience,
@@ -182,8 +252,7 @@ async def upload_material_file(
             folder_path=folder_path
         )
         
-        # Create material record - use database enum names
-        # Insert using raw SQL to properly cast enum values
+        # Create material record using raw SQL for enum casting
         from sqlalchemy import text
         
         result = db.execute(
@@ -213,60 +282,16 @@ async def upload_material_file(
         
         # Fetch the created material
         material = db.query(Material).filter(Material.id == material_id).first()
-        
         return material
+        
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        error_detail = str(e)
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to upload file: {error_detail}")
-
-@router.post("/{material_id}/upload")
-async def upload_material_file_update(
-    material_id: int,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Update file for existing material"""
-    from app.services.storage import storage_service
-    
-    material = db.query(Material).filter(Material.id == material_id).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="Material not found")
-    
-    # Delete old file if exists
-    if material.file_path and storage_service.file_exists(material.file_path):
-        storage_service.delete_file(material.file_path)
-    
-    # Get folder path
-    folder_path = storage_service.get_folder_path(
-        material_type=material.material_type,
-        audience=material.audience,
-        product_name=material.product_name,
-        universe_name=material.universe_name
-    )
-    
-    # Read and save new file
-    file_content = await file.read()
-    relative_path = storage_service.save_file(
-        file_content=file_content,
-        file_name=file.filename,
-        folder_path=folder_path
-    )
-    
-    # Update material
-    material.file_path = relative_path
-    material.file_name = file.filename
-    material.file_format = file.filename.split('.')[-1] if '.' in file.filename else None
-    material.file_size = len(file_content)
-    
-    db.commit()
-    db.refresh(material)
-    
-    return material
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload file: {str(e)}"
+        )
 
 @router.get("/{material_id}/download")
 async def download_material_file(
@@ -277,36 +302,30 @@ async def download_material_file(
     """Download a material file"""
     from fastapi.responses import FileResponse
     from app.services.storage import storage_service
+    from pathlib import Path
     
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
-        raise HTTPException(status_code=404, detail="Material not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+    
+    if not material.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not available for this material"
+        )
     
     file_path = storage_service.get_file_path(material.file_path)
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on server"
+        )
     
     return FileResponse(
         path=str(file_path),
-        filename=material.file_name,
+        filename=material.file_name or material.name,
         media_type='application/octet-stream'
     )
-
-@router.get("/{material_id}/health")
-async def get_material_health(
-    material_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get material health metrics"""
-    material = db.query(Material).filter(Material.id == material_id).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="Material not found")
-    
-    return {
-        "material_id": material.id,
-        "health_score": material.health_score,
-        "freshness": material.last_updated,
-        "completeness": material.completeness_score,
-        "usage": material.usage_count
-    }

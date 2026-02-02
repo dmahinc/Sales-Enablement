@@ -10,24 +10,30 @@ class Persona(BaseModel):
     __tablename__ = "personas"
     
     # Basic Information
-    name = Column(String(255), nullable=False, unique=True, index=True)
-    display_name = Column(String(255), nullable=False)
+    name = Column(String(100), nullable=False, unique=True, index=True)
     
-    # Characteristics
-    characteristics = Column(Text)  # Description of persona characteristics
-    pain_points = Column(Text)  # JSON array or text
-    buying_behavior = Column(Text)  # Description of buying behavior
-    messaging_preferences = Column(Text)  # What messaging resonates
+    # Persona Details (matching Product Brief and frontend)
+    role = Column(String(100))  # Job title/role
+    description = Column(Text)  # Background information
+    goals = Column(Text)  # What they're trying to achieve
+    challenges = Column(Text)  # Pain points they face
+    preferred_content = Column(Text)  # Types of content they prefer
     
-    # Segment Connection
+    # Legacy fields (kept for backward compatibility, can be removed later)
+    display_name = Column(String(255))  # Deprecated: use name instead
+    characteristics = Column(Text)  # Deprecated: use description instead
+    pain_points = Column(Text)  # Deprecated: use challenges instead
+    buying_behavior = Column(Text)  # Deprecated
+    messaging_preferences = Column(Text)  # Deprecated: use preferred_content instead
+    
+    # Segment Connection (optional)
     segment_id = Column(Integer, ForeignKey("segments.id"))
     segment = relationship("Segment", back_populates="personas")
     
     # Metadata
-    description = Column(Text)
     version = Column(String(50), default="1.0")
     
-    # Governance
+    # Governance (optional)
     created_by_id = Column(Integer, ForeignKey("users.id"))
     approved_by_ids = Column(JSON)  # Array of user IDs who approved
     approval_count = Column(Integer, default=0)
