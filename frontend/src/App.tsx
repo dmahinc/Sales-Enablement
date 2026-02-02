@@ -8,6 +8,8 @@ import Segments from './pages/Segments'
 import HealthDashboard from './pages/HealthDashboard'
 import Discovery from './pages/Discovery'
 import UsageAnalytics from './pages/UsageAnalytics'
+import Tracks from './pages/Tracks'
+import TrackDetail from './pages/TrackDetail'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
@@ -44,8 +46,10 @@ function AppRoutes() {
         <Route path="personas" element={<Personas />} />
         <Route path="segments" element={<Segments />} />
         <Route path="health" element={<HealthDashboard />} />
-        <Route path="discovery" element={<Discovery />} />
         <Route path="analytics" element={<UsageAnalytics />} />
+        <Route path="tracks" element={<Tracks />} />
+        <Route path="tracks/:id" element={<TrackDetail />} />
+        <Route path="discovery" element={<Discovery />} />
       </Route>
     </Routes>
   )

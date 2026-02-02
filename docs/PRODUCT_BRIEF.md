@@ -86,6 +86,7 @@ The **Sales Enablement Platform** is an internal tool designed to centralize, or
 | **Segments Library** | Define and manage market segments | P0 |
 | **Content Discovery** | Search materials by keywords, tags, filters | P0 |
 | **Health Dashboard** | Track content status (draft, review, published, archived) | P1 |
+| **Sales Enablement Tracks** | Create learning paths/syllabi for use cases or business stories | P1 |
 | **User Authentication** | Secure login with role-based access | P0 |
 | **File Storage** | Store and serve uploaded files (PDF, PPTX, DOCX) | P0 |
 
