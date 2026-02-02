@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users } from 'lucide-react'
+import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen } from 'lucide-react'
 import Modal from '../components/Modal'
 import MaterialForm from '../components/MaterialForm'
 import FileUploadModal from '../components/FileUploadModal'
 
 const UNIVERSES = [
-  { id: 'all', name: 'All Materials', icon: FileText },
-  { id: 'Public Cloud', name: 'Public Cloud', icon: Cloud },
-  { id: 'Private Cloud', name: 'Private Cloud', icon: Server },
-  { id: 'Bare Metal', name: 'Bare Metal', icon: HardDrive },
-  { id: 'Hosting & Collaboration', name: 'Hosting & Collaboration', icon: Users },
+  { id: 'all', name: 'All Materials', icon: FolderOpen, color: 'text-slate-500' },
+  { id: 'Public Cloud', name: 'Public Cloud', icon: Cloud, color: 'text-primary-500' },
+  { id: 'Private Cloud', name: 'Private Cloud', icon: Server, color: 'text-violet-500' },
+  { id: 'Bare Metal', name: 'Bare Metal', icon: HardDrive, color: 'text-amber-500' },
+  { id: 'Hosting & Collaboration', name: 'Hosting & Collaboration', icon: Users, color: 'text-emerald-500' },
 ]
 
 export default function Materials() {
@@ -37,13 +37,10 @@ export default function Materials() {
   })
 
   const filteredMaterials = materials?.filter((m: any) => {
-    // Filter by universe
     if (selectedUniverse !== 'all') {
       if (!m.universe_name || m.universe_name !== selectedUniverse) return false
     }
-    // Filter by type
     if (filterType && m.material_type !== filterType) return false
-    // Filter by status
     if (filterStatus && m.status !== filterStatus) return false
     return true
   }) || []
@@ -72,16 +69,21 @@ export default function Materials() {
   }
 
   if (isLoading) {
-    return <div className="text-center py-12">Loading materials...</div>
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
+        <span className="ml-3 text-slate-500">Loading materials...</span>
+      </div>
+    )
   }
 
   return (
-    <div className="flex -mx-6 sm:-mx-6 lg:-mx-8 -my-6 min-h-[calc(100vh-8rem)]">
+    <div className="flex -mx-4 sm:-mx-6 lg:-mx-8 -my-6 min-h-[calc(100vh-8rem)]">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex-shrink-0">
-        <div className="p-4">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-            Universes
+      <div className="w-64 sidebar-ovh flex-shrink-0">
+        <div className="p-6">
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+            Product Universes
           </h2>
           <nav className="space-y-1">
             {UNIVERSES.map((universe) => {
@@ -95,20 +97,20 @@ export default function Materials() {
                 <button
                   key={universe.id}
                   onClick={() => setSelectedUniverse(universe.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500 -ml-1 pl-5'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-primary-600'
                   }`}
                 >
                   <div className="flex items-center">
-                    <Icon className={`h-5 w-5 mr-3 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <Icon className={`h-5 w-5 mr-3 ${isActive ? 'text-primary-500' : universe.color}`} />
                     <span>{universe.name}</span>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  <span className={`text-xs px-2 py-1 rounded-full ${
                     isActive
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-600'
+                      ? 'bg-primary-100 text-primary-600'
+                      : 'bg-slate-100 text-slate-500'
                   }`}>
                     {count}
                   </span>
@@ -120,12 +122,13 @@ export default function Materials() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 sm:px-6 lg:px-8 py-6">
-          <div className="sm:flex sm:items-center sm:justify-between">
+      <div className="flex-1 overflow-y-auto bg-slate-50">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Materials</h1>
-              <p className="mt-2 text-sm text-gray-700">
+              <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
+              <p className="mt-1 text-slate-500">
                 {selectedUniverse === 'all' 
                   ? 'Manage your sales enablement materials'
                   : `Materials in ${UNIVERSES.find(u => u.id === selectedUniverse)?.name}`
@@ -135,14 +138,14 @@ export default function Materials() {
             <div className="mt-4 sm:mt-0 flex space-x-3">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                className="btn-ovh-primary"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Material
               </button>
               <button
                 onClick={() => setIsUploadModalOpen(true)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                className="btn-ovh-secondary"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 Upload File
@@ -151,13 +154,16 @@ export default function Materials() {
           </div>
 
           {/* Filters */}
-          <div className="mt-6 flex space-x-4">
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-gray-400" />
+          <div className="card-ovh p-4 mb-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Filter className="h-4 w-4 text-slate-400" />
+                <span className="text-sm font-medium text-slate-600">Filters:</span>
+              </div>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                className="input-ovh w-auto"
               >
                 <option value="">All Types</option>
                 <option value="product_brief">Product Brief</option>
@@ -166,55 +172,68 @@ export default function Materials() {
                 <option value="sales_deck">Sales Deck</option>
                 <option value="datasheet">Datasheet</option>
               </select>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="input-ovh w-auto"
+              >
+                <option value="">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="review">Review</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+              {(filterType || filterStatus) && (
+                <button
+                  onClick={() => { setFilterType(''); setFilterStatus(''); }}
+                  className="text-sm text-primary-500 hover:text-primary-600"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            >
-              <option value="">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="review">Review</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
           </div>
 
-          <div className="mt-8">
-        {filteredMaterials.length > 0 ? (
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <ul className="divide-y divide-gray-200">
-              {filteredMaterials.map((material: any) => (
-                <li key={material.id} className="hover:bg-gray-50">
-                  <div className="px-4 py-4 sm:px-6">
+          {/* Materials List */}
+          {filteredMaterials.length > 0 ? (
+            <div className="card-ovh overflow-hidden">
+              <div className="divide-y divide-slate-100">
+                {filteredMaterials.map((material: any) => (
+                  <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center flex-1">
-                        <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{material.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {material.material_type} • {material.product_name || 'N/A'} • {material.universe_name || 'N/A'}
+                      <div className="flex items-center flex-1 min-w-0">
+                        <div className="bg-primary-50 p-2 rounded-lg mr-4">
+                          <FileText className="h-5 w-5 text-primary-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">{material.name}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            <span className="inline-flex items-center">
+                              {material.material_type?.replace(/_/g, ' ')} 
+                              <span className="mx-2">•</span> 
+                              {material.product_name || 'No Product'} 
+                              <span className="mx-2">•</span> 
+                              {material.universe_name || 'No Universe'}
+                            </span>
                           </p>
                           {material.description && (
-                            <p className="mt-1 text-sm text-gray-600 line-clamp-2">{material.description}</p>
+                            <p className="mt-1 text-sm text-slate-600 line-clamp-1">{material.description}</p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          material.status === 'published' 
-                            ? 'bg-green-100 text-green-800' 
-                            : material.status === 'review'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-800'
+                      <div className="flex items-center space-x-4 ml-4">
+                        <span className={`badge-ovh ${
+                          material.status === 'published' ? 'badge-ovh-success' :
+                          material.status === 'review' ? 'badge-ovh-warning' :
+                          'badge-ovh-gray'
                         }`}>
                           {material.status}
                         </span>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           {material.file_path && (
                             <button
                               onClick={() => handleDownload(material)}
-                              className="text-gray-400 hover:text-gray-600"
+                              className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                               title="Download"
                             >
                               <Download className="h-4 w-4" />
@@ -222,14 +241,14 @@ export default function Materials() {
                           )}
                           <button
                             onClick={() => setEditingMaterial(material)}
-                            className="text-gray-400 hover:text-blue-600"
+                            className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                             title="Edit"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(material.id)}
-                            className="text-gray-400 hover:text-red-600"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                             title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -238,54 +257,56 @@ export default function Materials() {
                       </div>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
-            <FileText className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No materials</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a material.</p>
-            <div className="mt-6">
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Material
-              </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Create Modal */}
-      <Modal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Create Material"
-        size="lg"
-      >
-        <MaterialForm onClose={() => setIsCreateModalOpen(false)} />
-      </Modal>
-
-      {/* Edit Modal */}
-      <Modal
-        isOpen={!!editingMaterial}
-        onClose={() => setEditingMaterial(null)}
-        title="Edit Material"
-        size="lg"
-      >
-        <MaterialForm material={editingMaterial} onClose={() => setEditingMaterial(null)} />
-      </Modal>
-
-          {/* File Upload Modal */}
-          <FileUploadModal
-            isOpen={isUploadModalOpen}
-            onClose={() => setIsUploadModalOpen(false)}
-          />
+          ) : (
+            <div className="card-ovh p-12 text-center">
+              <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText className="h-8 w-8 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-medium text-slate-900">No materials found</h3>
+              <p className="mt-2 text-sm text-slate-500">
+                {selectedUniverse !== 'all' 
+                  ? `No materials in ${UNIVERSES.find(u => u.id === selectedUniverse)?.name}` 
+                  : 'Get started by creating your first material'}
+              </p>
+              <div className="mt-6 flex justify-center space-x-3">
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="btn-ovh-primary"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Material
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Modals */}
+        <Modal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          title="Create Material"
+          size="lg"
+        >
+          <MaterialForm onClose={() => setIsCreateModalOpen(false)} />
+        </Modal>
+
+        <Modal
+          isOpen={!!editingMaterial}
+          onClose={() => setEditingMaterial(null)}
+          title="Edit Material"
+          size="lg"
+        >
+          <MaterialForm material={editingMaterial} onClose={() => setEditingMaterial(null)} />
+        </Modal>
+
+        <FileUploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+        />
       </div>
     </div>
   )

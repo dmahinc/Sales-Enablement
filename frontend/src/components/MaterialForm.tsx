@@ -76,26 +76,27 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Name *</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Name *</label>
         <input
           type="text"
           required
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          className="input-ovh"
+          placeholder="Enter material name"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Material Type *</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Material Type *</label>
           <select
             required
             value={formData.material_type}
             onChange={(e) => setFormData({ ...formData, material_type: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="input-ovh"
           >
             <option value="product_brief">Product Brief</option>
             <option value="sales_enablement_deck">Sales Enablement Deck</option>
@@ -107,12 +108,12 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Audience *</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Audience *</label>
           <select
             required
             value={formData.audience}
             onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="input-ovh"
           >
             <option value="internal">Internal</option>
             <option value="customer_facing">Customer Facing</option>
@@ -123,32 +124,38 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Product Name</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Product Name</label>
           <input
             type="text"
             value={formData.product_name}
             onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            className="input-ovh"
+            placeholder="e.g., Public Cloud Compute"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Universe Name</label>
-          <input
-            type="text"
+          <label className="block text-sm font-medium text-slate-700 mb-2">Universe</label>
+          <select
             value={formData.universe_name}
             onChange={(e) => setFormData({ ...formData, universe_name: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          />
+            className="input-ovh"
+          >
+            <option value="">Select Universe</option>
+            <option value="Public Cloud">Public Cloud</option>
+            <option value="Private Cloud">Private Cloud</option>
+            <option value="Bare Metal">Bare Metal</option>
+            <option value="Hosting & Collaboration">Hosting & Collaboration</option>
+          </select>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Status</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
         <select
           value={formData.status}
           onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          className="input-ovh"
         >
           <option value="draft">Draft</option>
           <option value="review">Review</option>
@@ -158,71 +165,80 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Description</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
         <textarea
           rows={3}
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          className="input-ovh"
+          placeholder="Brief description of the material"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
-        <input
-          type="text"
-          value={formData.tags}
-          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-          placeholder="cloud, compute, storage"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Tags</label>
+          <input
+            type="text"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            placeholder="cloud, compute, storage"
+            className="input-ovh"
+          />
+          <p className="mt-1 text-xs text-slate-400">Comma-separated</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Keywords</label>
+          <input
+            type="text"
+            value={formData.keywords}
+            onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
+            placeholder="scalability, performance"
+            className="input-ovh"
+          />
+          <p className="mt-1 text-xs text-slate-400">Comma-separated</p>
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Keywords (comma-separated)</label>
-        <input
-          type="text"
-          value={formData.keywords}
-          onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
-          placeholder="scalability, performance, security"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Use Cases</label>
+          <input
+            type="text"
+            value={formData.use_cases}
+            onChange={(e) => setFormData({ ...formData, use_cases: e.target.value })}
+            placeholder="disaster recovery, backup"
+            className="input-ovh"
+          />
+          <p className="mt-1 text-xs text-slate-400">Comma-separated</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Pain Points</label>
+          <input
+            type="text"
+            value={formData.pain_points}
+            onChange={(e) => setFormData({ ...formData, pain_points: e.target.value })}
+            placeholder="cost optimization, vendor lock-in"
+            className="input-ovh"
+          />
+          <p className="mt-1 text-xs text-slate-400">Comma-separated</p>
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Use Cases (comma-separated)</label>
-        <input
-          type="text"
-          value={formData.use_cases}
-          onChange={(e) => setFormData({ ...formData, use_cases: e.target.value })}
-          placeholder="disaster recovery, backup, modernization"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Pain Points (comma-separated)</label>
-        <input
-          type="text"
-          value={formData.pain_points}
-          onChange={(e) => setFormData({ ...formData, pain_points: e.target.value })}
-          placeholder="cost optimization, vendor lock-in, compliance"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4">
+      <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          className="btn-ovh-secondary"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={createMutation.isPending || updateMutation.isPending}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          className="btn-ovh-primary disabled:opacity-50"
         >
           {createMutation.isPending || updateMutation.isPending ? 'Saving...' : material ? 'Update' : 'Create'}
         </button>

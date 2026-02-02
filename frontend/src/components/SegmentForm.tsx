@@ -10,13 +10,13 @@ interface SegmentFormProps {
 export default function SegmentForm({ segment, onClose }: SegmentFormProps) {
   const [formData, setFormData] = useState({
     name: '',
-    display_name: '',
-    characteristics: '',
-    firmographics: '',
-    technographics: '',
-    buying_behavior: '',
+    description: '',
+    industry: '',
+    company_size: '',
+    region: '',
+    key_drivers: '',
     pain_points: '',
-    messaging_preferences: '',
+    buying_criteria: '',
   })
 
   const queryClient = useQueryClient()
@@ -25,13 +25,13 @@ export default function SegmentForm({ segment, onClose }: SegmentFormProps) {
     if (segment) {
       setFormData({
         name: segment.name || '',
-        display_name: segment.display_name || '',
-        characteristics: segment.characteristics || '',
-        firmographics: segment.firmographics || '',
-        technographics: segment.technographics || '',
-        buying_behavior: segment.buying_behavior || '',
+        description: segment.description || '',
+        industry: segment.industry || '',
+        company_size: segment.company_size || '',
+        region: segment.region || '',
+        key_drivers: segment.key_drivers || '',
         pain_points: segment.pain_points || '',
-        messaging_preferences: segment.messaging_preferences || '',
+        buying_criteria: segment.buying_criteria || '',
       })
     }
   }, [segment])
@@ -62,103 +62,127 @@ export default function SegmentForm({ segment, onClose }: SegmentFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Name *</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Segment Name *</label>
         <input
           type="text"
           required
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          className="input-ovh"
+          placeholder="e.g., Enterprise Financial Services"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Display Name *</label>
-        <input
-          type="text"
-          required
-          value={formData.display_name}
-          onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Characteristics</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
         <textarea
           rows={3}
-          value={formData.characteristics}
-          onChange={(e) => setFormData({ ...formData, characteristics: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="input-ovh"
+          placeholder="Brief description of this market segment"
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Industry</label>
+          <select
+            value={formData.industry}
+            onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+            className="input-ovh"
+          >
+            <option value="">Select Industry</option>
+            <option value="Financial Services">Financial Services</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Retail">Retail</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Technology">Technology</option>
+            <option value="Public Sector">Public Sector</option>
+            <option value="Education">Education</option>
+            <option value="Media & Entertainment">Media & Entertainment</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Company Size</label>
+          <select
+            value={formData.company_size}
+            onChange={(e) => setFormData({ ...formData, company_size: e.target.value })}
+            className="input-ovh"
+          >
+            <option value="">Select Size</option>
+            <option value="Startup (1-50)">Startup (1-50)</option>
+            <option value="SMB (51-500)">SMB (51-500)</option>
+            <option value="Mid-Market (501-2000)">Mid-Market (501-2000)</option>
+            <option value="Enterprise (2000+)">Enterprise (2000+)</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Region</label>
+          <select
+            value={formData.region}
+            onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+            className="input-ovh"
+          >
+            <option value="">Select Region</option>
+            <option value="EMEA">EMEA</option>
+            <option value="Americas">Americas</option>
+            <option value="APAC">APAC</option>
+            <option value="Global">Global</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Key Business Drivers</label>
+        <textarea
+          rows={2}
+          value={formData.key_drivers}
+          onChange={(e) => setFormData({ ...formData, key_drivers: e.target.value })}
+          className="input-ovh"
+          placeholder="What drives their business decisions?"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Firmographics</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Pain Points</label>
         <textarea
-          rows={3}
-          value={formData.firmographics}
-          onChange={(e) => setFormData({ ...formData, firmographics: e.target.value })}
-          placeholder="Industry, company size, revenue..."
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Technographics</label>
-        <textarea
-          rows={3}
-          value={formData.technographics}
-          onChange={(e) => setFormData({ ...formData, technographics: e.target.value })}
-          placeholder="Tech stack, cloud adoption..."
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Buying Behavior</label>
-        <textarea
-          rows={3}
-          value={formData.buying_behavior}
-          onChange={(e) => setFormData({ ...formData, buying_behavior: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Pain Points</label>
-        <textarea
-          rows={3}
+          rows={2}
           value={formData.pain_points}
           onChange={(e) => setFormData({ ...formData, pain_points: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          className="input-ovh"
+          placeholder="What challenges do they face?"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Messaging Preferences</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Buying Criteria</label>
         <textarea
-          rows={3}
-          value={formData.messaging_preferences}
-          onChange={(e) => setFormData({ ...formData, messaging_preferences: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          rows={2}
+          value={formData.buying_criteria}
+          onChange={(e) => setFormData({ ...formData, buying_criteria: e.target.value })}
+          className="input-ovh"
+          placeholder="What factors influence their purchasing decisions?"
         />
       </div>
 
-      <div className="flex justify-end space-x-3 pt-4">
+      <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          className="btn-ovh-secondary"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={createMutation.isPending || updateMutation.isPending}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          className="btn-ovh-primary disabled:opacity-50"
         >
           {createMutation.isPending || updateMutation.isPending ? 'Saving...' : segment ? 'Update' : 'Create'}
         </button>

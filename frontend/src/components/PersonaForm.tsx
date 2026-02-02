@@ -10,11 +10,11 @@ interface PersonaFormProps {
 export default function PersonaForm({ persona, onClose }: PersonaFormProps) {
   const [formData, setFormData] = useState({
     name: '',
-    display_name: '',
-    characteristics: '',
-    pain_points: '',
-    buying_behavior: '',
-    messaging_preferences: '',
+    role: '',
+    description: '',
+    goals: '',
+    challenges: '',
+    preferred_content: '',
   })
 
   const queryClient = useQueryClient()
@@ -23,11 +23,11 @@ export default function PersonaForm({ persona, onClose }: PersonaFormProps) {
     if (persona) {
       setFormData({
         name: persona.name || '',
-        display_name: persona.display_name || '',
-        characteristics: persona.characteristics || '',
-        pain_points: persona.pain_points || '',
-        buying_behavior: persona.buying_behavior || '',
-        messaging_preferences: persona.messaging_preferences || '',
+        role: persona.role || '',
+        description: persona.description || '',
+        goals: persona.goals || '',
+        challenges: persona.challenges || '',
+        preferred_content: persona.preferred_content || '',
       })
     }
   }, [persona])
@@ -58,81 +58,88 @@ export default function PersonaForm({ persona, onClose }: PersonaFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Persona Name *</label>
+          <input
+            type="text"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            className="input-ovh"
+            placeholder="e.g., IT Decision Maker"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Role / Title</label>
+          <input
+            type="text"
+            value={formData.role}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            className="input-ovh"
+            placeholder="e.g., CTO, IT Director"
+          />
+        </div>
+      </div>
+
       <div>
-        <label className="block text-sm font-medium text-gray-700">Name *</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+        <textarea
+          rows={3}
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="input-ovh"
+          placeholder="Brief description of this persona"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Goals & Objectives</label>
+        <textarea
+          rows={3}
+          value={formData.goals}
+          onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
+          className="input-ovh"
+          placeholder="What are they trying to achieve?"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Challenges & Pain Points</label>
+        <textarea
+          rows={3}
+          value={formData.challenges}
+          onChange={(e) => setFormData({ ...formData, challenges: e.target.value })}
+          className="input-ovh"
+          placeholder="What problems do they face?"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Preferred Content Types</label>
         <input
           type="text"
-          required
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          value={formData.preferred_content}
+          onChange={(e) => setFormData({ ...formData, preferred_content: e.target.value })}
+          className="input-ovh"
+          placeholder="e.g., Technical whitepapers, ROI calculators"
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Display Name *</label>
-        <input
-          type="text"
-          required
-          value={formData.display_name}
-          onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Characteristics</label>
-        <textarea
-          rows={3}
-          value={formData.characteristics}
-          onChange={(e) => setFormData({ ...formData, characteristics: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Pain Points</label>
-        <textarea
-          rows={3}
-          value={formData.pain_points}
-          onChange={(e) => setFormData({ ...formData, pain_points: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Buying Behavior</label>
-        <textarea
-          rows={3}
-          value={formData.buying_behavior}
-          onChange={(e) => setFormData({ ...formData, buying_behavior: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Messaging Preferences</label>
-        <textarea
-          rows={3}
-          value={formData.messaging_preferences}
-          onChange={(e) => setFormData({ ...formData, messaging_preferences: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4">
+      <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          className="btn-ovh-secondary"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={createMutation.isPending || updateMutation.isPending}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          className="btn-ovh-primary disabled:opacity-50"
         >
           {createMutation.isPending || updateMutation.isPending ? 'Saving...' : persona ? 'Update' : 'Create'}
         </button>

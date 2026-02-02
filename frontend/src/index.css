@@ -1,19 +1,221 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: #1f2937;
-  background-color: #f9fafb;
+/* OVHcloud Design System Variables */
+:root {
+  --ovh-primary: #0050d7;
+  --ovh-primary-dark: #00185e;
+  --ovh-primary-light: #007bff;
+  --ovh-secondary: #4d5693;
+  --ovh-accent: #bef1ff;
+  --ovh-white: #ffffff;
+  --ovh-black: #000000;
+  --ovh-gray-100: #f8fafc;
+  --ovh-gray-200: #e2e8f0;
+  --ovh-gray-300: #dcdcdc;
+  --ovh-gray-400: #cccccc;
+  --ovh-gray-500: #4d5693;
+  --ovh-border: #dcdcdc;
+  --ovh-shadow: 0 2px 8px rgba(0, 24, 94, 0.08);
+  --ovh-radius: 8px;
 }
 
+/* Base Styles */
+html {
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--ovh-gray-100);
+  color: var(--ovh-primary-dark);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--ovh-primary-dark);
+  font-weight: 600;
+}
+
+/* OVHcloud Component Classes */
+@layer components {
+  /* Buttons */
+  .btn-ovh-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white rounded-md transition-all duration-200;
+    background-color: var(--ovh-primary);
+    border: 2px solid var(--ovh-primary);
+  }
+  
+  .btn-ovh-primary:hover {
+    background-color: var(--ovh-primary-dark);
+    border-color: var(--ovh-primary-dark);
+  }
+  
+  .btn-ovh-primary:focus {
+    @apply outline-none ring-2 ring-offset-2;
+    ring-color: var(--ovh-primary);
+  }
+  
+  .btn-ovh-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-all duration-200;
+    background-color: var(--ovh-white);
+    color: var(--ovh-primary);
+    border: 2px solid var(--ovh-primary);
+  }
+  
+  .btn-ovh-secondary:hover {
+    background-color: var(--ovh-accent);
+  }
+  
+  /* Cards */
+  .card-ovh {
+    @apply bg-white rounded-lg;
+    box-shadow: var(--ovh-shadow);
+    border: 1px solid var(--ovh-border);
+  }
+  
+  /* Navigation */
+  .nav-ovh {
+    @apply bg-white;
+    box-shadow: var(--ovh-shadow);
+    border-bottom: 1px solid var(--ovh-border);
+  }
+  
+  .nav-link-ovh {
+    @apply px-3 py-2 text-sm font-medium transition-colors duration-200;
+    color: var(--ovh-secondary);
+  }
+  
+  .nav-link-ovh:hover {
+    color: var(--ovh-primary);
+  }
+  
+  .nav-link-ovh.active {
+    color: var(--ovh-primary);
+    border-bottom: 2px solid var(--ovh-primary);
+  }
+  
+  /* Inputs */
+  .input-ovh {
+    @apply w-full px-3 py-2 text-sm rounded-md transition-all duration-200;
+    border: 1px solid var(--ovh-border);
+    color: var(--ovh-primary-dark);
+  }
+  
+  .input-ovh:focus {
+    @apply outline-none ring-2;
+    border-color: var(--ovh-primary);
+    ring-color: rgba(0, 80, 215, 0.2);
+  }
+  
+  .input-ovh::placeholder {
+    color: var(--ovh-gray-400);
+  }
+  
+  /* Sidebar */
+  .sidebar-ovh {
+    @apply bg-white;
+    border-right: 1px solid var(--ovh-border);
+  }
+  
+  .sidebar-item-ovh {
+    @apply flex items-center px-4 py-3 text-sm font-medium rounded-md transition-all duration-200;
+    color: var(--ovh-secondary);
+  }
+  
+  .sidebar-item-ovh:hover {
+    background-color: var(--ovh-accent);
+    color: var(--ovh-primary);
+  }
+  
+  .sidebar-item-ovh.active {
+    background-color: var(--ovh-accent);
+    color: var(--ovh-primary);
+    border-left: 3px solid var(--ovh-primary);
+  }
+  
+  /* Badge */
+  .badge-ovh {
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
+  }
+  
+  .badge-ovh-primary {
+    background-color: var(--ovh-accent);
+    color: var(--ovh-primary);
+  }
+  
+  .badge-ovh-success {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .badge-ovh-warning {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-ovh-gray {
+    @apply bg-gray-100 text-gray-600;
+  }
+  
+  /* Table */
+  .table-ovh {
+    @apply w-full;
+  }
+  
+  .table-ovh th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider;
+    background-color: var(--ovh-gray-100);
+    color: var(--ovh-secondary);
+    border-bottom: 1px solid var(--ovh-border);
+  }
+  
+  .table-ovh td {
+    @apply px-4 py-4;
+    border-bottom: 1px solid var(--ovh-border);
+    color: var(--ovh-primary-dark);
+  }
+  
+  .table-ovh tr:hover td {
+    background-color: var(--ovh-gray-100);
+  }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--ovh-gray-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ovh-gray-400);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ovh-secondary);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--ovh-accent);
+  color: var(--ovh-primary-dark);
+}
+
+/* Code */
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  background-color: var(--ovh-gray-100);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.875em;
 }

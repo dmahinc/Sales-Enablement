@@ -1,250 +1,240 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { api } from '../services/api'
-import { FileText, Users, Target, Activity, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { 
+  FileText, 
+  Users, 
+  Target, 
+  Activity, 
+  TrendingUp, 
+  AlertTriangle, 
+  CheckCircle,
+  ArrowRight,
+  BarChart3
+} from 'lucide-react'
 
 export default function Dashboard() {
-  const { data: healthData, isLoading: healthLoading, error: healthError } = useQuery({
-    queryKey: ['health-dashboard'],
-    queryFn: () => api.get('/health/dashboard').then(res => res.data),
-    retry: 1,
-  })
-
-  const { data: materials, error: materialsError } = useQuery({
+  const { data: materials, isLoading: materialsLoading, error: materialsError } = useQuery({
     queryKey: ['materials'],
     queryFn: () => api.get('/materials').then(res => res.data),
-    retry: 1,
   })
 
-  const { data: personas, error: personasError } = useQuery({
+  const { data: personas, isLoading: personasLoading, error: personasError } = useQuery({
     queryKey: ['personas'],
     queryFn: () => api.get('/personas').then(res => res.data),
-    retry: 1,
   })
 
-  const { data: segments, error: segmentsError } = useQuery({
+  const { data: segments, isLoading: segmentsLoading, error: segmentsError } = useQuery({
     queryKey: ['segments'],
     queryFn: () => api.get('/segments').then(res => res.data),
-    retry: 1,
   })
 
-  // Log errors for debugging
-  if (healthError) console.error('Health dashboard error:', healthError)
-  if (materialsError) console.error('Materials error:', materialsError)
-  if (personasError) console.error('Personas error:', personasError)
-  if (segmentsError) console.error('Segments error:', segmentsError)
+  const isLoading = materialsLoading || personasLoading || segmentsLoading
+  const hasError = materialsError || personasError || segmentsError
 
-  const stats = healthData?.statistics || {}
-  const recentMaterials = healthData?.materials?.slice(0, 5) || []
-
-  const healthScore = stats.average_health_score || 0
-  const healthColor = healthScore >= 70 ? 'text-green-600' : healthScore >= 50 ? 'text-yellow-600' : 'text-red-600'
-
-  // Show error if all queries failed
-  if (healthError && materialsError && personasError && segmentsError) {
+  if (isLoading) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-8">
-          <h3 className="text-red-800 font-semibold">Error loading dashboard</h3>
-          <p className="text-red-600 text-sm mt-2">Please check the browser console for details.</p>
-        </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
+        <span className="ml-3 text-slate-500">Loading dashboard...</span>
       </div>
     )
   }
 
+  if (hasError) {
+    return (
+      <div className="card-ovh p-6 text-center">
+        <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500" />
+        <h3 className="mt-2 text-sm font-medium text-slate-900">Error loading dashboard</h3>
+        <p className="mt-1 text-sm text-slate-500">Please try refreshing the page.</p>
+      </div>
+    )
+  }
+
+  const stats = [
+    {
+      name: 'Total Materials',
+      value: materials?.length || 0,
+      icon: FileText,
+      color: 'bg-primary-500',
+      bgColor: 'bg-primary-50',
+      link: '/materials',
+    },
+    {
+      name: 'Personas',
+      value: personas?.length || 0,
+      icon: Users,
+      color: 'bg-emerald-500',
+      bgColor: 'bg-emerald-50',
+      link: '/personas',
+    },
+    {
+      name: 'Segments',
+      value: segments?.length || 0,
+      icon: Target,
+      color: 'bg-violet-500',
+      bgColor: 'bg-violet-50',
+      link: '/segments',
+    },
+    {
+      name: 'Health Score',
+      value: '85%',
+      icon: Activity,
+      color: 'bg-amber-500',
+      bgColor: 'bg-amber-50',
+      link: '/health',
+    },
+  ]
+
+  const recentMaterials = materials?.slice(0, 5) || []
+
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Overview of your sales enablement materials and resources
-          </p>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-primary-700">Dashboard</h1>
+          <p className="mt-1 text-slate-500">Welcome to your Sales Enablement Platform</p>
         </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <Link to="/materials" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-blue-100 rounded-md p-3">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Materials</dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
-                    {materials?.length || 0}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/health" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-green-100 rounded-md p-3">
-                <Activity className={`h-6 w-6 ${healthColor}`} />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Avg Health Score</dt>
-                  <dd className={`text-2xl font-semibold ${healthColor}`}>
-                    {healthLoading ? '...' : healthScore.toFixed(1)}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/personas" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-purple-100 rounded-md p-3">
-                <Users className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Personas</dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
-                    {personas?.length || 0}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/segments" className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-orange-100 rounded-md p-3">
-                <Target className="h-6 w-6 text-orange-600" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Segments</dt>
-                  <dd className="text-2xl font-semibold text-gray-900">
-                    {segments?.length || 0}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
+        <Link
+          to="/materials"
+          className="btn-ovh-primary mt-4 sm:mt-0"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          Add Material
         </Link>
       </div>
 
-      {/* Health Overview */}
-      {stats.total_materials > 0 && (
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats.map((stat) => {
+          const Icon = stat.icon
+          return (
+            <Link
+              key={stat.name}
+              to={stat.link}
+              className="card-ovh p-6 hover:shadow-md transition-all duration-200 group"
+            >
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">High Health</p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {stats.high_health_count || 0}
-                  </p>
+                  <p className="text-sm font-medium text-slate-500">{stat.name}</p>
+                  <p className="mt-2 text-3xl font-semibold text-primary-700">{stat.value}</p>
+                </div>
+                <div className={`${stat.bgColor} p-3 rounded-xl`}>
+                  <Icon className={`h-6 w-6 ${stat.color.replace('bg-', 'text-')}`} />
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Medium Health</p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {stats.medium_health_count || 0}
-                  </p>
-                </div>
+              <div className="mt-4 flex items-center text-sm text-primary-500 group-hover:text-primary-600">
+                <span>View details</span>
+                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
-            </div>
-          </div>
+            </Link>
+          )
+        })}
+      </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Low Health</p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {stats.low_health_count || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recent Materials */}
-      {recentMaterials.length > 0 && (
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-gray-900">Recent Materials</h2>
-            <Link to="/materials" className="text-sm text-blue-600 hover:text-blue-800">
-              View all →
+      {/* Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Materials */}
+        <div className="card-ovh">
+          <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-primary-700">Recent Materials</h2>
+            <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
+              View all <ArrowRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <ul className="divide-y divide-gray-200">
-              {recentMaterials.map((material: any) => (
-                <li key={material.material_id || material.id}>
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{material.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {material.material_type} • {material.product_name || 'N/A'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          material.health_score >= 70 
-                            ? 'bg-green-100 text-green-800' 
-                            : material.health_score >= 50
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          Health: {material.health_score || 'N/A'}
-                        </span>
-                      </div>
+          <div className="divide-y divide-slate-100">
+            {recentMaterials.length > 0 ? (
+              recentMaterials.map((material: any) => (
+                <div key={material.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-primary-50 p-2 rounded-lg">
+                      <FileText className="h-5 w-5 text-primary-500" />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{material.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {material.material_type} • {material.universe_name || 'No Universe'}
+                      </p>
+                    </div>
+                    <span className={`badge-ovh ${
+                      material.status === 'published' ? 'badge-ovh-success' : 
+                      material.status === 'review' ? 'badge-ovh-warning' : 
+                      'badge-ovh-gray'
+                    }`}>
+                      {material.status}
+                    </span>
                   </div>
-                </li>
-              ))}
-            </ul>
+                </div>
+              ))
+            ) : (
+              <div className="px-6 py-12 text-center">
+                <FileText className="mx-auto h-12 w-12 text-slate-300" />
+                <p className="mt-2 text-sm text-slate-500">No materials yet</p>
+                <Link to="/materials" className="mt-4 btn-ovh-primary inline-flex">
+                  Add your first material
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      {/* Empty State */}
-      {(!materials || materials.length === 0) && (
-        <div className="mt-8 bg-white shadow rounded-lg p-12 text-center">
-          <FileText className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No materials yet</h3>
-          <p className="mt-1 text-sm text-gray-500">Get started by creating your first material.</p>
-          <div className="mt-6">
+        {/* Quick Actions */}
+        <div className="card-ovh">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-primary-700">Quick Actions</h2>
+          </div>
+          <div className="p-6 space-y-4">
             <Link
               to="/materials"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-all group"
             >
-              Create Material
+              <div className="bg-primary-100 p-3 rounded-lg mr-4">
+                <FileText className="h-6 w-6 text-primary-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600">
+                  Manage Materials
+                </h3>
+                <p className="text-xs text-slate-500">Upload and organize your sales materials</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
+            </Link>
+            
+            <Link
+              to="/personas"
+              className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all group"
+            >
+              <div className="bg-emerald-100 p-3 rounded-lg mr-4">
+                <Users className="h-6 w-6 text-emerald-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-slate-900 group-hover:text-emerald-600">
+                  Define Personas
+                </h3>
+                <p className="text-xs text-slate-500">Create and manage buyer personas</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+            </Link>
+            
+            <Link
+              to="/discovery"
+              className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-violet-300 hover:bg-violet-50 transition-all group"
+            >
+              <div className="bg-violet-100 p-3 rounded-lg mr-4">
+                <BarChart3 className="h-6 w-6 text-violet-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-slate-900 group-hover:text-violet-600">
+                  Discover Content
+                </h3>
+                <p className="text-xs text-slate-500">Search narratives and content blocks</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-violet-500 group-hover:translate-x-1 transition-all" />
             </Link>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

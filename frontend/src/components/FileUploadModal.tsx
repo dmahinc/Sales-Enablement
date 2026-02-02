@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Upload } from 'lucide-react'
+import { Upload, X, FileText, CheckCircle } from 'lucide-react'
 
 const UNIVERSES = [
   { id: 'Public Cloud', name: 'Public Cloud' },
@@ -21,9 +21,10 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     material_type: 'product_brief',
     audience: 'internal',
     product_name: '',
-    universe_name: 'Public Cloud', // Default to first universe
+    universe_name: 'Public Cloud',
   })
   const [uploading, setUploading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
 
   const queryClient = useQueryClient()
 
@@ -51,6 +52,25 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0])
+    }
+  }
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setFile(e.dataTransfer.files[0])
     }
   }
 
@@ -82,7 +102,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       material_type: 'product_brief',
       audience: 'internal',
       product_name: '',
-      universe_name: 'Public Cloud', // Reset to default
+      universe_name: 'Public Cloud',
     })
     setUploading(false)
     onClose()
@@ -91,60 +111,96 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div className="mt-3">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Upload Material File</h3>
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-primary-900/50 backdrop-blur-sm"
+        onClick={handleClose}
+      />
+      
+      {/* Modal */}
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-lg bg-white rounded-xl shadow-xl">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <h3 className="text-lg font-semibold text-primary-700">Upload Material</h3>
             <button
               onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
             >
-              <span className="sr-only">Close</span>
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5" />
             </button>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select File *
-              </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-blue-400 transition-colors">
-                <div className="space-y-1 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-600">
-                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                      <span>Upload a file</span>
-                      <input
-                        id="file-upload"
-                        name="file-upload"
-                        type="file"
-                        className="sr-only"
-                        onChange={handleFileChange}
-                        accept=".pdf,.pptx,.docx,.ppt,.doc"
-                      />
-                    </label>
-                    <p className="pl-1">or drag and drop</p>
+          
+          {/* Content */}
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* File Drop Zone */}
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+                dragActive 
+                  ? 'border-primary-500 bg-primary-50' 
+                  : file 
+                    ? 'border-emerald-300 bg-emerald-50' 
+                    : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50'
+              }`}
+            >
+              {file ? (
+                <div className="space-y-2">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-100 rounded-full">
+                    <CheckCircle className="w-6 h-6 text-emerald-500" />
                   </div>
-                  {file && (
-                    <p className="text-xs text-gray-500 mt-2">{file.name}</p>
-                  )}
-                  <p className="text-xs text-gray-500">PDF, PPTX, DOCX up to 50MB</p>
+                  <p className="text-sm font-medium text-slate-900">{file.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setFile(null)}
+                    className="text-sm text-primary-500 hover:text-primary-600"
+                  >
+                    Change file
+                  </button>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-50 rounded-full">
+                    <Upload className="w-6 h-6 text-primary-500" />
+                  </div>
+                  <div>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <span className="text-primary-500 font-medium hover:text-primary-600">
+                        Click to upload
+                      </span>
+                      <span className="text-slate-500"> or drag and drop</span>
+                    </label>
+                    <input
+                      id="file-upload"
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileChange}
+                      accept=".pdf,.pptx,.docx,.ppt,.doc"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400">PDF, PPTX, DOCX up to 50MB</p>
+                </div>
+              )}
             </div>
 
+            {/* Form Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Material Type *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Material Type *
+                </label>
                 <select
                   required
                   value={formData.material_type}
                   onChange={(e) => setFormData({ ...formData, material_type: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  className="input-ovh"
                 >
                   <option value="product_brief">Product Brief</option>
                   <option value="sales_enablement_deck">Sales Enablement Deck</option>
@@ -156,12 +212,14 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Audience *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Audience *
+                </label>
                 <select
                   required
                   value={formData.audience}
                   onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  className="input-ovh"
                 >
                   <option value="internal">Internal</option>
                   <option value="customer_facing">Customer Facing</option>
@@ -172,23 +230,14 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Product Name</label>
-                <input
-                  type="text"
-                  value={formData.product_name}
-                  onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Universe *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Universe *
+                </label>
                 <select
                   required
                   value={formData.universe_name}
                   onChange={(e) => setFormData({ ...formData, universe_name: e.target.value })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  className="input-ovh"
                 >
                   {UNIVERSES.map((universe) => (
                     <option key={universe.id} value={universe.id}>
@@ -197,23 +246,47 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                   ))}
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Product Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.product_name}
+                  onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
+                  className="input-ovh"
+                  placeholder="Optional"
+                />
+              </div>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Actions */}
+            <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={uploading}
-                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                className="btn-ovh-secondary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!file || uploading}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                className="btn-ovh-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {uploading ? 'Uploading...' : 'Upload'}
+                {uploading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                    Uploading...
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload
+                  </div>
+                )}
               </button>
             </div>
           </form>
