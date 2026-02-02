@@ -48,6 +48,11 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
       queryClient.invalidateQueries({ queryKey: ['materials'] })
       onClose()
     },
+    onError: (error: any) => {
+      console.error('Create error:', error)
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to create material'
+      alert(`Create failed: ${errorMessage}`)
+    },
   })
 
   const updateMutation = useMutation({
@@ -55,6 +60,11 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['materials'] })
       onClose()
+    },
+    onError: (error: any) => {
+      console.error('Update error:', error)
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to update material'
+      alert(`Update failed: ${errorMessage}`)
     },
   })
 

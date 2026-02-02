@@ -105,15 +105,57 @@ async def update_material(
         # Update only provided fields
         update_data = material_data.dict(exclude_unset=True)
         
-        # Handle list fields
+        # Map frontend enum values to database enum names
+        material_type_mapping = {
+            'product_brief': 'PRODUCT_BRIEF',
+            'sales_enablement_deck': 'PRODUCT_SALES_ENABLEMENT_DECK',
+            'product_portfolio': 'PRODUCT_PORTFOLIO_PRESENTATION',
+            'sales_deck': 'PRODUCT_SALES_DECK',
+            'datasheet': 'PRODUCT_DATASHEET',
+            'product_catalog': 'PRODUCT_CATALOG',
+        }
+        
+        audience_mapping = {
+            'internal': 'INTERNAL',
+            'customer_facing': 'CUSTOMER_FACING',
+            'shared_asset': 'BOTH',
+        }
+        
+        status_mapping = {
+            'draft': 'DRAFT',
+            'review': 'REVIEW',
+            'published': 'PUBLISHED',
+            'archived': 'ARCHIVED',
+        }
+        
+        # Convert enum values if present
+        if 'material_type' in update_data and update_data['material_type']:
+            update_data['material_type'] = material_type_mapping.get(
+                update_data['material_type'], 
+                update_data['material_type']
+            )
+        
+        if 'audience' in update_data and update_data['audience']:
+            update_data['audience'] = audience_mapping.get(
+                update_data['audience'],
+                update_data['audience']
+            )
+        
+        if 'status' in update_data and update_data['status']:
+            update_data['status'] = status_mapping.get(
+                update_data['status'],
+                update_data['status']
+            )
+        
+        # Handle list fields - convert to JSON strings
         if 'tags' in update_data and update_data['tags'] is not None:
-            update_data['tags'] = str(update_data['tags'])
+            update_data['tags'] = str(update_data['tags']) if isinstance(update_data['tags'], list) else update_data['tags']
         if 'keywords' in update_data and update_data['keywords'] is not None:
-            update_data['keywords'] = str(update_data['keywords'])
+            update_data['keywords'] = str(update_data['keywords']) if isinstance(update_data['keywords'], list) else update_data['keywords']
         if 'use_cases' in update_data and update_data['use_cases'] is not None:
-            update_data['use_cases'] = str(update_data['use_cases'])
+            update_data['use_cases'] = str(update_data['use_cases']) if isinstance(update_data['use_cases'], list) else update_data['use_cases']
         if 'pain_points' in update_data and update_data['pain_points'] is not None:
-            update_data['pain_points'] = str(update_data['pain_points'])
+            update_data['pain_points'] = str(update_data['pain_points']) if isinstance(update_data['pain_points'], list) else update_data['pain_points']
         
         for key, value in update_data.items():
             setattr(material, key, value)
