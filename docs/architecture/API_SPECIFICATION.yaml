@@ -1,0 +1,1042 @@
+openapi: 3.0.3
+info:
+  title: Sales Enablement Platform API
+  description: |
+    REST API for the OVHcloud Sales Enablement Platform.
+    
+    ## Authentication
+    All endpoints except `/api/auth/login` and `/api/auth/register` require a valid JWT token
+    in the `Authorization` header using the Bearer scheme.
+    
+    ## Base URL
+    - Development: `http://localhost:8001/api`
+    - Production: `https://sales-enablement.ovhcloud.com/api`
+    
+  version: 1.0.0
+  contact:
+    name: Sales Enablement Team
+    email: sales-enablement@ovhcloud.com
+  license:
+    name: Internal Use Only
+
+servers:
+  - url: http://localhost:8001/api
+    description: Development server
+  - url: https://sales-enablement.ovhcloud.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: Materials
+    description: Sales material management
+  - name: Personas
+    description: Buyer persona management
+  - name: Segments
+    description: Market segment management
+  - name: Health
+    description: Content health metrics
+  - name: Discovery
+    description: Content search and discovery
+
+paths:
+  # ============================================
+  # AUTHENTICATION
+  # ============================================
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account (admin only in production)
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+            example:
+              email: pmm@ovhcloud.com
+              password: securePassword123
+              full_name: Sarah Johnson
+              role: pmm
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticate user and return JWT token
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: User email address
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                token_type: bearer
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Returns the currently authenticated user's profile
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ============================================
+  # MATERIALS
+  # ============================================
+  /materials:
+    get:
+      tags:
+        - Materials
+      summary: List all materials
+      description: Returns a list of all sales materials with optional filtering
+      operationId: listMaterials
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: universe_name
+          in: query
+          description: Filter by product universe
+          schema:
+            type: string
+            enum: [Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration]
+        - name: material_type
+          in: query
+          description: Filter by material type
+          schema:
+            $ref: '#/components/schemas/MaterialType'
+        - name: audience
+          in: query
+          description: Filter by target audience
+          schema:
+            $ref: '#/components/schemas/MaterialAudience'
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            $ref: '#/components/schemas/MaterialStatus'
+      responses:
+        '200':
+          description: List of materials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Material'
+        '401':
+          description: Not authenticated
+
+    post:
+      tags:
+        - Materials
+      summary: Create a material
+      description: Create a new material record (without file upload)
+      operationId: createMaterial
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialCreate'
+      responses:
+        '201':
+          description: Material created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Material'
+        '400':
+          description: Validation error
+        '401':
+          description: Not authenticated
+
+  /materials/{id}:
+    get:
+      tags:
+        - Materials
+      summary: Get a material
+      description: Returns a single material by ID
+      operationId: getMaterial
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Material details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Material'
+        '404':
+          description: Material not found
+
+    put:
+      tags:
+        - Materials
+      summary: Update a material
+      description: Update an existing material's metadata
+      operationId: updateMaterial
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialUpdate'
+      responses:
+        '200':
+          description: Material updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Material'
+        '404':
+          description: Material not found
+
+    delete:
+      tags:
+        - Materials
+      summary: Delete a material
+      description: Delete a material and its associated file
+      operationId: deleteMaterial
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Material deleted
+        '404':
+          description: Material not found
+
+  /materials/upload:
+    post:
+      tags:
+        - Materials
+      summary: Upload a material file
+      description: Upload a file and create a material record
+      operationId: uploadMaterial
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - material_type
+                - audience
+                - universe_name
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File to upload (PDF, PPTX, DOCX)
+                material_type:
+                  $ref: '#/components/schemas/MaterialType'
+                audience:
+                  $ref: '#/components/schemas/MaterialAudience'
+                universe_name:
+                  type: string
+                  enum: [Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration]
+                product_name:
+                  type: string
+                  description: Optional product name
+      responses:
+        '201':
+          description: File uploaded and material created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Material'
+        '400':
+          description: Invalid file type or size
+        '401':
+          description: Not authenticated
+
+  /materials/{id}/download:
+    get:
+      tags:
+        - Materials
+      summary: Download a material file
+      description: Download the file associated with a material
+      operationId: downloadMaterial
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Material or file not found
+
+  # ============================================
+  # PERSONAS
+  # ============================================
+  /personas:
+    get:
+      tags:
+        - Personas
+      summary: List all personas
+      description: Returns a list of all buyer personas
+      operationId: listPersonas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of personas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Persona'
+
+    post:
+      tags:
+        - Personas
+      summary: Create a persona
+      description: Create a new buyer persona
+      operationId: createPersona
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonaCreate'
+      responses:
+        '201':
+          description: Persona created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Persona'
+
+  /personas/{id}:
+    get:
+      tags:
+        - Personas
+      summary: Get a persona
+      operationId: getPersona
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Persona details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Persona'
+        '404':
+          description: Persona not found
+
+    put:
+      tags:
+        - Personas
+      summary: Update a persona
+      operationId: updatePersona
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonaUpdate'
+      responses:
+        '200':
+          description: Persona updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Persona'
+
+    delete:
+      tags:
+        - Personas
+      summary: Delete a persona
+      operationId: deletePersona
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Persona deleted
+
+  # ============================================
+  # SEGMENTS
+  # ============================================
+  /segments:
+    get:
+      tags:
+        - Segments
+      summary: List all segments
+      description: Returns a list of all market segments
+      operationId: listSegments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of segments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Segment'
+
+    post:
+      tags:
+        - Segments
+      summary: Create a segment
+      description: Create a new market segment
+      operationId: createSegment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SegmentCreate'
+      responses:
+        '201':
+          description: Segment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Segment'
+
+  /segments/{id}:
+    get:
+      tags:
+        - Segments
+      summary: Get a segment
+      operationId: getSegment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Segment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Segment'
+        '404':
+          description: Segment not found
+
+    put:
+      tags:
+        - Segments
+      summary: Update a segment
+      operationId: updateSegment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SegmentUpdate'
+      responses:
+        '200':
+          description: Segment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Segment'
+
+    delete:
+      tags:
+        - Segments
+      summary: Delete a segment
+      operationId: deleteSegment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Segment deleted
+
+  # ============================================
+  # HEALTH
+  # ============================================
+  /health/metrics:
+    get:
+      tags:
+        - Health
+      summary: Get health metrics
+      description: Returns aggregated content health metrics
+      operationId: getHealthMetrics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Health metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthMetrics'
+
+  # ============================================
+  # DISCOVERY
+  # ============================================
+  /discovery/search:
+    get:
+      tags:
+        - Discovery
+      summary: Search content
+      description: Search materials, personas, and segments
+      operationId: searchContent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+            minLength: 2
+        - name: type
+          in: query
+          description: Content type to search
+          schema:
+            type: string
+            enum: [materials, personas, segments, all]
+            default: all
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ============================================
+    # USER SCHEMAS
+    # ============================================
+    UserCreate:
+      type: object
+      required:
+        - email
+        - password
+        - full_name
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [pmm, sales, admin]
+          default: pmm
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        role:
+          type: string
+        is_active:
+          type: boolean
+        is_superuser:
+          type: boolean
+
+    Token:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+
+    # ============================================
+    # MATERIAL SCHEMAS
+    # ============================================
+    MaterialType:
+      type: string
+      enum:
+        - product_brief
+        - sales_enablement_deck
+        - product_portfolio
+        - sales_deck
+        - datasheet
+        - product_catalog
+
+    MaterialAudience:
+      type: string
+      enum:
+        - internal
+        - customer_facing
+        - shared_asset
+
+    MaterialStatus:
+      type: string
+      enum:
+        - draft
+        - review
+        - published
+        - archived
+
+    MaterialCreate:
+      type: object
+      required:
+        - name
+        - material_type
+        - audience
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        material_type:
+          $ref: '#/components/schemas/MaterialType'
+        audience:
+          $ref: '#/components/schemas/MaterialAudience'
+        product_name:
+          type: string
+        universe_name:
+          type: string
+          enum: [Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration]
+        status:
+          $ref: '#/components/schemas/MaterialStatus'
+          default: draft
+        tags:
+          type: array
+          items:
+            type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        use_cases:
+          type: array
+          items:
+            type: string
+        pain_points:
+          type: array
+          items:
+            type: string
+
+    MaterialUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        material_type:
+          $ref: '#/components/schemas/MaterialType'
+        audience:
+          $ref: '#/components/schemas/MaterialAudience'
+        product_name:
+          type: string
+        universe_name:
+          type: string
+        status:
+          $ref: '#/components/schemas/MaterialStatus'
+        tags:
+          type: array
+          items:
+            type: string
+        keywords:
+          type: array
+          items:
+            type: string
+
+    Material:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        material_type:
+          type: string
+        audience:
+          type: string
+        product_name:
+          type: string
+        universe_name:
+          type: string
+        status:
+          type: string
+        file_path:
+          type: string
+        file_name:
+          type: string
+        file_format:
+          type: string
+        file_size:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        keywords:
+          type: array
+          items:
+            type: string
+        use_cases:
+          type: array
+          items:
+            type: string
+        pain_points:
+          type: array
+          items:
+            type: string
+        health_score:
+          type: integer
+        usage_count:
+          type: integer
+        owner_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ============================================
+    # PERSONA SCHEMAS
+    # ============================================
+    PersonaCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        role:
+          type: string
+        description:
+          type: string
+        goals:
+          type: string
+        challenges:
+          type: string
+        preferred_content:
+          type: string
+
+    PersonaUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        description:
+          type: string
+        goals:
+          type: string
+        challenges:
+          type: string
+        preferred_content:
+          type: string
+
+    Persona:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+        description:
+          type: string
+        goals:
+          type: string
+        challenges:
+          type: string
+        preferred_content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ============================================
+    # SEGMENT SCHEMAS
+    # ============================================
+    SegmentCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        industry:
+          type: string
+        company_size:
+          type: string
+        region:
+          type: string
+        key_drivers:
+          type: string
+        pain_points:
+          type: string
+        buying_criteria:
+          type: string
+
+    SegmentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        industry:
+          type: string
+        company_size:
+          type: string
+        region:
+          type: string
+        key_drivers:
+          type: string
+        pain_points:
+          type: string
+        buying_criteria:
+          type: string
+
+    Segment:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        industry:
+          type: string
+        company_size:
+          type: string
+        region:
+          type: string
+        key_drivers:
+          type: string
+        pain_points:
+          type: string
+        buying_criteria:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ============================================
+    # HEALTH SCHEMAS
+    # ============================================
+    HealthMetrics:
+      type: object
+      properties:
+        total_materials:
+          type: integer
+        by_status:
+          type: object
+          properties:
+            draft:
+              type: integer
+            review:
+              type: integer
+            published:
+              type: integer
+            archived:
+              type: integer
+        by_universe:
+          type: object
+          additionalProperties:
+            type: integer
+        overall_health_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    # ============================================
+    # SEARCH SCHEMAS
+    # ============================================
+    SearchResults:
+      type: object
+      properties:
+        materials:
+          type: array
+          items:
+            $ref: '#/components/schemas/Material'
+        personas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Persona'
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Segment'
+        total_count:
+          type: integer
+
+    # ============================================
+    # ERROR SCHEMAS
+    # ============================================
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message
