@@ -6,6 +6,7 @@ from app.models.persona import Persona
 from app.models.segment import Segment
 from app.models.content_block import ContentBlock, ContentBlockRating, ContentBlockComment, ContentBlockUsage
 from app.models.health import MaterialHealthHistory
+from app.models.usage import MaterialUsage
 from app.models.associations import material_persona, material_segment
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "ContentBlockComment",
     "ContentBlockUsage",
     "MaterialHealthHistory",
+    "MaterialUsage",
     "material_persona",
     "material_segment",
 ]

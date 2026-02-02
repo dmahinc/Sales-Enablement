@@ -35,7 +35,7 @@ async def health_check():
     return {"status": "healthy"}
 
 # Import routers
-from app.api import materials, personas, segments, auth, health, discovery
+from app.api import materials, personas, segments, auth, health, discovery, analytics
 
 # Register routers
 app.include_router(auth.router)
@@ -44,3 +44,4 @@ app.include_router(personas.router)
 app.include_router(segments.router)
 app.include_router(health.router)
 app.include_router(discovery.router)
+app.include_router(analytics.router)

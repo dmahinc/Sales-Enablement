@@ -1,7 +1,7 @@
 """
 Materials API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Response
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Response, Request
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.material import Material, MaterialType, MaterialAudience, MaterialStatus
@@ -10,7 +10,7 @@ from app.core.security import get_current_active_user
 from app.models.user import User
 from app.schemas.material import MaterialCreate, MaterialUpdate, MaterialResponse
 from app.schemas.error import ErrorResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
@@ -338,12 +338,14 @@ async def upload_material_file(
 @router.get("/{material_id}/download")
 async def download_material_file(
     material_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Download a material file"""
+    """Download a material file and track usage"""
     from fastapi.responses import FileResponse
     from app.services.storage import storage_service
+    from app.models.usage import MaterialUsage, UsageAction
     from pathlib import Path
     
     material = db.query(Material).filter(Material.id == material_id).first()
@@ -358,6 +360,29 @@ async def download_material_file(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not available for this material"
         )
+    
+    # Track usage
+    try:
+        usage_event = MaterialUsage(
+            material_id=material_id,
+            user_id=current_user.id,
+            action=UsageAction.DOWNLOAD.value,
+            used_at=datetime.utcnow(),
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        )
+        db.add(usage_event)
+        
+        # Increment usage count
+        material.usage_count = (material.usage_count or 0) + 1
+        material.last_updated = datetime.utcnow()
+        
+        db.commit()
+    except Exception as e:
+        # Log error but don't fail the download
+        import logging
+        logging.error(f"Failed to track usage: {str(e)}")
+        db.rollback()
     
     file_path = storage_service.get_file_path(material.file_path)
     if not file_path.exists():
