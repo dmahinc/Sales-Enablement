@@ -1,10 +1,65 @@
 """
 Pydantic schemas for Material model
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, field_validator
 from typing import Optional, List
 from datetime import datetime
 from app.models.material import MaterialType, MaterialAudience, MaterialStatus
+import json
+
+
+def convert_db_enum_to_frontend(db_value: str, enum_class) -> str:
+    """Convert database enum value to frontend enum value"""
+    if not db_value:
+        return db_value
+    
+    # Mapping from database enum names to frontend enum values
+    material_type_mapping = {
+        'PRODUCT_BRIEF': 'product_brief',
+        'PRODUCT_SALES_ENABLEMENT_DECK': 'sales_enablement_deck',
+        'PRODUCT_PORTFOLIO_PRESENTATION': 'product_portfolio',
+        'PRODUCT_SALES_DECK': 'sales_deck',
+        'PRODUCT_DATASHEET': 'datasheet',
+        'PRODUCT_CATALOG': 'product_catalog',
+    }
+    
+    audience_mapping = {
+        'INTERNAL': 'internal',
+        'CUSTOMER_FACING': 'customer_facing',
+        'BOTH': 'shared_asset',
+    }
+    
+    status_mapping = {
+        'DRAFT': 'draft',
+        'REVIEW': 'review',
+        'PUBLISHED': 'published',
+        'ARCHIVED': 'archived',
+    }
+    
+    if enum_class == MaterialType:
+        return material_type_mapping.get(db_value, db_value.lower())
+    elif enum_class == MaterialAudience:
+        return audience_mapping.get(db_value, db_value.lower())
+    elif enum_class == MaterialStatus:
+        return status_mapping.get(db_value, db_value.lower())
+    
+    return db_value
+
+
+def parse_json_field(value) -> Optional[List[str]]:
+    """Parse JSON string field to list"""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else []
+        except (json.JSONDecodeError, TypeError):
+            # If it's not valid JSON, try splitting by comma
+            return [v.strip() for v in value.split(',') if v.strip()]
+    return []
 
 
 class MaterialBase(BaseModel):
@@ -104,13 +159,45 @@ class MaterialResponse(MaterialBase):
     file_format: Optional[str] = None
     file_size: Optional[int] = None
     version: Optional[str] = None
-    health_score: int = 0
-    usage_count: int = 0
-    completeness_score: int = 0
+    health_score: int = Field(default=0)
+    usage_count: int = Field(default=0)
+    completeness_score: int = Field(default=0)
     last_updated: Optional[datetime] = None
     owner_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+
+    @field_validator('material_type', mode='before')
+    @classmethod
+    def convert_material_type(cls, v):
+        """Convert database enum to frontend enum"""
+        return convert_db_enum_to_frontend(v, MaterialType)
+
+    @field_validator('audience', mode='before')
+    @classmethod
+    def convert_audience(cls, v):
+        """Convert database enum to frontend enum"""
+        return convert_db_enum_to_frontend(v, MaterialAudience)
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def convert_status(cls, v):
+        """Convert database enum to frontend enum"""
+        if v:
+            return convert_db_enum_to_frontend(v, MaterialStatus)
+        return 'draft'
+
+    @field_validator('tags', 'keywords', 'use_cases', 'pain_points', mode='before')
+    @classmethod
+    def parse_list_fields(cls, v):
+        """Parse JSON string or None to list"""
+        return parse_json_field(v)
+
+    @field_validator('health_score', 'usage_count', 'completeness_score', mode='before')
+    @classmethod
+    def handle_none_int(cls, v):
+        """Convert None to 0 for integer fields"""
+        return v if v is not None else 0
 
     class Config:
         from_attributes = True
