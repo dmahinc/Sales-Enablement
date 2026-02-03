@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sales-enablement-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-sales_enablement}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sales-enablement-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sales-enablement-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-sales_enablement}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3003,http://localhost:80}
+      PLATFORM_URL: ${PLATFORM_URL:-http://localhost:3003}
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
+      STORAGE_PATH: ${STORAGE_PATH:-./storage}
+      SMTP_ENABLED: ${SMTP_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@ovhcloud.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Products & Solutions Enablement}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+    volumes:
+      - ./backend/storage:/app/storage
+      - ./backend/alembic:/app/alembic
+    ports:
+      - "${BACKEND_PORT:-8001}:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sales-enablement-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8001/api}
+    container_name: sales-enablement-frontend
+    ports:
+      - "${FRONTEND_PORT:-3003}:80"
+    depends_on:
+      - backend
+    networks:
+      - sales-enablement-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  sales-enablement-network:
+    driver: bridge

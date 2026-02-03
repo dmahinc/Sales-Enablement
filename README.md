@@ -45,22 +45,56 @@ Sales-Enablement/
 
 ## Getting Started
 
-### Backend Setup
+### Option 1: Docker (Recommended)
+
+The easiest way to run the application is using Docker:
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd Sales-Enablement
+
+# 2. Setup environment
+make setup
+# Or manually: cp .env.example .env
+# Edit .env and set SECRET_KEY (generate with: python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+
+# 3. Start all services
+make up
+# Or: docker-compose up -d
+
+# 4. Access the application
+# Frontend: http://localhost:3003
+# Backend API: http://localhost:8001
+# API Docs: http://localhost:8001/docs
+```
+
+See [DOCKER_SETUP.md](./DOCKER_SETUP.md) for detailed Docker instructions.
+
+### Option 2: Local Development
+
+#### Backend Setup
 
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+
+# Set up .env file with SECRET_KEY
+# Run migrations
+alembic upgrade head
+
+# Start server
 uvicorn app.main:app --reload
 ```
 
-### Frontend Setup
+#### Frontend Setup
 
 ```bash
 cd frontend
 npm install
-npm start
+npm run dev
 ```
 
 ## Development Status
