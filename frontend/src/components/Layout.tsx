@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users } from 'lucide-react'
 
 export default function Layout() {
   const { user, logout, loading } = useAuth()
@@ -27,6 +27,9 @@ export default function Layout() {
     )
   }
 
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.is_superuser
+
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/materials', label: 'Materials', icon: FileText },
@@ -34,6 +37,7 @@ export default function Layout() {
     { path: '/health', label: 'Health', icon: Activity },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { path: '/discovery', label: 'Discovery', icon: Search },
+    ...(isAdmin ? [{ path: '/users', label: 'Users', icon: Users }] : []),
   ]
 
   return (

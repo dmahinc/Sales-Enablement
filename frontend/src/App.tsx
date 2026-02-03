@@ -8,6 +8,7 @@ import Discovery from './pages/Discovery'
 import UsageAnalytics from './pages/UsageAnalytics'
 import Tracks from './pages/Tracks'
 import TrackDetail from './pages/TrackDetail'
+import Users from './pages/Users'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
@@ -45,6 +46,7 @@ function AppRoutes() {
         <Route path="analytics" element={<UsageAnalytics />} />
         <Route path="tracks" element={<Tracks />} />
         <Route path="tracks/:id" element={<TrackDetail />} />
+        <Route path="users" element={<Users />} />
         <Route path="discovery" element={<Discovery />} />
       </Route>
     </Routes>
