@@ -79,5 +79,6 @@ class Material(BaseModel):
     health_history = relationship("MaterialHealthHistory", back_populates="material", lazy="dynamic")
     usage_events = relationship("MaterialUsage", back_populates="material", lazy="dynamic")
     track_materials = relationship("TrackMaterial", back_populates="material", lazy="dynamic")
+    shared_links = relationship("SharedLink", back_populates="material", lazy="dynamic")
     personas = relationship("Persona", secondary=material_persona, back_populates="material_references", lazy="dynamic")
     segments = relationship("Segment", secondary=material_segment, back_populates="material_references", lazy="dynamic")

@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2 } from 'lucide-react'
 
 export default function Layout() {
   const { user, logout, loading } = useAuth()
@@ -35,6 +35,7 @@ export default function Layout() {
     { path: '/tracks', label: 'Tracks', icon: BookOpen },
     { path: '/health', label: 'Health', icon: Activity },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
+    { path: '/sharing', label: 'Sharing', icon: Share2 },
     { path: '/discovery', label: 'Discovery', icon: Search },
     ...(isAdmin ? [{ path: '/users', label: 'Users', icon: Users }] : []),
   ]

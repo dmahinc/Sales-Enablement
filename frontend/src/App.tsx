@@ -9,6 +9,8 @@ import UsageAnalytics from './pages/UsageAnalytics'
 import Tracks from './pages/Tracks'
 import TrackDetail from './pages/TrackDetail'
 import Users from './pages/Users'
+import ShareHistory from './pages/ShareHistory'
+import ShareView from './pages/ShareView'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
@@ -32,6 +34,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/share/:token" element={<ShareView />} />
       <Route
         path="/"
         element={
@@ -44,6 +47,7 @@ function AppRoutes() {
         <Route path="materials" element={<Materials />} />
         <Route path="health" element={<HealthDashboard />} />
         <Route path="analytics" element={<UsageAnalytics />} />
+        <Route path="sharing" element={<ShareHistory />} />
         <Route path="tracks" element={<Tracks />} />
         <Route path="tracks/:id" element={<TrackDetail />} />
         <Route path="users" element={<Users />} />

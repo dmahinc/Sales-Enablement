@@ -8,6 +8,7 @@ from app.models.content_block import ContentBlock, ContentBlockRating, ContentBl
 from app.models.health import MaterialHealthHistory
 from app.models.usage import MaterialUsage
 from app.models.track import Track, TrackMaterial, TrackProgress
+from app.models.shared_link import SharedLink
 from app.models.associations import material_persona, material_segment
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "Track",
     "TrackMaterial",
     "TrackProgress",
+    "SharedLink",
     "material_persona",
     "material_segment",
 ]

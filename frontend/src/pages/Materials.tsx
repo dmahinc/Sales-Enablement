@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen } from 'lucide-react'
+import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2 } from 'lucide-react'
 import Modal from '../components/Modal'
 import MaterialForm from '../components/MaterialForm'
 import FileUploadModal from '../components/FileUploadModal'
+import ShareLinkModal from '../components/ShareLinkModal'
 
 const UNIVERSES = [
   { id: 'all', name: 'All Materials', icon: FolderOpen, color: 'text-slate-500' },
@@ -17,6 +18,8 @@ const UNIVERSES = [
 export default function Materials() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [sharingMaterial, setSharingMaterial] = useState<any>(null)
   const [editingMaterial, setEditingMaterial] = useState<any>(null)
   const [selectedUniverse, setSelectedUniverse] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('')
@@ -230,6 +233,18 @@ export default function Materials() {
                           {material.status}
                         </span>
                         <div className="flex items-center space-x-1">
+                          {material.status === 'published' && (
+                            <button
+                              onClick={() => {
+                                setSharingMaterial(material)
+                                setIsShareModalOpen(true)
+                              }}
+                              className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                              title="Share"
+                            >
+                              <Share2 className="h-4 w-4" />
+                            </button>
+                          )}
                           {material.file_path && (
                             <button
                               onClick={() => handleDownload(material)}
@@ -307,6 +322,18 @@ export default function Materials() {
           isOpen={isUploadModalOpen}
           onClose={() => setIsUploadModalOpen(false)}
         />
+
+        {sharingMaterial && (
+          <ShareLinkModal
+            materialId={sharingMaterial.id}
+            materialName={sharingMaterial.name}
+            isOpen={isShareModalOpen}
+            onClose={() => {
+              setIsShareModalOpen(false)
+              setSharingMaterial(null)
+            }}
+          />
+        )}
       </div>
     </div>
   )
