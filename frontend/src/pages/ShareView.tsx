@@ -11,25 +11,42 @@ export default function ShareView() {
 
   const { data: sharedLink, isLoading, error } = useQuery({
     queryKey: ['shared-link', token],
-    queryFn: () => api.get(`/shared-links/token/${token}`).then(res => res.data),
+    queryFn: () => {
+      // Use public endpoint without auth headers
+      return fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/shared-links/token/${token}`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Link not found or expired')
+          }
+          return res.json()
+        })
+    },
     retry: false,
   })
 
   const handleDownload = async () => {
-    if (!sharedLink) return
+    if (!sharedLink || !token) return
     
     setDownloading(true)
     try {
-      const response = await api.get(`/materials/${sharedLink.material_id}/download`, {
-        responseType: 'blob',
+      // Use public download endpoint (no auth required)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/shared-links/token/${token}/download`, {
+        method: 'GET',
       })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
+      
+      if (!response.ok) {
+        throw new Error('Download failed')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `document.pdf`)
+      link.setAttribute('download', sharedLink.material_name || 'document.pdf')
       document.body.appendChild(link)
       link.click()
       link.remove()
+      window.URL.revokeObjectURL(url)
     } catch (error) {
       alert('Failed to download file')
     } finally {

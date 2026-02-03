@@ -3,6 +3,7 @@ Shared Links API endpoints - Document sharing with customers
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import FileResponse
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, distinct
@@ -17,6 +18,8 @@ from app.schemas.shared_link import (
     SharedLinkCreate, SharedLinkResponse, SharedLinkUpdate,
     SharedLinkStats, MaterialShareStats, CustomerShareStats
 )
+from app.services.storage import storage_service
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -178,10 +181,68 @@ async def get_shared_link_by_token(
     shared_link.record_access()
     db.commit()
     
-    response_data = SharedLinkResponse.model_validate(shared_link)
-    response_data.share_url = get_share_url(token)
+    response_dict = {
+        **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
+        'share_url': get_share_url(token)
+    }
+    response_data = SharedLinkResponse(**response_dict)
     
     return response_data
+
+
+@router.get("/token/{token}/download")
+async def download_shared_document(
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Download a document via shared link (public endpoint, no authentication required)"""
+    # Verify token and get shared link
+    shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
+    if not shared_link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shared link not found"
+        )
+    
+    # Check if link is valid
+    if not shared_link.is_valid():
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="This shared link has expired or been deactivated"
+        )
+    
+    # Get material
+    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+    
+    if not material.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not available for this material"
+        )
+    
+    # Record access (already done when viewing, but record download specifically)
+    shared_link.record_access()
+    db.commit()
+    
+    # Get file path
+    file_path = storage_service.get_file_path(material.file_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on server"
+        )
+    
+    return FileResponse(
+        path=str(file_path),
+        filename=material.file_name or material.name,
+        media_type='application/octet-stream'
+    )
 
 
 @router.put("/{link_id}", response_model=SharedLinkResponse)
