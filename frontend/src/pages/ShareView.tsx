@@ -42,7 +42,7 @@ export default function ShareView() {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', sharedLink.material_name || 'document.pdf')
+      link.setAttribute('download', sharedLink.material_name || `document-${sharedLink.material_id}.pdf`)
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -102,7 +102,7 @@ export default function ShareView() {
 
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
           <p className="text-sm text-slate-600">
-            <strong>Document ID:</strong> {sharedLink.material_id}
+            <strong>Document:</strong> {sharedLink.material_name || `Material #${sharedLink.material_id}`}
           </p>
           {sharedLink.customer_email && (
             <p className="text-sm text-slate-600 mt-2">

@@ -19,6 +19,7 @@ class SharedLinkResponse(BaseModel):
     id: int
     unique_token: str
     material_id: int
+    material_name: Optional[str] = None  # Name of the shared document
     shared_by_user_id: Optional[int] = None
     customer_email: Optional[str] = None
     customer_name: Optional[str] = None

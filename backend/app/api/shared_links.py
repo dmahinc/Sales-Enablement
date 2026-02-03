@@ -79,10 +79,11 @@ async def create_shared_link(
     db.commit()
     db.refresh(shared_link)
     
-    # Build response with share URL
+    # Build response with share URL and material name
     response_dict = {
         **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
-        'share_url': get_share_url(token)
+        'share_url': get_share_url(token),
+        'material_name': material.name
     }
     response_data = SharedLinkResponse(**response_dict)
     
@@ -113,12 +114,17 @@ async def list_shared_links(
     
     shared_links = query.order_by(SharedLink.created_at.desc()).offset(skip).limit(limit).all()
     
-    # Add share URLs
+    # Add share URLs and material names
     result = []
     for link in shared_links:
+        # Get material name
+        material = db.query(Material).filter(Material.id == link.material_id).first()
+        material_name = material.name if material else None
+        
         link_dict = {
             **{c.name: getattr(link, c.name) for c in link.__table__.columns},
-            'share_url': get_share_url(link.unique_token)
+            'share_url': get_share_url(link.unique_token),
+            'material_name': material_name
         }
         link_data = SharedLinkResponse(**link_dict)
         result.append(link_data)
@@ -148,9 +154,14 @@ async def get_shared_link(
             detail="Not authorized to view this shared link"
         )
     
+    # Get material name
+    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
+    material_name = material.name if material else None
+    
     response_dict = {
         **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
-        'share_url': get_share_url(shared_link.unique_token)
+        'share_url': get_share_url(shared_link.unique_token),
+        'material_name': material_name
     }
     response_data = SharedLinkResponse(**response_dict)
     
@@ -181,9 +192,14 @@ async def get_shared_link_by_token(
     shared_link.record_access()
     db.commit()
     
+    # Get material name
+    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
+    material_name = material.name if material else None
+    
     response_dict = {
         **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
-        'share_url': get_share_url(token)
+        'share_url': get_share_url(token),
+        'material_name': material_name
     }
     response_data = SharedLinkResponse(**response_dict)
     
@@ -281,9 +297,14 @@ async def update_shared_link(
     db.commit()
     db.refresh(shared_link)
     
+    # Get material name
+    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
+    material_name = material.name if material else None
+    
     response_dict = {
         **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
-        'share_url': get_share_url(shared_link.unique_token)
+        'share_url': get_share_url(shared_link.unique_token),
+        'material_name': material_name
     }
     response_data = SharedLinkResponse(**response_dict)
     
