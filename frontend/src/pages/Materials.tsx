@@ -130,7 +130,7 @@ export default function Materials() {
               <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
               <p className="mt-1 text-slate-500">
                 {selectedUniverse === 'all' 
-                  ? 'Manage your sales enablement materials'
+                  ? 'Manage your products & solutions enablement materials'
                   : `Materials in ${UNIVERSES.find(u => u.id === selectedUniverse)?.name}`
                 }
               </p>

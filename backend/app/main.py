@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 
 app = FastAPI(
-    title="Sales Enablement API",
-    description="API for managing sales enablement materials, personas, segments, and content",
+    title="Products & Solutions Enablement API",
+    description="API for managing products and solutions enablement materials, tracks, and content",
     version="1.0.0",
     redirect_slashes=False  # Disable automatic trailing slash redirects
 )
@@ -25,7 +25,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {
-        "message": "Sales Enablement API",
+        "message": "Products & Solutions Enablement API",
         "version": "1.0.0",
         "status": "running"
     }

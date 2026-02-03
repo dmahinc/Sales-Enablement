@@ -27,7 +27,6 @@ export default function Layout() {
     )
   }
 
-  const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.is_superuser
 
   const navItems = [
@@ -49,11 +48,9 @@ export default function Layout() {
             <div className="flex items-center">
               {/* Logo */}
               <div className="flex-shrink-0 flex items-center">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">S</span>
-                  </div>
-                  <span className="text-xl font-semibold text-primary-700">Sales Enablement</span>
+                <div className="flex items-center space-x-3">
+                  <img src="/logo-icon.svg" alt="Products & Solutions Enablement" className="h-10 w-10" />
+                  <span className="text-xl font-semibold text-primary-700 hidden sm:block">Products & Solutions Enablement</span>
                 </div>
               </div>
               

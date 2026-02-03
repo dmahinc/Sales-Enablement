@@ -91,7 +91,7 @@ export default function Discovery() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-primary-700">Content Discovery</h1>
-        <p className="mt-1 text-slate-500">Search and discover sales enablement content</p>
+        <p className="mt-1 text-slate-500">Search and discover products & solutions enablement content</p>
       </div>
 
       {/* Search Box */}
