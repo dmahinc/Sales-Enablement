@@ -1,14 +1,19 @@
 """
 Users API endpoints - User management (Admin only)
 """
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_active_user, require_role
+from app.core.email import send_user_creation_notification
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.user import UserResponse, UserCreate, UserUpdate
 from pydantic import EmailStr
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -86,6 +91,22 @@ async def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+    
+    # Send welcome email notification (non-blocking - don't fail user creation if email fails)
+    try:
+        platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+        email_sent = send_user_creation_notification(
+            user_email=user.email,
+            user_name=user.full_name,
+            user_password=user_data.password,  # Send the plain password before it's hashed
+            user_role=user.role,
+            platform_url=platform_url
+        )
+        if not email_sent:
+            logger.warning(f"User {user.email} created but email notification failed to send")
+    except Exception as e:
+        # Log error but don't fail user creation
+        logger.error(f"Error sending welcome email to {user.email}: {str(e)}", exc_info=True)
     
     return user
 
