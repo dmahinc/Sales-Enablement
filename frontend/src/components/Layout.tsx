@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { FileText, Users, Target, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen } from 'lucide-react'
 
 export default function Layout() {
   const { user, logout, loading } = useAuth()
@@ -30,8 +30,6 @@ export default function Layout() {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/materials', label: 'Materials', icon: FileText },
-    { path: '/personas', label: 'Personas', icon: Users },
-    { path: '/segments', label: 'Segments', icon: Target },
     { path: '/tracks', label: 'Tracks', icon: BookOpen },
     { path: '/health', label: 'Health', icon: Activity },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },

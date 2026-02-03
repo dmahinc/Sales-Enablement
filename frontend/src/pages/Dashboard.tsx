@@ -3,14 +3,13 @@ import { api } from '../services/api'
 import { Link } from 'react-router-dom'
 import { 
   FileText, 
-  Users, 
-  Target, 
   Activity, 
   TrendingUp, 
   AlertTriangle, 
   CheckCircle,
   ArrowRight,
-  BarChart3
+  BarChart3,
+  BookOpen
 } from 'lucide-react'
 
 export default function Dashboard() {
@@ -19,18 +18,13 @@ export default function Dashboard() {
     queryFn: () => api.get('/materials').then(res => res.data),
   })
 
-  const { data: personas, isLoading: personasLoading, error: personasError } = useQuery({
-    queryKey: ['personas'],
-    queryFn: () => api.get('/personas').then(res => res.data),
+  const { data: tracks, isLoading: tracksLoading, error: tracksError } = useQuery({
+    queryKey: ['tracks'],
+    queryFn: () => api.get('/tracks').then(res => res.data),
   })
 
-  const { data: segments, isLoading: segmentsLoading, error: segmentsError } = useQuery({
-    queryKey: ['segments'],
-    queryFn: () => api.get('/segments').then(res => res.data),
-  })
-
-  const isLoading = materialsLoading || personasLoading || segmentsLoading
-  const hasError = materialsError || personasError || segmentsError
+  const isLoading = materialsLoading || tracksLoading
+  const hasError = materialsError || tracksError
 
   if (isLoading) {
     return (
@@ -61,20 +55,12 @@ export default function Dashboard() {
       link: '/materials',
     },
     {
-      name: 'Personas',
-      value: personas?.length || 0,
-      icon: Users,
+      name: 'Sales Enablement Tracks',
+      value: tracks?.length || 0,
+      icon: BookOpen,
       color: 'bg-emerald-500',
       bgColor: 'bg-emerald-50',
-      link: '/personas',
-    },
-    {
-      name: 'Segments',
-      value: segments?.length || 0,
-      icon: Target,
-      color: 'bg-violet-500',
-      bgColor: 'bg-violet-50',
-      link: '/segments',
+      link: '/tracks',
     },
     {
       name: 'Health Score',
@@ -83,6 +69,14 @@ export default function Dashboard() {
       color: 'bg-amber-500',
       bgColor: 'bg-amber-50',
       link: '/health',
+    },
+    {
+      name: 'Published Materials',
+      value: materials?.filter((m: any) => m.status === 'published')?.length || 0,
+      icon: CheckCircle,
+      color: 'bg-violet-500',
+      bgColor: 'bg-violet-50',
+      link: '/materials?status=published',
     },
   ]
 
@@ -94,7 +88,7 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-primary-700">Dashboard</h1>
-          <p className="mt-1 text-slate-500">Welcome to your Sales Enablement Platform</p>
+          <p className="mt-1 text-slate-500">Product & Solutions Sales Enablement - Your Single Source of Truth</p>
         </div>
         <Link
           to="/materials"

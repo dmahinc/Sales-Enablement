@@ -3,8 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Materials from './pages/Materials'
-import Personas from './pages/Personas'
-import Segments from './pages/Segments'
 import HealthDashboard from './pages/HealthDashboard'
 import Discovery from './pages/Discovery'
 import UsageAnalytics from './pages/UsageAnalytics'
@@ -43,8 +41,6 @@ function AppRoutes() {
       >
         <Route index element={<Dashboard />} />
         <Route path="materials" element={<Materials />} />
-        <Route path="personas" element={<Personas />} />
-        <Route path="segments" element={<Segments />} />
         <Route path="health" element={<HealthDashboard />} />
         <Route path="analytics" element={<UsageAnalytics />} />
         <Route path="tracks" element={<Tracks />} />

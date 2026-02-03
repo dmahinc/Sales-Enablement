@@ -1,17 +1,17 @@
-# Sales Enablement Application
+# Product & Solutions Sales Enablement Platform
 
-A comprehensive platform for Product Marketing Managers (PMMs) to manage, organize, and optimize sales enablement materials.
+A collaborative platform serving as the single source of truth for Product Marketing Managers (PMMs), Product teams, and Sales teams to manage, organize, and access product and solution sales materials.
 
 ## Features
 
 ### Core Quick Wins (Implementation Priority)
 
-1. **Central Material Repository** - Centralized storage and organization of all sales enablement materials
-2. **Shared Persona Library** - Collaborative persona definitions and management
-3. **Market Segments Library** - Standardized market segment definitions
-4. **Material Health Dashboard** - Track material freshness, completeness, and usage
-5. **Narrative Discovery System** - Search and discover existing narratives by keywords, use cases, pain points
-6. **Content Block Marketplace** - Reusable content blocks with ratings and comments
+1. **Central Material Repository** - Single source of truth for all product and solution sales materials
+2. **Collaborative Platform** - Shared workspace for Product and Sales teams
+3. **Material Health Dashboard** - Track material freshness, completeness, and usage
+4. **Sales Enablement Tracks** - Structured learning paths for products, solutions, and use cases
+5. **Content Discovery** - Search and discover materials by keywords, product name, universe
+6. **Usage Analytics** - Track material usage and effectiveness
 
 ## Technology Stack
 

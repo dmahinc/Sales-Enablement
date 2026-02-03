@@ -9,10 +9,10 @@
 
 ## 1. Executive Summary
 
-The **Sales Enablement Platform** is an internal tool designed to centralize, organize, and optimize OVHcloud's sales and marketing materials. It empowers Product Marketing Managers (PMMs) and Sales teams to efficiently manage, discover, and utilize sales content across all product universes (Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration).
+The **Product & Solutions Sales Enablement Platform** is a collaborative internal tool designed to serve as the single source of truth for OVHcloud's product and solution sales materials. It enables Product Marketing Managers (PMMs), Product teams, and Sales teams to work together in managing, organizing, and accessing sales content across all product universes (Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration).
 
 ### Vision Statement
-> *"Enable every sales conversation with the right content, at the right time, for the right audience."*
+> *"The collaborative single source of truth that empowers Sales and Product teams to deliver consistent, up-to-date product and solution messaging."*
 
 ---
 
@@ -24,22 +24,25 @@ The **Sales Enablement Platform** is an internal tool designed to centralize, or
 |-----------|--------|----------|
 | **Scattered Content** | Sales materials spread across SharePoint, Google Drive, email threads | High |
 | **Outdated Materials** | No clear versioning or health tracking of documents | High |
-| **Discovery Friction** | Sales reps struggle to find relevant content for specific personas/segments | Critical |
-| **No Single Source of Truth** | Multiple versions of the same deck circulating | High |
+| **Discovery Friction** | Sales reps struggle to find relevant product/solution content quickly | Critical |
+| **No Single Source of Truth** | Multiple versions of the same deck circulating, conflicting information | High |
+| **Lack of Collaboration** | Product and Sales teams work in silos, no shared platform | High |
 | **Manual Tracking** | No visibility into content usage or effectiveness | Medium |
 | **Inconsistent Messaging** | Different PMMs create overlapping/conflicting narratives | Medium |
 
 ### User Pain Points
 
-**For PMMs:**
+**For PMMs & Product Teams:**
 - "I spend 30% of my time responding to 'where is the deck for X?' questions"
 - "I don't know which materials are being used or which are outdated"
 - "Creating content is duplicated across universes with no reuse"
+- "Sales teams are using outdated product information"
 
 **For Sales:**
-- "I can't find the right presentation for my customer meeting in 30 minutes"
+- "I can't find the right product presentation for my customer meeting in 30 minutes"
 - "I'm not sure if this datasheet is the latest version"
-- "I need content for a specific persona but everything is generic"
+- "I need the official product positioning but can't find it"
+- "I want to collaborate with Product teams but there's no shared platform"
 
 ---
 
@@ -47,22 +50,25 @@ The **Sales Enablement Platform** is an internal tool designed to centralize, or
 
 ### Primary Users
 
-#### 1. Product Marketing Managers (PMMs)
+#### 1. Product Marketing Managers (PMMs) & Product Teams
 - **Count:** ~15-20 users
 - **Usage Frequency:** Daily
 - **Key Activities:**
-  - Upload and manage sales materials
-  - Define personas and market segments
+  - Upload and manage product/solution sales materials
+  - Maintain single source of truth for product messaging
   - Track content health and usage
-  - Create and organize narratives
+  - Collaborate with Sales teams on content needs
+  - Create Sales Enablement Tracks for product training
 
 #### 2. Sales Representatives
 - **Count:** ~200-500 users
 - **Usage Frequency:** Weekly
 - **Key Activities:**
-  - Search and discover content
+  - Search and discover product/solution content
   - Download materials for customer meetings
-  - Filter by persona, segment, or product universe
+  - Access latest product information and positioning
+  - Follow Sales Enablement Tracks for product training
+  - Collaborate with Product teams on content gaps
 
 ### Secondary Users
 
@@ -80,13 +86,13 @@ The **Sales Enablement Platform** is an internal tool designed to centralize, or
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| **Material Management** | Upload, organize, edit, delete sales materials | P0 |
+| **Material Management** | Upload, organize, edit, delete product/solution sales materials | P0 |
 | **Universe Organization** | Categorize by Public Cloud, Private Cloud, Bare Metal, H&C | P0 |
-| **Personas Library** | Define and manage buyer personas | P0 |
-| **Segments Library** | Define and manage market segments | P0 |
-| **Content Discovery** | Search materials by keywords, tags, filters | P0 |
+| **Content Discovery** | Search materials by keywords, tags, filters, product name | P0 |
 | **Health Dashboard** | Track content status (draft, review, published, archived) | P1 |
-| **Sales Enablement Tracks** | Create learning paths/syllabi for use cases or business stories | P1 |
+| **Sales Enablement Tracks** | Create learning paths/syllabi for products, solutions, use cases | P1 |
+| **Collaborative Platform** | Shared workspace for Product and Sales teams | P0 |
+| **Single Source of Truth** | Version control, status tracking, latest information | P0 |
 | **User Authentication** | Secure login with role-based access | P0 |
 | **File Storage** | Store and serve uploaded files (PDF, PPTX, DOCX) | P0 |
 
@@ -94,6 +100,7 @@ The **Sales Enablement Platform** is an internal tool designed to centralize, or
 
 | Feature | Description | Phase |
 |---------|-------------|-------|
+| **Personas & Segments** | Buyer personas and market segment definitions | Future |
 | **AI-Powered Search** | Semantic search using embeddings | Phase 2 |
 | **Content Blocks** | Reusable slide/section components | Phase 2 |
 | **Analytics Dashboard** | Download tracking, usage heatmaps | Phase 2 |
@@ -125,23 +132,27 @@ US-1.4: As a PMM, I want to delete materials that are no longer relevant.
 ### Epic 2: Content Discovery
 
 ```
-US-2.1: As a Sales Rep, I want to search materials by keyword so I can quickly find relevant content.
+US-2.1: As a Sales Rep, I want to search materials by keyword so I can quickly find relevant product/solution content.
 
 US-2.2: As a Sales Rep, I want to filter by universe so I only see materials for my product area.
 
 US-2.3: As a Sales Rep, I want to filter by audience (internal/customer-facing) to get appropriate materials.
 
 US-2.4: As a Sales Rep, I want to download materials for offline use in customer meetings.
+
+US-2.5: As a Sales Rep, I want to access the latest product information to ensure I'm using current messaging.
 ```
 
-### Epic 3: Personas & Segments
+### Epic 3: Collaboration & Single Source of Truth
 
 ```
-US-3.1: As a PMM, I want to create buyer personas with goals/challenges so sales can target content.
+US-3.1: As a PMM, I want to publish materials with clear status so Sales knows what's current.
 
-US-3.2: As a PMM, I want to define market segments with industry/size/region attributes.
+US-3.2: As a Sales Rep, I want to see material status (draft/review/published) so I know what to use.
 
-US-3.3: As a Sales Rep, I want to browse personas to understand target audience characteristics.
+US-3.3: As a Product team member, I want to collaborate with Sales on content needs.
+
+US-3.4: As a PMM, I want to ensure only one version of each material exists (single source of truth).
 ```
 
 ### Epic 4: Health Monitoring
@@ -161,31 +172,33 @@ US-4.3: As a PMM, I want to see content distribution across universes to identif
 ### Navigation Structure
 
 ```
-📁 Sales Enablement Platform
+📁 Product & Solutions Sales Enablement Platform
 ├── 🏠 Dashboard
-│   ├── Quick Stats (materials, personas, segments, health)
+│   ├── Quick Stats (materials, health, tracks)
 │   ├── Recent Materials
 │   └── Quick Actions
 ├── 📄 Materials
 │   ├── Universe Sidebar (All, Public Cloud, Private Cloud, Bare Metal, H&C)
-│   ├── Filters (type, status, audience)
+│   ├── Filters (type, status, audience, product)
 │   ├── Material List/Grid
 │   └── Actions (Create, Upload, Edit, Delete, Download)
-├── 👥 Personas
-│   ├── Persona Cards
-│   └── Create/Edit Persona
-├── 🎯 Segments
-│   ├── Segment Cards
-│   └── Create/Edit Segment
+├── 📚 Sales Enablement Tracks
+│   ├── Track List/Grid
+│   ├── Track Detail View
+│   └── Create/Edit Track
 ├── 📊 Health Dashboard
 │   ├── Overall Health Score
 │   ├── Status Distribution
 │   ├── Universe Coverage
 │   └── Recommendations
+├── 📈 Usage Analytics
+│   ├── Usage Rates
+│   ├── Material Statistics
+│   └── Usage History
 └── 🔍 Discovery
     ├── Search Box
-    ├── Filters
-    └── Results (Materials, Personas, Segments)
+    ├── Filters (universe, type, status, product)
+    └── Results (Materials)
 ```
 
 ### Data Model
@@ -201,19 +214,14 @@ Material
 ├── file_path, file_name, file_format, file_size
 ├── tags[], keywords[], use_cases[], pain_points[]
 ├── health_score, usage_count
-└── owner_id, created_at, updated_at
-
-Persona
-├── id, name, role
-├── description
-├── goals, challenges
-├── preferred_content
+├── owner_id (PMM/Product team member)
 └── created_at, updated_at
 
-Segment
+Track (Sales Enablement Track)
 ├── id, name, description
-├── industry, company_size, region
-├── key_drivers, pain_points, buying_criteria
+├── use_case (product/solution use case)
+├── learning_objectives
+├── materials[] (ordered list)
 └── created_at, updated_at
 ```
 
@@ -230,14 +238,19 @@ Segment
 | **Materials with "Published" status** | N/A | 60% | 80% |
 | **Average content age** | Unknown | < 6 months | < 3 months |
 | **PMM time on content requests** | 30% | 15% | 5% |
+| **Single source of truth adoption** | 0% | 60% | 90% |
 | **Active users (weekly)** | 0 | 50 | 200 |
+| **Sales-Product collaboration** | Low | Medium | High |
 
 ### Qualitative Success Criteria
 
 - [ ] PMMs report reduced time answering content location questions
 - [ ] Sales reps can self-serve content without PMM intervention
-- [ ] Single source of truth established for all sales materials
+- [ ] Single source of truth established for all product/solution materials
 - [ ] Clear visibility into content health and gaps
+- [ ] Product and Sales teams collaborate effectively on content
+- [ ] Sales teams use only current, published materials
+- [ ] Reduced confusion from multiple versions of materials
 
 ---
 
@@ -257,7 +270,7 @@ Segment
 ┌─────────────────────────────────────────────────────────────┐
 │                    Backend API (FastAPI/Python)              │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐│
-│  │   Auth   │ │Materials │ │ Personas │ │ Segments/Health  ││
+│  │   Auth   │ │Materials │ │  Tracks  │ │ Analytics/Health ││
 │  └──────────┘ └──────────┘ └──────────┘ └──────────────────┘│
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -336,11 +349,13 @@ The platform follows OVHcloud's design system with:
 - ✅ User authentication
 - ✅ Material CRUD operations
 - ✅ File upload functionality
-- ✅ Personas & Segments management
 - ✅ Universe-based organization
 - ✅ Basic discovery/search
 - ✅ Health dashboard
+- ✅ Sales Enablement Tracks
+- ✅ Usage analytics
 - ✅ OVHcloud design system
+- ✅ Single source of truth (status tracking)
 
 ### Phase 2: Enhancement (Q2 2026)
 - [ ] Content blocks (reusable components)
@@ -384,9 +399,9 @@ The platform follows OVHcloud's design system with:
 | Term | Definition |
 |------|------------|
 | **Universe** | OVHcloud product category (Public Cloud, Private Cloud, etc.) |
-| **Material** | Any sales/marketing document (deck, brief, datasheet) |
-| **Persona** | Idealized buyer profile with goals and challenges |
-| **Segment** | Target market category by industry/size/region |
+| **Material** | Any product/solution sales document (deck, brief, datasheet) |
+| **Track** | Structured learning path for products, solutions, or use cases |
+| **Single Source of Truth** | One authoritative version of each material with clear status |
 | **Content Block** | Reusable content component (future feature) |
 
 ### B. Related Documents
