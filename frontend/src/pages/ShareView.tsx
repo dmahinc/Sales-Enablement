@@ -42,7 +42,19 @@ export default function ShareView() {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', sharedLink.material_name || `document-${sharedLink.material_id}.pdf`)
+      
+      // Get filename from Content-Disposition header or use material name
+      const contentDisposition = response.headers.get('content-disposition')
+      let filename = sharedLink.material_name || `document-${sharedLink.material_id}`
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '')
+        }
+      }
+      
+      link.setAttribute('download', filename)
       document.body.appendChild(link)
       link.click()
       link.remove()

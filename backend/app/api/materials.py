@@ -391,8 +391,31 @@ async def download_material_file(
             detail="File not found on server"
         )
     
+    # Determine media type based on file format
+    file_format = material.file_format or (material.file_name.split('.')[-1] if '.' in material.file_name else '')
+    media_type_map = {
+        'pdf': 'application/pdf',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'ppt': 'application/vnd.ms-powerpoint',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc': 'application/msword',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls': 'application/vnd.ms-excel',
+    }
+    media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
+    
+    # Use original file_name to preserve extension, or construct from name + format
+    if material.file_name:
+        filename = material.file_name
+    elif material.file_format:
+        # Construct filename with proper extension
+        base_name = material.name.rsplit('.', 1)[0] if '.' in material.name else material.name
+        filename = f"{base_name}.{material.file_format}"
+    else:
+        filename = material.name
+    
     return FileResponse(
         path=str(file_path),
-        filename=material.file_name or material.name,
-        media_type='application/octet-stream'
+        filename=filename,
+        media_type=media_type
     )
