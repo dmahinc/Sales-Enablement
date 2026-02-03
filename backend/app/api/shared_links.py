@@ -113,8 +113,11 @@ async def list_shared_links(
     # Add share URLs
     result = []
     for link in shared_links:
-        link_data = SharedLinkResponse.model_validate(link)
-        link_data.share_url = get_share_url(link.unique_token)
+        link_dict = {
+            **{c.name: getattr(link, c.name) for c in link.__table__.columns},
+            'share_url': get_share_url(link.unique_token)
+        }
+        link_data = SharedLinkResponse(**link_dict)
         result.append(link_data)
     
     return result
@@ -142,8 +145,11 @@ async def get_shared_link(
             detail="Not authorized to view this shared link"
         )
     
-    response_data = SharedLinkResponse.model_validate(shared_link)
-    response_data.share_url = get_share_url(shared_link.unique_token)
+    response_dict = {
+        **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
+        'share_url': get_share_url(shared_link.unique_token)
+    }
+    response_data = SharedLinkResponse(**response_dict)
     
     return response_data
 
