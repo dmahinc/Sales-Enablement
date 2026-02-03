@@ -55,9 +55,11 @@ docker-compose logs backend
 
 ### 5. Access the Application
 
-- **Frontend:** http://localhost:3003
-- **Backend API:** http://localhost:8001
-- **API Docs:** http://localhost:8001/docs
+- **Frontend:** http://91.134.72.199:3003 (or http://localhost:3003 for local access)
+- **Backend API:** http://91.134.72.199:8001 (or http://localhost:8001 for local access)
+- **API Docs:** http://91.134.72.199:8001/docs
+
+**Note:** Replace `91.134.72.199` with your VM's actual IP address if different. The application is configured to be accessible from any network via the VM's IP address.
 
 ## Services
 
@@ -235,3 +237,52 @@ docker-compose exec db pg_dump -U postgres sales_enablement > backup.sql
 ```bash
 docker-compose exec -T db psql -U postgres sales_enablement < backup.sql
 ```
+
+## Network Configuration
+
+### VM IP Address Access
+
+The application is configured to be accessible via the VM's IP address (`91.134.72.199`) so that users from other machines can access it:
+
+- **Frontend:** http://91.134.72.199:3003
+- **Backend API:** http://91.134.72.199:8001
+- **API Docs:** http://91.134.72.199:8001/docs
+
+### Updating the IP Address
+
+If your VM's IP address changes, update these files:
+
+1. **.env file:**
+   ```bash
+   VITE_API_URL=http://YOUR_VM_IP:8001/api
+   CORS_ORIGINS=http://YOUR_VM_IP:3003,http://YOUR_VM_IP:80,http://localhost:3003
+   PLATFORM_URL=http://YOUR_VM_IP:3003
+   ```
+
+2. **docker-compose.yml:** Update default values in the environment section
+
+3. **Rebuild frontend** (if IP changed):
+   ```bash
+   docker-compose up -d --build frontend
+   ```
+
+### Firewall Configuration
+
+Make sure your VM's firewall allows incoming connections on ports:
+- **3003** (Frontend)
+- **8001** (Backend API)
+- **5432** (PostgreSQL - optional, only if you need external DB access)
+
+For Ubuntu/Debian:
+```bash
+sudo ufw allow 3003/tcp
+sudo ufw allow 8001/tcp
+sudo ufw status
+```
+
+### Security Considerations
+
+- The application is accessible from any network via the VM IP
+- Consider setting up a reverse proxy (Nginx/Traefik) with SSL/TLS for production
+- Use strong passwords for database and SECRET_KEY
+- Consider restricting access via firewall rules if needed
