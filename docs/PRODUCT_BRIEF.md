@@ -43,6 +43,8 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
 - "I'm not sure if this datasheet is the latest version"
 - "I need the official product positioning but can't find it"
 - "I want to collaborate with Product teams but there's no shared platform"
+- "I need to track which documents I've sent to which customers for follow-up"
+- "I want to know if customers actually viewed the materials I shared"
 
 ---
 
@@ -66,6 +68,8 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
 - **Key Activities:**
   - Search and discover product/solution content
   - Download materials for customer meetings
+  - Generate shareable links to send documents to customers
+  - Track which documents were shared with which customers
   - Access latest product information and positioning
   - Follow Sales Enablement Tracks for product training
   - Collaborate with Product teams on content gaps
@@ -91,6 +95,7 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
 | **Content Discovery** | Search materials by keywords, tags, filters, product name | P0 |
 | **Health Dashboard** | Track content status (draft, review, published, archived) | P1 |
 | **Sales Enablement Tracks** | Create learning paths/syllabi for products, solutions, use cases | P1 |
+| **Document Sharing** | Generate shareable links to send documents to customers with tracking | P1 |
 | **Collaborative Platform** | Shared workspace for Product and Sales teams | P0 |
 | **Single Source of Truth** | Version control, status tracking, latest information | P0 |
 | **User Authentication** | Secure login with role-based access | P0 |
@@ -141,6 +146,37 @@ US-2.3: As a Sales Rep, I want to filter by audience (internal/customer-facing) 
 US-2.4: As a Sales Rep, I want to download materials for offline use in customer meetings.
 
 US-2.5: As a Sales Rep, I want to access the latest product information to ensure I'm using current messaging.
+```
+
+### Epic 2.5: Document Sharing & Customer Tracking
+
+```
+US-2.6: As a Sales Rep, I want to generate a shareable link for a document so I can send it to customers.
+  Acceptance Criteria:
+  - Can generate a unique, secure link for any published material
+  - Link can be copied and shared via email, messaging, or other channels
+  - Link provides direct access to view/download the document
+  - Link expires after configurable period (default: 90 days)
+  
+US-2.7: As a Sales Rep, I want to track which documents I've shared with which customers so I can manage follow-ups.
+  Acceptance Criteria:
+  - System records: document shared, customer email/name, date shared, who shared it
+  - Can view history of all documents shared with a specific customer
+  - Can view all customers who received a specific document
+  
+US-2.8: As a PMM, I want to see how many documents were shared with customers to measure content effectiveness.
+  Acceptance Criteria:
+  - Dashboard shows total documents shared
+  - Shows unique customers reached
+  - Shows most shared materials
+  - Shows sharing trends over time
+  
+US-2.9: As an Admin, I want to see analytics on document sharing to understand content distribution.
+  Acceptance Criteria:
+  - Total share count per material
+  - Unique customer count per material
+  - Sharing activity by user/role
+  - Customer engagement metrics (views, downloads from shared links)
 ```
 
 ### Epic 3: Collaboration & Single Source of Truth
@@ -195,6 +231,11 @@ US-4.3: As a PMM, I want to see content distribution across universes to identif
 │   ├── Usage Rates
 │   ├── Material Statistics
 │   └── Usage History
+├── 🔗 Document Sharing
+│   ├── Generate Shareable Link
+│   ├── Share History (by document)
+│   ├── Share History (by customer)
+│   └── Customer Engagement Tracking
 └── 🔍 Discovery
     ├── Search Box
     ├── Filters (universe, type, status, product)
@@ -223,6 +264,17 @@ Track (Sales Enablement Track)
 ├── learning_objectives
 ├── materials[] (ordered list)
 └── created_at, updated_at
+
+SharedLink (Document Sharing)
+├── id, unique_token
+├── material_id (foreign key)
+├── shared_by_user_id (who created the link)
+├── customer_email, customer_name (optional)
+├── expires_at (default: 90 days)
+├── access_count (times link was accessed)
+├── last_accessed_at
+├── is_active (can be revoked)
+└── created_at, updated_at
 ```
 
 ---
@@ -241,6 +293,9 @@ Track (Sales Enablement Track)
 | **Single source of truth adoption** | 0% | 60% | 90% |
 | **Active users (weekly)** | 0 | 50 | 200 |
 | **Sales-Product collaboration** | Low | Medium | High |
+| **Documents shared with customers** | 0 | 500/month | 2000/month |
+| **Unique customers reached** | 0 | 200 | 1000 |
+| **Customer engagement rate** | N/A | 40% | 60% |
 
 ### Qualitative Success Criteria
 
@@ -251,6 +306,9 @@ Track (Sales Enablement Track)
 - [ ] Product and Sales teams collaborate effectively on content
 - [ ] Sales teams use only current, published materials
 - [ ] Reduced confusion from multiple versions of materials
+- [ ] Visibility into which materials are shared with customers
+- [ ] Ability to track customer engagement with shared content
+- [ ] Data-driven insights on content effectiveness based on sharing patterns
 
 ---
 
@@ -358,9 +416,10 @@ The platform follows OVHcloud's design system with:
 - ✅ Single source of truth (status tracking)
 
 ### Phase 2: Enhancement (Q2 2026)
+- [ ] Document sharing with customers (shareable links)
+- [ ] Customer tracking and engagement analytics
 - [ ] Content blocks (reusable components)
 - [ ] Advanced search with filters
-- [ ] Usage analytics
 - [ ] Bulk operations (upload, edit, delete)
 - [ ] Version history
 - [ ] Content expiration alerts
