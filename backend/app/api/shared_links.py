@@ -77,8 +77,11 @@ async def create_shared_link(
     db.refresh(shared_link)
     
     # Build response with share URL
-    response_data = SharedLinkResponse.model_validate(shared_link)
-    response_data.share_url = get_share_url(token)
+    response_dict = {
+        **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
+        'share_url': get_share_url(token)
+    }
+    response_data = SharedLinkResponse(**response_dict)
     
     return response_data
 
@@ -211,8 +214,11 @@ async def update_shared_link(
     db.commit()
     db.refresh(shared_link)
     
-    response_data = SharedLinkResponse.model_validate(shared_link)
-    response_data.share_url = get_share_url(shared_link.unique_token)
+    response_dict = {
+        **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
+        'share_url': get_share_url(shared_link.unique_token)
+    }
+    response_data = SharedLinkResponse(**response_dict)
     
     return response_data
 
