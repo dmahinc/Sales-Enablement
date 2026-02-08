@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2 } from 'lucide-react'
+import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
 
 interface Material {
@@ -519,12 +519,40 @@ interface MaterialCardProps {
   onShare: (material: Material) => void
 }
 
+// Helper function to get icon for material type
+function getMaterialTypeIcon(materialType: string | null | undefined): LucideIcon {
+  if (!materialType) return FileText
+  
+  const type = materialType.toLowerCase().trim()
+  
+  // Handle both database format (PRODUCT_DATASHEET) and frontend format (datasheet)
+  switch (type) {
+    case 'product_brief':
+      return ClipboardList
+    case 'sales_deck':
+    case 'product_sales_deck':
+      return Presentation
+    case 'sales_enablement_deck':
+    case 'product_sales_enablement_deck':
+      return GraduationCap
+    case 'datasheet':
+    case 'product_datasheet':
+      return FileSpreadsheet
+    default:
+      return FileText
+  }
+}
+
 function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
   return (
     <div className="card-ovh p-4 hover:shadow-md transition-all group">
       <div className="flex items-start space-x-3">
         <div className="bg-primary-50 p-2 rounded-lg flex-shrink-0">
-          <FileText className="h-5 w-5 text-primary-500" />
+          {(() => {
+            const MaterialIcon = getMaterialTypeIcon(material.material_type)
+            console.log('Discovery - Rendering icon for material:', material.name, 'type:', material.material_type, 'Icon component:', MaterialIcon)
+            return <MaterialIcon className="h-5 w-5 text-primary-500" />
+          })()}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600 truncate mb-1">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder } from 'lucide-react'
+import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon } from 'lucide-react'
 import Modal from '../components/Modal'
 import MaterialForm from '../components/MaterialForm'
 import FileUploadModal from '../components/FileUploadModal'
@@ -9,6 +9,67 @@ import BatchUploadModal from '../components/BatchUploadModal'
 import ShareLinkModal from '../components/ShareLinkModal'
 import MultiSelect from '../components/MultiSelect'
 import { useAuth } from '../contexts/AuthContext'
+
+// Helper function to get icon for material type
+function getMaterialTypeIcon(materialType: string | null | undefined): LucideIcon {
+  console.log('[getMaterialTypeIcon] Input:', materialType, 'Type:', typeof materialType)
+  if (!materialType) {
+    console.log('[getMaterialTypeIcon] No materialType, returning FileText')
+    return FileText
+  }
+  
+  const type = materialType.toLowerCase().trim()
+  console.log('[getMaterialTypeIcon] Normalized type:', type)
+  
+  // Handle all possible formats:
+  // - Frontend format: product_brief, sales_deck, sales_enablement_deck, datasheet
+  // - Database format: PRODUCT_BRIEF, PRODUCT_SALES_DECK, PRODUCT_SALES_ENABLEMENT_DECK, PRODUCT_DATASHEET
+  // - Mixed case variations
+  
+  if (type === 'product_brief' || type === 'product_brief') {
+    console.log('[getMaterialTypeIcon] Matched product_brief -> ClipboardList')
+    return ClipboardList
+  }
+  
+  if (type === 'sales_deck' || type === 'product_sales_deck' || type.includes('sales_deck')) {
+    console.log('[getMaterialTypeIcon] Matched sales_deck -> Presentation')
+    return Presentation
+  }
+  
+  if (type === 'sales_enablement_deck' || type === 'product_sales_enablement_deck' || type.includes('sales_enablement')) {
+    console.log('[getMaterialTypeIcon] Matched sales_enablement_deck -> GraduationCap')
+    return GraduationCap
+  }
+  
+  if (type === 'datasheet' || type === 'product_datasheet' || type.includes('datasheet')) {
+    console.log('[getMaterialTypeIcon] Matched datasheet -> FileSpreadsheet')
+    return FileSpreadsheet
+  }
+  
+  console.log('[getMaterialTypeIcon] No match for type:', type, '-> FileText')
+  return FileText
+}
+
+// Helper function to get background color class based on material type
+function getMaterialTypeBgColor(materialType: string | null | undefined): string {
+  if (!materialType) return 'bg-slate-50'
+  const type = materialType.toLowerCase().trim()
+  switch (type) {
+    case 'product_brief':
+      return 'bg-blue-50'
+    case 'sales_deck':
+    case 'product_sales_deck':
+      return 'bg-purple-50'
+    case 'sales_enablement_deck':
+    case 'product_sales_enablement_deck':
+      return 'bg-green-50'
+    case 'datasheet':
+    case 'product_datasheet':
+      return 'bg-orange-50'
+    default:
+      return 'bg-slate-50'
+  }
+}
 
 const UNIVERSES = [
   { id: 'all', name: 'All Materials', icon: FolderOpen, color: 'text-slate-500', bgColor: 'bg-slate-50', borderColor: 'border-slate-200' },
@@ -50,6 +111,7 @@ export default function Materials() {
     queryKey: ['materials'],
     queryFn: () => api.get('/materials').then(res => res.data),
   })
+
 
   // Fetch product hierarchy for filters
   const { data: universes = [] } = useQuery({
@@ -101,57 +163,60 @@ export default function Materials() {
     },
   })
 
-  const filteredMaterials = materials?.filter((m: any) => {
-    // Archived filter - hide archived by default unless explicitly shown for this universe
-    if (m.status === 'archived') {
-      const universeName = m.universe_name || 'Uncategorized'
-      // If archived materials are not explicitly shown for this universe, hide them
-      if (!showArchivedByUniverse[universeName]) {
-        return false
+  const filteredMaterials = useMemo(() => {
+    return (materials || []).filter((m: any) => {
+      // Archived filter - hide archived by default unless explicitly shown for this universe
+      if (m.status === 'archived') {
+        const universeName = m.universe_name || 'Uncategorized'
+        // If archived materials are not explicitly shown for this universe, hide them
+        if (!showArchivedByUniverse[universeName]) {
+          return false
+        }
       }
-    }
-    
-    // Search filter - search by name
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
-      if (!m.name?.toLowerCase().includes(query)) return false
-    }
-    
-    // Universe filter - if any universes are selected, filter by them
-    if (selectedUniverses.length > 0) {
-      if (!m.universe_name || !selectedUniverses.includes(m.universe_name)) return false
-    }
-    
-    // Material Type filter - if any types are selected, filter by them
-    if (filterTypes.length > 0) {
-      if (!m.material_type || !filterTypes.includes(m.material_type)) return false
-    }
-    
-    // Status filter - if any statuses are selected, filter by them
-    if (filterStatuses.length > 0) {
-      if (!m.status || !filterStatuses.includes(m.status)) return false
-    }
-    
-    // Product filter - if any products are selected, filter by them
-    if (filterProductIds.length > 0) {
-      const matchingProducts = allProducts.filter((p: any) => filterProductIds.includes(p.id))
-      // Check both name and display_name since materials might store either
-      const productNames = matchingProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
-      if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
-    }
-    
-    // Category filter - if any categories are selected, filter by products in those categories
-    if (filterCategoryIds.length > 0) {
-      const matchingProducts = allProducts.filter((p: any) => 
-        p.category_id && filterCategoryIds.includes(p.category_id)
-      )
-      // Check both name and display_name
-      const productNames = matchingProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
-      if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
-    }
-    
-    return true
-  }) || []
+      
+      // Search filter - search by name
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim()
+        if (!m.name?.toLowerCase().includes(query)) return false
+      }
+      
+      // Universe filter - if any universes are selected, filter by them
+      if (selectedUniverses.length > 0) {
+        if (!m.universe_name || !selectedUniverses.includes(m.universe_name)) return false
+      }
+      
+      // Material Type filter - if any types are selected, filter by them
+      if (filterTypes.length > 0) {
+        if (!m.material_type || !filterTypes.includes(m.material_type)) return false
+      }
+      
+      // Status filter - if any statuses are selected, filter by them
+      if (filterStatuses.length > 0) {
+        if (!m.status || !filterStatuses.includes(m.status)) return false
+      }
+      
+      // Product filter - if any products are selected, filter by them
+      if (filterProductIds.length > 0) {
+        const matchingProducts = allProducts.filter((p: any) => filterProductIds.includes(p.id))
+        // Check both name and display_name since materials might store either
+        const productNames = matchingProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
+        if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
+      }
+      
+      // Category filter - if any categories are selected, filter by products in those categories
+      if (filterCategoryIds.length > 0) {
+        const matchingProducts = allProducts.filter((p: any) => 
+          p.category_id && filterCategoryIds.includes(p.category_id)
+        )
+        // Check both name and display_name
+        const productNames = matchingProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
+        if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
+      }
+      
+      return true
+    })
+  }, [materials, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, searchQuery, allProducts, showArchivedByUniverse])
+
 
   // Group ALL materials by universe (for card counts - always show total)
   const allMaterialsByUniverse = (materials || []).reduce((acc: any, material: any) => {
@@ -192,6 +257,41 @@ export default function Materials() {
   }
 
   // Browse view functions
+  const handleBrowseUniverseClick = (universeId: number) => {
+    setBrowseSelectedUniverseId(browseSelectedUniverseId === universeId ? null : universeId)
+    setBrowseSelectedCategoryId(null)
+    setBrowseSelectedProductId(null)
+  }
+
+  const handleBrowseCategoryClick = (categoryId: number) => {
+    setBrowseSelectedCategoryId(browseSelectedCategoryId === categoryId ? null : categoryId)
+    setBrowseSelectedProductId(null)
+  }
+
+  const handleBrowseProductClick = (productId: number) => {
+    setBrowseSelectedProductId(browseSelectedProductId === productId ? null : productId)
+  }
+
+  const toggleUniverseExpansion = (universeId: number) => {
+    const newExpanded = new Set(expandedUniverses)
+    if (newExpanded.has(universeId)) {
+      newExpanded.delete(universeId)
+    } else {
+      newExpanded.add(universeId)
+    }
+    setExpandedUniverses(newExpanded)
+  }
+
+  const toggleCategoryExpansion = (categoryId: number) => {
+    const newExpanded = new Set(expandedCategories)
+    if (newExpanded.has(categoryId)) {
+      newExpanded.delete(categoryId)
+    } else {
+      newExpanded.add(categoryId)
+    }
+    setExpandedCategories(newExpanded)
+  }
+
   const toggleUniverse = (universeId: number) => {
     setExpandedUniverses(prev => {
       const next = new Set(prev)
@@ -364,14 +464,26 @@ export default function Materials() {
 
   // Render material row component
   const renderMaterialRow = (material: any) => {
+    if (!material) {
+      return null
+    }
     const universeInfo = getUniverseInfo(material.universe_name || 'Uncategorized')
     const UniverseIcon = universeInfo.icon
+    const bgColor = getMaterialTypeBgColor(material.material_type)
     
     return (
       <div className="flex items-center justify-between">
         <div className="flex items-center flex-1 min-w-0">
-          <div className="bg-primary-50 p-2 rounded-lg mr-4">
-            <FileText className="h-5 w-5 text-primary-500" />
+          <div className={`${bgColor} p-2 rounded-lg mr-4 flex items-center gap-1`} title={`Type: ${material.material_type || 'null'}`}>
+            {(() => {
+              const MaterialIcon = getMaterialTypeIcon(material.material_type)
+              return (
+                <>
+                  <MaterialIcon className="h-5 w-5 text-primary-500" />
+                  <span className="text-xs text-slate-400 hidden">{material.material_type || 'null'}</span>
+                </>
+              )
+            })()}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
@@ -1240,8 +1352,11 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete }:
   return (
     <div className="card-ovh p-4 hover:shadow-md transition-all group">
       <div className="flex items-start space-x-3">
-        <div className="bg-primary-50 p-2 rounded-lg flex-shrink-0">
-          <FileText className="h-5 w-5 text-primary-500" />
+        <div className={`${getMaterialTypeBgColor(material.material_type)} p-2 rounded-lg flex-shrink-0`} title={`Type: ${material.material_type || 'null'}`}>
+          {(() => {
+            const MaterialIcon = getMaterialTypeIcon(material.material_type)
+            return <MaterialIcon className="h-5 w-5 text-primary-500" />
+          })()}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600 truncate mb-1">
