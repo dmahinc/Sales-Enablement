@@ -2,8 +2,9 @@
 Application configuration
 """
 from pydantic_settings import BaseSettings
-from pydantic import Field
-from typing import List
+from pydantic import Field, field_validator
+from typing import List, Union
+import json
 
 class Settings(BaseSettings):
     # Application
@@ -14,7 +15,24 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://user:password@localhost/sales_enablement"
     
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:5173"]
+    CORS_ORIGINS: Union[List[str], str] = Field(default="http://localhost:3003", description="CORS allowed origins (comma-separated string or JSON array)")
+    
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            # Try to parse as JSON array first
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except (json.JSONDecodeError, ValueError):
+                pass
+            # Parse as comma-separated string
+            if ',' in v:
+                return [origin.strip() for origin in v.split(',')]
+            return [v]
+        return v if isinstance(v, list) else ["*"]
     
     # File Storage
     STORAGE_TYPE: str = "local"  # local, sharepoint, drive
@@ -37,6 +55,13 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = Field(default="noreply@ovhcloud.com", description="From email address")
     SMTP_FROM_NAME: str = Field(default="Products & Solutions Enablement", description="From name")
     SMTP_USE_TLS: bool = Field(default=True, description="Use TLS for SMTP")
+    
+    # OVHcloud AI Endpoints Configuration
+    OVH_AI_ENABLED: bool = Field(default=False, description="Enable OVHcloud AI Endpoints integration")
+    OVH_AI_ENDPOINT_URL: str = Field(default="", description="OVHcloud AI Endpoint URL")
+    OVH_AI_API_KEY: str = Field(default="", description="OVHcloud AI API Key")
+    OVH_AI_MODEL: str = Field(default="mistral-large-latest", description="AI model to use")
+    OVH_AI_CONFIDENCE_THRESHOLD: float = Field(default=0.9, description="Confidence threshold for auto-apply (0.0-1.0)")
     
     class Config:
         env_file = ".env"

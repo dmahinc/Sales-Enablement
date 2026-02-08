@@ -2,6 +2,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
+import DirectorDashboard from './pages/DirectorDashboard'
+import PMMDashboard from './pages/PMMDashboard'
+import SalesDashboard from './pages/SalesDashboard'
 import Materials from './pages/Materials'
 import HealthDashboard from './pages/HealthDashboard'
 import Discovery from './pages/Discovery'
@@ -30,6 +33,27 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function RoleBasedDashboard() {
+  const { user } = useAuth()
+  
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+  
+  // Route to role-specific dashboard
+  switch (user.role) {
+    case 'director':
+      return <DirectorDashboard />
+    case 'pmm':
+      return <PMMDashboard />
+    case 'sales':
+      return <SalesDashboard />
+    default:
+      // Fallback to generic dashboard for admin or unknown roles
+      return <Dashboard />
+  }
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -43,7 +67,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<RoleBasedDashboard />} />
         <Route path="materials" element={<Materials />} />
         <Route path="health" element={<HealthDashboard />} />
         <Route path="analytics" element={<UsageAnalytics />} />

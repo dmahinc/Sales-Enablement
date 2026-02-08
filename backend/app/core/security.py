@@ -9,6 +9,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.core.config import settings
+# Import AICorrection first to ensure it's registered before User tries to set up relationship
+from app.models.ai_correction import AICorrection  # noqa: F401
 from app.models.user import User
 from app.core.database import get_db
 

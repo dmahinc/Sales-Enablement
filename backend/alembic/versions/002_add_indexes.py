@@ -30,8 +30,7 @@ def upgrade():
     # Add indexes for personas and segments
     op.create_index('idx_personas_name', 'personas', ['name'])
     op.create_index('idx_segments_name', 'segments', ['name'])
-    op.create_index('idx_segments_industry', 'segments', ['industry'])
-    op.create_index('idx_segments_region', 'segments', ['region'])
+    # Note: industry and region columns are added in migration 003, so indexes are created there
 
 
 def downgrade():
@@ -40,5 +39,4 @@ def downgrade():
     op.drop_index('idx_materials_status_universe', table_name='materials')
     op.drop_index('idx_personas_name', table_name='personas')
     op.drop_index('idx_segments_name', table_name='segments')
-    op.drop_index('idx_segments_industry', table_name='segments')
-    op.drop_index('idx_segments_region', table_name='segments')
+    # Note: industry and region indexes are dropped in migration 003

@@ -38,6 +38,7 @@ class Material(BaseModel):
     # Note: Database uses PostgreSQL enum with names (PRODUCT_SALES_DECK, etc.)
     # We'll handle conversion in the API layer
     material_type = Column(String(50), nullable=False)
+    other_type_description = Column(String(255), nullable=True)  # Description when material_type is "other"
     audience = Column(String(50), nullable=False)
     
     # Product/Universe
@@ -45,8 +46,8 @@ class Material(BaseModel):
     universe_name = Column(String(255), index=True)
     
     # File Information
-    file_path = Column(String(500), nullable=False)
-    file_name = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=True)  # Nullable to allow materials without files
+    file_name = Column(String(255), nullable=True)  # Nullable to allow materials without files
     file_format = Column(String(50))  # pdf, pptx, docx
     file_size = Column(Integer)  # bytes
     

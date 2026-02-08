@@ -1,12 +1,17 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api'
+// Use relative URL to proxy through frontend nginx (same origin, no CORS)
+// This avoids browser blocking self-signed certificates for cross-origin requests
+const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  // Note: Browser handles SSL validation - user must accept self-signed cert
+  // This timeout helps detect if certificate is blocking the request
+  timeout: 10000,
 })
 
 // Add token to requests

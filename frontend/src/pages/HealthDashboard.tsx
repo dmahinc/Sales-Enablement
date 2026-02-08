@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown, RefreshCw, Calendar } from 'lucide-react'
 
 export default function HealthDashboard() {
-  const { data: materials, isLoading } = useQuery({
-    queryKey: ['materials'],
-    queryFn: () => api.get('/materials').then(res => res.data),
+  const { data: healthData, isLoading, refetch } = useQuery({
+    queryKey: ['health-dashboard'],
+    queryFn: () => api.get('/health/dashboard').then(res => res.data),
   })
 
   if (isLoading) {
@@ -17,28 +17,37 @@ export default function HealthDashboard() {
     )
   }
 
-  // Calculate health metrics
-  const totalMaterials = materials?.length || 0
-  const publishedMaterials = materials?.filter((m: any) => m.status === 'published').length || 0
-  const draftMaterials = materials?.filter((m: any) => m.status === 'draft').length || 0
-  const reviewMaterials = materials?.filter((m: any) => m.status === 'review').length || 0
-  const archivedMaterials = materials?.filter((m: any) => m.status === 'archived').length || 0
-  
-  const overallHealth = totalMaterials > 0 
-    ? Math.round((publishedMaterials / totalMaterials) * 100) 
-    : 0
+  const stats = healthData?.statistics || {}
+  const freshnessMetrics = healthData?.freshness_metrics || {}
+  const completenessMetrics = healthData?.completeness_metrics || {}
+  const usageMetrics = healthData?.usage_metrics || {}
+  const ageDist = freshnessMetrics.age_distribution || {}
 
+  const totalMaterials = stats.total_materials || 0
+  const overallHealth = stats.average_health_score || 0
   const healthColor = overallHealth >= 70 ? 'emerald' : overallHealth >= 40 ? 'amber' : 'red'
 
-  // Materials by universe
-  const universeStats = [
-    { name: 'Public Cloud', count: materials?.filter((m: any) => m.universe_name === 'Public Cloud').length || 0 },
-    { name: 'Private Cloud', count: materials?.filter((m: any) => m.universe_name === 'Private Cloud').length || 0 },
-    { name: 'Bare Metal', count: materials?.filter((m: any) => m.universe_name === 'Bare Metal').length || 0 },
-    { name: 'Hosting & Collaboration', count: materials?.filter((m: any) => m.universe_name === 'Hosting & Collaboration').length || 0 },
-  ]
+  // Age distribution labels
+  const ageLabels = {
+    fresh: 'Fresh (0-30 days)',
+    recent: 'Recent (31-90 days)',
+    aging: 'Aging (91-180 days)',
+    stale: 'Stale (181-365 days)',
+    very_stale: 'Very Stale (>365 days)',
+    no_date: 'No Date'
+  }
 
-  const maxUniverseCount = Math.max(...universeStats.map(u => u.count), 1)
+  const ageColors = {
+    fresh: 'bg-emerald-500',
+    recent: 'bg-blue-500',
+    aging: 'bg-amber-500',
+    stale: 'bg-orange-500',
+    very_stale: 'bg-red-500',
+    no_date: 'bg-slate-400'
+  }
+
+  const totalWithDate = totalMaterials - (ageDist.no_date || 0)
+  const maxAgeCount = Math.max(...Object.values(ageDist).filter((v: any) => typeof v === 'number') as number[], 1)
 
   return (
     <div className="space-y-8">
@@ -46,23 +55,25 @@ export default function HealthDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-primary-700">Health Dashboard</h1>
-          <p className="mt-1 text-slate-500">Monitor the health and status of your sales materials</p>
+          <p className="mt-1 text-slate-500">Detailed health metrics for sales materials</p>
         </div>
-        <button className="btn-ovh-secondary mt-4 sm:mt-0">
+        <button 
+          onClick={() => refetch()}
+          className="btn-ovh-secondary mt-4 sm:mt-0"
+        >
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh Data
         </button>
       </div>
 
-      {/* Overall Health Score */}
+      {/* Overall Health Score - Only for Directors */}
       <div className="card-ovh p-8">
         <div className="flex flex-col md:flex-row items-center justify-between">
           <div className="text-center md:text-left mb-6 md:mb-0">
             <h2 className="text-lg font-medium text-slate-600">Overall Health Score</h2>
-            <p className="text-sm text-slate-400 mt-1">Based on published materials ratio</p>
+            <p className="text-sm text-slate-400 mt-1">Weighted average of freshness, completeness, and usage</p>
           </div>
           <div className="flex items-center space-x-8">
-            {/* Circular Progress */}
             <div className="relative w-32 h-32">
               <svg className="w-full h-full transform -rotate-90">
                 <circle
@@ -85,7 +96,7 @@ export default function HealthDashboard() {
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className={`text-3xl font-bold text-${healthColor}-500`}>{overallHealth}%</span>
+                <span className={`text-3xl font-bold text-${healthColor}-500`}>{Math.round(overallHealth)}%</span>
               </div>
             </div>
             <div className="text-center md:text-left">
@@ -100,211 +111,159 @@ export default function HealthDashboard() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                {publishedMaterials} of {totalMaterials} materials published
+                {totalMaterials} total materials
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Status Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card-ovh p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">Published</p>
-              <p className="text-3xl font-semibold text-emerald-600 mt-2">{publishedMaterials}</p>
-            </div>
-            <div className="bg-emerald-50 p-3 rounded-xl">
-              <CheckCircle className="h-6 w-6 text-emerald-500" />
-            </div>
+      {/* Health Metrics Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Freshness Score with Age Distribution */}
+        <div className="card-ovh">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-primary-700">Freshness Score</h2>
+            <p className="text-sm text-slate-500 mt-1">Material age distribution</p>
           </div>
-          <div className="mt-4">
-            <div className="w-full bg-slate-100 rounded-full h-2">
-              <div 
-                className="bg-emerald-500 h-2 rounded-full transition-all"
-                style={{ width: `${totalMaterials > 0 ? (publishedMaterials / totalMaterials) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="card-ovh p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">In Review</p>
-              <p className="text-3xl font-semibold text-amber-600 mt-2">{reviewMaterials}</p>
-            </div>
-            <div className="bg-amber-50 p-3 rounded-xl">
-              <Clock className="h-6 w-6 text-amber-500" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="w-full bg-slate-100 rounded-full h-2">
-              <div 
-                className="bg-amber-500 h-2 rounded-full transition-all"
-                style={{ width: `${totalMaterials > 0 ? (reviewMaterials / totalMaterials) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="card-ovh p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">Draft</p>
-              <p className="text-3xl font-semibold text-primary-600 mt-2">{draftMaterials}</p>
-            </div>
-            <div className="bg-primary-50 p-3 rounded-xl">
-              <Activity className="h-6 w-6 text-primary-500" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="w-full bg-slate-100 rounded-full h-2">
-              <div 
-                className="bg-primary-500 h-2 rounded-full transition-all"
-                style={{ width: `${totalMaterials > 0 ? (draftMaterials / totalMaterials) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="card-ovh p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-500">Archived</p>
-              <p className="text-3xl font-semibold text-slate-600 mt-2">{archivedMaterials}</p>
-            </div>
-            <div className="bg-slate-100 p-3 rounded-xl">
-              <AlertTriangle className="h-6 w-6 text-slate-400" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="w-full bg-slate-100 rounded-full h-2">
-              <div 
-                className="bg-slate-400 h-2 rounded-full transition-all"
-                style={{ width: `${totalMaterials > 0 ? (archivedMaterials / totalMaterials) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Materials by Universe */}
-      <div className="card-ovh">
-        <div className="px-6 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-semibold text-primary-700">Materials by Universe</h2>
-        </div>
-        <div className="p-6">
-          <div className="space-y-6">
-            {universeStats.map((universe, index) => {
-              const colors = ['primary', 'violet', 'amber', 'emerald']
-              const color = colors[index % colors.length]
-              const percentage = (universe.count / maxUniverseCount) * 100
-              
-              return (
-                <div key={universe.name}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">{universe.name}</span>
-                    <span className="text-sm font-semibold text-slate-900">{universe.count}</span>
+          <div className="p-6">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-600">Average Score</span>
+                <span className="text-2xl font-bold text-primary-700">
+                  {Math.round(freshnessMetrics.average_score || 0)}%
+                </span>
+              </div>
+              {freshnessMetrics.quartiles && (
+                <div className="mt-4 space-y-2 text-xs text-slate-500">
+                  <div className="flex justify-between">
+                    <span>Q1 (25th percentile):</span>
+                    <span className="font-medium">{freshnessMetrics.quartiles.q1}%</span>
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-3">
-                    <div 
-                      className={`bg-${color}-500 h-3 rounded-full transition-all duration-500`}
-                      style={{ width: `${percentage}%` }}
-                    />
+                  <div className="flex justify-between">
+                    <span>Q2 (Median):</span>
+                    <span className="font-medium">{freshnessMetrics.quartiles.q2}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Q3 (75th percentile):</span>
+                    <span className="font-medium">{freshnessMetrics.quartiles.q3}%</span>
                   </div>
                 </div>
-              )
-            })}
+              )}
+            </div>
+            <div className="space-y-3">
+              {Object.entries(ageLabels).map(([key, label]) => {
+                const count = ageDist[key as keyof typeof ageDist] || 0
+                const percentage = totalWithDate > 0 ? (count / totalWithDate) * 100 : 0
+                return (
+                  <div key={key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-slate-700">{label}</span>
+                      <span className="text-sm font-semibold text-slate-900">{count}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div 
+                        className={`${ageColors[key as keyof typeof ageColors]} h-2 rounded-full transition-all`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Quick Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="card-ovh p-6">
-          <h3 className="text-lg font-semibold text-primary-700 mb-4">Quick Insights</h3>
-          <ul className="space-y-3">
-            {draftMaterials > 0 && (
-              <li className="flex items-start space-x-3">
-                <div className="bg-primary-50 p-1 rounded">
-                  <Activity className="w-4 h-4 text-primary-500" />
+        {/* Completeness Score with Quartiles */}
+        <div className="card-ovh">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-primary-700">Completeness Score</h2>
+            <p className="text-sm text-slate-500 mt-1">Material metadata completeness</p>
+          </div>
+          <div className="p-6">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-600">Average Score</span>
+                <span className="text-2xl font-bold text-primary-700">
+                  {Math.round(completenessMetrics.average_score || 0)}%
+                </span>
+              </div>
+              {completenessMetrics.quartiles && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <span className="text-sm text-slate-600">Q1 (25th percentile)</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {completenessMetrics.quartiles.q1}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg border-2 border-primary-200">
+                    <span className="text-sm font-medium text-primary-700">Q2 (Median)</span>
+                    <span className="text-lg font-bold text-primary-700">
+                      {completenessMetrics.quartiles.q2}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <span className="text-sm text-slate-600">Q3 (75th percentile)</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {completenessMetrics.quartiles.q3}%
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-slate-600">
-                  <span className="font-medium">{draftMaterials} materials</span> are in draft status and need completion
-                </p>
-              </li>
-            )}
-            {reviewMaterials > 0 && (
-              <li className="flex items-start space-x-3">
-                <div className="bg-amber-50 p-1 rounded">
-                  <Clock className="w-4 h-4 text-amber-500" />
-                </div>
-                <p className="text-sm text-slate-600">
-                  <span className="font-medium">{reviewMaterials} materials</span> are pending review
-                </p>
-              </li>
-            )}
-            {overallHealth >= 70 && (
-              <li className="flex items-start space-x-3">
-                <div className="bg-emerald-50 p-1 rounded">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" />
-                </div>
-                <p className="text-sm text-slate-600">
-                  Your content library is in <span className="font-medium text-emerald-600">good health</span>!
-                </p>
-              </li>
-            )}
-            {totalMaterials === 0 && (
-              <li className="flex items-start space-x-3">
-                <div className="bg-slate-100 p-1 rounded">
-                  <AlertTriangle className="w-4 h-4 text-slate-400" />
-                </div>
-                <p className="text-sm text-slate-600">
-                  No materials yet. Start by uploading your first material.
-                </p>
-              </li>
-            )}
-          </ul>
+              )}
+            </div>
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <p className="text-xs text-slate-600">
+                <strong>Interpretation:</strong> Materials above Q3 ({completenessMetrics.quartiles?.q3 || 0}%) are well-documented. 
+                Materials below Q1 ({completenessMetrics.quartiles?.q1 || 0}%) need attention.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="card-ovh p-6">
-          <h3 className="text-lg font-semibold text-primary-700 mb-4">Recommendations</h3>
-          <ul className="space-y-3">
-            {draftMaterials > publishedMaterials && (
-              <li className="flex items-start space-x-3 p-3 bg-amber-50 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-slate-700">
-                  Review and publish your draft materials to improve content availability
-                </p>
-              </li>
-            )}
-            {universeStats.some(u => u.count === 0) && (
-              <li className="flex items-start space-x-3 p-3 bg-primary-50 rounded-lg">
-                <Activity className="w-5 h-5 text-primary-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-slate-700">
-                  Add materials to all product universes for complete coverage
-                </p>
-              </li>
-            )}
-            {totalMaterials > 0 && overallHealth < 50 && (
-              <li className="flex items-start space-x-3 p-3 bg-red-50 rounded-lg">
-                <TrendingDown className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-slate-700">
-                  Health score is below 50%. Prioritize publishing existing content.
-                </p>
-              </li>
-            )}
-            {totalMaterials > 0 && overallHealth >= 70 && (
-              <li className="flex items-start space-x-3 p-3 bg-emerald-50 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-slate-700">
-                  Great job! Continue maintaining your content and keep it up to date.
-                </p>
-              </li>
-            )}
-          </ul>
+        {/* Usage Score with Quartiles */}
+        <div className="card-ovh">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-primary-700">Usage Score</h2>
+            <p className="text-sm text-slate-500 mt-1">Material access and sharing frequency</p>
+          </div>
+          <div className="p-6">
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-600">Average Score</span>
+                <span className="text-2xl font-bold text-primary-700">
+                  {Math.round(usageMetrics.average_score || 0)}%
+                </span>
+              </div>
+              {usageMetrics.quartiles && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <span className="text-sm text-slate-600">Q1 (25th percentile)</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {usageMetrics.quartiles.q1}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border-2 border-emerald-200">
+                    <span className="text-sm font-medium text-emerald-700">Q2 (Median)</span>
+                    <span className="text-lg font-bold text-emerald-700">
+                      {usageMetrics.quartiles.q2}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                    <span className="text-sm text-slate-600">Q3 (75th percentile)</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {usageMetrics.quartiles.q3}%
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-6 p-4 bg-emerald-50 rounded-lg">
+              <p className="text-xs text-slate-600">
+                <strong>Interpretation:</strong> Materials above Q3 ({usageMetrics.quartiles?.q3 || 0}%) are highly used. 
+                Materials below Q1 ({usageMetrics.quartiles?.q1 || 0}%) may need promotion or review.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -4,6 +4,10 @@ User model - represents PMMs and other users
 from sqlalchemy import Column, String, Boolean, Integer
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.ai_correction import AICorrection
 
 class User(BaseModel):
     """User model"""
@@ -23,3 +27,4 @@ class User(BaseModel):
     
     # Relationships (using string references to avoid circular imports)
     materials = relationship("Material", back_populates="owner", lazy="dynamic")
+    ai_corrections = relationship("AICorrection", back_populates="user", lazy="dynamic")

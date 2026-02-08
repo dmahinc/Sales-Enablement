@@ -52,12 +52,22 @@ def send_email(
         html_part = MIMEText(html_body, 'html')
         msg.attach(html_part)
         
-        # Send email
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            if settings.SMTP_USE_TLS:
-                server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.send_message(msg)
+        # Send email with increased timeout
+        timeout = 30  # 30 seconds timeout
+        if settings.SMTP_PORT == 465:
+            # Use SMTP_SSL for port 465
+            import ssl
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout, context=context) as server:
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(msg)
+        else:
+            # Use regular SMTP with TLS for port 587
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout) as server:
+                if settings.SMTP_USE_TLS:
+                    server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.send_message(msg)
         
         logger.info(f"Email sent successfully to {to_email}")
         return True
@@ -141,13 +151,31 @@ def send_user_creation_notification(
             }}
             .button {{
                 display: inline-block;
-                background: #0050d7;
-                color: white;
+                background-color: #0050d7 !important;
+                color: #ffffff !important;
                 padding: 12px 30px;
                 text-decoration: none;
                 border-radius: 6px;
                 margin: 20px 0;
                 font-weight: bold;
+                font-size: 16px;
+                border: 2px solid #0050d7;
+            }}
+            a.button {{
+                color: #ffffff !important;
+            }}
+            /* Fallback for email clients */
+            table.button-table {{
+                margin: 20px auto;
+            }}
+            table.button-table td {{
+                background-color: #0050d7;
+                border-radius: 6px;
+                padding: 0;
+            }}
+            table.button-table a {{
+                color: #ffffff !important;
+                text-decoration: none;
             }}
             .footer {{
                 text-align: center;
@@ -193,9 +221,13 @@ def send_user_creation_notification(
                 <strong>⚠️ Important:</strong> Please change your password after your first login for security purposes.
             </div>
             
-            <p>
-                <a href="{platform_url}/login" class="button">Access the Platform</a>
-            </p>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 20px auto;">
+                <tr>
+                    <td align="center" style="background-color: #0050d7; border-radius: 6px; padding: 12px 30px;">
+                        <a href="{platform_url}/login" style="color: #ffffff !important; font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; text-decoration: none; display: block; color: #ffffff;">Access the Platform</a>
+                    </td>
+                </tr>
+            </table>
             
             <p>If you have any questions or need assistance, please contact your administrator.</p>
         </div>

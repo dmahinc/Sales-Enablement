@@ -1,0 +1,31 @@
+# HTTPS overlay for docker-compose.yml
+# Use: docker-compose -f docker-compose.yml -f docker-compose.https.yml up -d
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: sales-enablement-nginx
+    ports:
+      - "8080:80"   # HTTP redirect (temporary, can change to 80 later)
+      - "443:443"   # HTTPS
+    volumes:
+      - ./nginx/nginx-https.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/ssl/certs/sales-enablement.crt:/etc/ssl/certs/sales-enablement.crt:ro
+      - /etc/ssl/private/sales-enablement.key:/etc/ssl/private/sales-enablement.key:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - sales-enablement-network
+    restart: unless-stopped
+
+  frontend:
+    ports: []  # Remove direct port mapping, nginx handles it
+    environment:
+      - VITE_API_URL=https://91.134.72.199/api
+
+  backend:
+    ports: []  # Remove direct port mapping, nginx handles it
+    environment:
+      CORS_ORIGINS: '["https://91.134.72.199","https://91.134.72.199:443","http://localhost:3003"]'
+      PLATFORM_URL: https://91.134.72.199

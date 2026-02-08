@@ -1,0 +1,33 @@
+{
+  "universes": {
+    "Public Cloud": {
+      "icon_name": "Cloud",
+      "icon_url": null
+    },
+    "Private Cloud": {
+      "icon_name": "Server",
+      "icon_url": null
+    },
+    "Bare Metal": {
+      "icon_name": "HardDrive",
+      "icon_url": null
+    },
+    "Hosting & Collaboration": {
+      "icon_name": "Users",
+      "icon_url": null
+    }
+  },
+  "categories": {
+    "ai": "Brain",
+    "analytics": "BarChart",
+    "backup": "Archive",
+    "collab": "Users",
+    "compute": "Cpu",
+    "databases": "Database",
+    "gaming": "Gamepad2",
+    "hosting": "Globe",
+    "network": "Network",
+    "storage": "HardDrive"
+  },
+  "note": "These are Lucide React icon names. Import from 'lucide-react' in frontend."
+}

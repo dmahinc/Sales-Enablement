@@ -1,0 +1,18 @@
+[Unit]
+Description=Sales Enablement Platform (Docker Compose)
+Requires=docker.service
+After=docker.service
+RequiresMountsFor=/var/lib/docker
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/ubuntu/Sales-Enablement
+ExecStart=/snap/bin/docker-compose up -d
+ExecStop=/snap/bin/docker-compose down
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

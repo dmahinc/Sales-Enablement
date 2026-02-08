@@ -2,7 +2,7 @@
 Users API endpoints - User management (Admin only)
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -65,50 +65,66 @@ async def get_user(
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: UserCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     """Create a new user (Admin only)"""
-    # Check if user exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Create user
-    from app.core.security import get_password_hash
-    user = User(
-        email=user_data.email,
-        full_name=user_data.full_name,
-        hashed_password=get_password_hash(user_data.password),
-        role=user_data.role,
-        is_active=user_data.is_active if hasattr(user_data, 'is_active') else True,
-        is_superuser=user_data.is_superuser if hasattr(user_data, 'is_superuser') else False
-    )
-    
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    
-    # Send welcome email notification (non-blocking - don't fail user creation if email fails)
     try:
-        platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
-        email_sent = send_user_creation_notification(
-            user_email=user.email,
-            user_name=user.full_name,
-            user_password=user_data.password,  # Send the plain password before it's hashed
-            user_role=user.role,
-            platform_url=platform_url
+        # Check if user exists
+        existing_user = db.query(User).filter(User.email == user_data.email).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Create user
+        from app.core.security import get_password_hash
+        user = User(
+            email=user_data.email,
+            full_name=user_data.full_name,
+            hashed_password=get_password_hash(user_data.password),
+            role=user_data.role,
+            is_active=user_data.is_active if hasattr(user_data, 'is_active') else True,
+            is_superuser=user_data.is_superuser if hasattr(user_data, 'is_superuser') else False
         )
-        if not email_sent:
-            logger.warning(f"User {user.email} created but email notification failed to send")
+        
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+        # Schedule email sending in background (non-blocking)
+        # This ensures user creation succeeds even if email fails
+        def send_email_task():
+            try:
+                platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+                email_sent = send_user_creation_notification(
+                    user_email=user.email,
+                    user_name=user.full_name,
+                    user_password=user_data.password,  # Send the plain password before it's hashed
+                    user_role=user.role,
+                    platform_url=platform_url
+                )
+                if not email_sent:
+                    logger.warning(f"User {user.email} created but email notification failed to send")
+            except Exception as e:
+                # Log error but don't fail user creation
+                logger.error(f"Error sending welcome email to {user.email}: {str(e)}", exc_info=True)
+        
+        # Add email task to background (executes after response is sent)
+        background_tasks.add_task(send_email_task)
+        
+        return user
+    except HTTPException:
+        raise
     except Exception as e:
-        # Log error but don't fail user creation
-        logger.error(f"Error sending welcome email to {user.email}: {str(e)}", exc_info=True)
-    
-    return user
+        db.rollback()
+        logger.error(f"Failed to create user: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -170,19 +186,30 @@ async def delete_user(
     current_user: User = Depends(require_admin)
 ):
     """Delete a user (Admin only)"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Prevent self-deletion
+        if user_id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete yourself"
+            )
+        
+        db.delete(user)
+        db.commit()
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete user: {str(e)}"
         )
-    
-    # Prevent self-deletion
-    if user_id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete yourself"
-        )
-    
-    db.delete(user)
-    db.commit()

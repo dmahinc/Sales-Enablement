@@ -67,7 +67,11 @@ class MaterialBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     material_type: str
+    other_type_description: Optional[str] = Field(None, max_length=255, description="Description of material type when material_type is 'other'")
     audience: str
+    universe_id: Optional[int] = None
+    category_id: Optional[int] = None
+    product_id: Optional[int] = None
     product_name: Optional[str] = Field(None, max_length=255)
     universe_name: Optional[str] = Field(None, max_length=100)
     status: Optional[str] = "draft"
@@ -78,7 +82,7 @@ class MaterialBase(BaseModel):
 
     @validator('material_type')
     def validate_material_type(cls, v):
-        valid_types = [e.value for e in MaterialType]
+        valid_types = [e.value for e in MaterialType] + ["other"]
         if v not in valid_types:
             raise ValueError(f"material_type must be one of: {valid_types}")
         return v
@@ -117,7 +121,11 @@ class MaterialUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     material_type: Optional[str] = None
+    other_type_description: Optional[str] = Field(None, max_length=255, description="Description of material type when material_type is 'other'")
     audience: Optional[str] = None
+    universe_id: Optional[int] = None
+    category_id: Optional[int] = None
+    product_id: Optional[int] = None
     product_name: Optional[str] = Field(None, max_length=255)
     universe_name: Optional[str] = Field(None, max_length=100)
     status: Optional[str] = None
@@ -129,7 +137,7 @@ class MaterialUpdate(BaseModel):
     @validator('material_type')
     def validate_material_type(cls, v):
         if v:
-            valid_types = [e.value for e in MaterialType]
+            valid_types = [e.value for e in MaterialType] + ["other"]
             if v not in valid_types:
                 raise ValueError(f"material_type must be one of: {valid_types}")
         return v
@@ -171,6 +179,9 @@ class MaterialResponse(MaterialBase):
     @classmethod
     def convert_material_type(cls, v):
         """Convert database enum to frontend enum"""
+        # If it's already 'other', pass it through
+        if v == 'other':
+            return 'other'
         return convert_db_enum_to_frontend(v, MaterialType)
 
     @field_validator('audience', mode='before')
@@ -206,13 +217,14 @@ class MaterialResponse(MaterialBase):
 class MaterialUpload(BaseModel):
     """Schema for file upload metadata"""
     material_type: str = Field(..., description="Type of material")
+    other_type_description: Optional[str] = Field(None, max_length=255, description="Description of material type when material_type is 'other'")
     audience: str = Field(..., description="Target audience")
     universe_name: str = Field(..., description="Product universe")
     product_name: Optional[str] = Field(None, max_length=255)
 
     @validator('material_type')
     def validate_material_type(cls, v):
-        valid_types = [e.value for e in MaterialType]
+        valid_types = [e.value for e in MaterialType] + ["other"]
         if v not in valid_types:
             raise ValueError(f"material_type must be one of: {valid_types}")
         return v

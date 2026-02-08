@@ -13,7 +13,8 @@ export default function ShareView() {
     queryKey: ['shared-link', token],
     queryFn: () => {
       // Use public endpoint without auth headers
-      return fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/shared-links/token/${token}`)
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api'
+      return fetch(`${apiUrl}/shared-links/token/${token}`)
         .then(res => {
           if (!res.ok) {
             throw new Error('Link not found or expired')
@@ -30,7 +31,8 @@ export default function ShareView() {
     setDownloading(true)
     try {
       // Use public download endpoint (no auth required)
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8001'}/api/shared-links/token/${token}/download`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api'
+      const response = await fetch(`${apiUrl}/shared-links/token/${token}/download`, {
         method: 'GET',
       })
       
