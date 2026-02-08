@@ -41,11 +41,12 @@ function RoleBasedDashboard() {
   }
   
   // Route to role-specific dashboard
+  // PMM has the same dashboard as Director
   switch (user.role) {
     case 'director':
       return <DirectorDashboard />
     case 'pmm':
-      return <PMMDashboard />
+      return <DirectorDashboard />
     case 'sales':
       return <SalesDashboard />
     default:

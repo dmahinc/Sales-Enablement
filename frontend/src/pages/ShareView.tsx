@@ -37,10 +37,38 @@ export default function ShareView() {
       })
       
       if (!response.ok) {
-        throw new Error('Download failed')
+        let errorMessage = `Download failed with status ${response.status}`
+        // Clone the response to read error details
+        const clonedResponse = response.clone()
+        try {
+          const errorData = await clonedResponse.json()
+          console.error('Download error response:', errorData)
+          errorMessage = errorData.detail || errorData.message || errorMessage
+        } catch (e) {
+          // If response is not JSON, try to get text
+          try {
+            const textResponse = response.clone()
+            const text = await textResponse.text()
+            console.error('Download error text:', text)
+            if (text) {
+              errorMessage = text
+            }
+          } catch (e2) {
+            console.error('Download error (Unable to parse response):', e2)
+          }
+        }
+        console.error('Final error message:', errorMessage)
+        alert(`Failed to download file: ${errorMessage}`)
+        throw new Error(errorMessage)
       }
       
       const blob = await response.blob()
+      
+      // Check if blob is empty or error response
+      if (blob.size === 0) {
+        throw new Error('Received empty file')
+      }
+      
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -56,13 +84,23 @@ export default function ShareView() {
         }
       }
       
+      // Ensure filename has proper extension
+      if (!filename.includes('.')) {
+        // Try to get extension from material name or add .pdf as default
+        const materialName = sharedLink.material_name || ''
+        const extension = materialName.split('.').pop() || 'pdf'
+        filename = `${filename}.${extension}`
+      }
+      
       link.setAttribute('download', filename)
       document.body.appendChild(link)
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
     } catch (error) {
-      alert('Failed to download file')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to download file'
+      console.error('Download error:', errorMessage)
+      alert(`Failed to download file: ${errorMessage}`)
     } finally {
       setDownloading(false)
     }

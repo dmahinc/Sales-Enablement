@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Upload, X, CheckCircle, AlertCircle, Loader2, Sparkles, Check, FolderPlus, Plus } from 'lucide-react'
@@ -62,15 +62,15 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
     queryFn: () => api.get('/products/universes').then(res => res.data),
   })
 
-  // Fetch categories for refetch after creation
-  const { refetch: refetchCategories } = useQuery({
+  // Fetch categories for editing and refetch after creation
+  const { data: categories = [], refetch: refetchCategories } = useQuery({
     queryKey: ['products', 'categories', editFormData?.universe_id],
     queryFn: () => api.get(`/products/categories?universe_id=${editFormData?.universe_id}`).then(res => res.data),
-    enabled: false, // Only used for refetch
+    enabled: !!editFormData?.universe_id,
   })
 
-  // Fetch products for refetch after creation
-  const { refetch: refetchProducts } = useQuery({
+  // Fetch products for editing and refetch after creation
+  const { data: products = [], refetch: refetchProducts } = useQuery({
     queryKey: ['products', 'list', editFormData?.universe_id, editFormData?.category_id],
     queryFn: () => {
       const params = new URLSearchParams()
@@ -78,14 +78,33 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       if (editFormData?.category_id) params.append('category_id', editFormData.category_id.toString())
       return api.get(`/products/?${params.toString()}`).then(res => res.data)
     },
-    enabled: false, // Only used for refetch
+    enabled: !!editFormData?.universe_id,
   })
 
   // Create category mutation
   const createCategoryMutation = useMutation({
     mutationFn: (data: any) => api.post('/products/categories', data).then(res => res.data),
-    onSuccess: (newCategory) => {
-      queryClient.invalidateQueries({ queryKey: ['products', 'categories', editFormData?.universe_id] })
+    onSuccess: async (newCategory) => {
+      // Update the query cache directly with the new category
+      if (editFormData?.universe_id) {
+        const queryKey = ['products', 'categories', editFormData.universe_id]
+        queryClient.setQueryData(queryKey, (oldData: any[] = []) => {
+          // Check if category already exists in cache
+          const exists = oldData.some((c: any) => c.id === newCategory.id)
+          if (!exists) {
+            return [...oldData, newCategory]
+          }
+          return oldData
+        })
+      }
+      
+      // Invalidate all category queries to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['products', 'categories'] })
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+      
+      // Wait for refetch to complete before updating editFormData
+      await refetchCategories()
+      
       if (editFormData) {
         setEditFormData(prev => prev ? { 
           ...prev, 
@@ -96,7 +115,11 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       setCategoryFormData({ name: '', display_name: '', description: '' })
       setCategoryErrors({})
       setShowCategoryForm(false)
-      refetchCategories()
+      
+      // Also refetch products since category changed
+      if (editFormData?.universe_id) {
+        await refetchProducts()
+      }
     },
     onError: (error: any) => {
       if (error.response?.data?.detail) {
@@ -110,15 +133,37 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
   // Create product mutation
   const createProductMutation = useMutation({
     mutationFn: (data: any) => api.post('/products', data).then(res => res.data),
-    onSuccess: (newProduct) => {
+    onSuccess: async (newProduct) => {
+      // Update the query cache directly with the new product
+      if (editFormData?.universe_id) {
+        const queryKey = ['products', 'list', editFormData.universe_id, editFormData.category_id || null]
+        queryClient.setQueryData(queryKey, (oldData: any[] = []) => {
+          // Check if product already exists in cache
+          const exists = oldData.some((p: any) => p.id === newProduct.id)
+          if (!exists) {
+            return [...oldData, newProduct]
+          }
+          return oldData
+        })
+      }
+      
+      // Invalidate all product queries to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['products', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+      
+      // Wait for refetch to complete before updating editFormData
+      await refetchProducts()
+      
       if (editFormData) {
-        setEditFormData(prev => prev ? ({
+        setEditFormData(prev => prev ? {
           ...prev,
           product_id: newProduct.id,
           product_name: newProduct.display_name || newProduct.name,
-          universe_name: newProduct.universe_name || prev.universe_name
-        }) : null)
+          universe_name: newProduct.universe_name || prev.universe_name,
+          // Also update category_id if the new product has one
+          category_id: newProduct.category_id || prev.category_id,
+          category_name: newProduct.category_name || prev.category_name
+        } : null)
       }
       setProductFormData({
         name: '',
@@ -130,7 +175,6 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       })
       setProductErrors({})
       setShowProductForm(false)
-      refetchProducts()
     },
     onError: (error: any) => {
       if (error.response?.data?.detail) {
@@ -286,11 +330,67 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
     setProductErrors({})
   }
 
+  // Update category/product names when data becomes available
+  useEffect(() => {
+    if (editFormData && editingIndex !== null) {
+      let updated = { ...editFormData }
+      let needsUpdate = false
+
+      // Update category name if category_id is set but name is missing
+      if (editFormData.category_id && !editFormData.category_name && categories.length > 0) {
+        const category = categories.find((c: any) => c.id === editFormData.category_id)
+        if (category) {
+          updated.category_name = category.display_name || category.name || null
+          needsUpdate = true
+        }
+      }
+
+      // Update product name if product_id is set but name is missing
+      if (editFormData.product_id && !editFormData.product_name && products.length > 0) {
+        const product = products.find((p: any) => p.id === editFormData.product_id)
+        if (product) {
+          updated.product_name = product.display_name || product.name || null
+          // Also update category info if available
+          if (product.category_id && !updated.category_id) {
+            updated.category_id = product.category_id
+          }
+          if (product.category_name && !updated.category_name) {
+            updated.category_name = product.category_name
+          }
+          needsUpdate = true
+        }
+      }
+
+      if (needsUpdate) {
+        setEditFormData(updated)
+      }
+    }
+  }, [editFormData, categories, products, editingIndex])
+
   const handleSaveEdit = () => {
     if (editingIndex !== null && editFormData) {
       const updated = [...suggestions]
       // When user edits, set confidence to 100% to indicate manual review
-      updated[editingIndex] = { ...editFormData, confidence: 1.0 }
+      // Ensure all names are set before saving
+      const savedData = { ...editFormData }
+      
+      // Ensure category name is set
+      if (savedData.category_id && !savedData.category_name && categories.length > 0) {
+        const category = categories.find((c: any) => c.id === savedData.category_id)
+        if (category) {
+          savedData.category_name = category.display_name || category.name || null
+        }
+      }
+      
+      // Ensure product name is set
+      if (savedData.product_id && !savedData.product_name && products.length > 0) {
+        const product = products.find((p: any) => p.id === savedData.product_id)
+        if (product) {
+          savedData.product_name = product.display_name || product.name || null
+        }
+      }
+      
+      updated[editingIndex] = { ...savedData, confidence: 1.0 }
       setSuggestions(updated)
       setEditingIndex(null)
       setEditFormData(null)
@@ -345,8 +445,35 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       return
     }
     
+    // Ensure files and suggestions arrays are aligned
+    if (files.length !== suggestions.length) {
+      alert(`Mismatch: ${files.length} files but ${suggestions.length} suggestions. Please re-analyze files.`)
+      return
+    }
+    
+    // Filter to only upload files that have required fields and meet threshold
+    const filesToUpload: File[] = []
+    const suggestionsToUpload: FileSuggestion[] = []
+    
+    files.forEach((file, index) => {
+      const suggestion = suggestions[index]
+      if (suggestion && 
+          suggestion.universe_id && 
+          suggestion.category_id && 
+          suggestion.product_id && 
+          suggestion.confidence >= autoApplyThreshold) {
+        filesToUpload.push(file)
+        suggestionsToUpload.push(suggestion)
+      }
+    })
+    
+    if (filesToUpload.length === 0) {
+      alert('No files ready to upload. Please ensure all files have universe, category, and product selected, and meet the confidence threshold.')
+      return
+    }
+    
     setUploading(true)
-    uploadMutation.mutate({ files, suggestions })
+    uploadMutation.mutate({ files: filesToUpload, suggestions: suggestionsToUpload })
   }
 
   const handleClose = () => {
@@ -558,7 +685,15 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                                       product_id: null,
                                       product_name: null
                                     }
-                                    // Category name will be resolved by ProductHierarchySelector
+                                    // Find category name from the categories list
+                                    if (id && categories.length > 0) {
+                                      const category = categories.find((c: any) => c.id === id)
+                                      if (category) {
+                                        updated.category_name = category.display_name || category.name || null
+                                      }
+                                    } else {
+                                      updated.category_name = null
+                                    }
                                     return updated
                                   })
                                   setShowProductForm(false)
@@ -570,7 +705,23 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                                       ...prev, 
                                       product_id: id
                                     }
-                                    // Product name will be resolved by ProductHierarchySelector
+                                    // Find product name from the products list
+                                    if (id && products.length > 0) {
+                                      const product = products.find((p: any) => p.id === id)
+                                      if (product) {
+                                        updated.product_name = product.display_name || product.name || null
+                                        // Also update category_name if not already set
+                                        if (product.category_name && !updated.category_name) {
+                                          updated.category_name = product.category_name
+                                        }
+                                        // Also update category_id if not already set
+                                        if (product.category_id && !updated.category_id) {
+                                          updated.category_id = product.category_id
+                                        }
+                                      }
+                                    } else {
+                                      updated.product_name = null
+                                    }
                                     return updated
                                   })
                                 }}
@@ -846,7 +997,17 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                             <td className="border border-slate-300 px-4 py-2 text-sm">
                               <select
                                 value={editFormData.material_type || 'product_brief'}
-                                onChange={(e) => setEditFormData({ ...editFormData, material_type: e.target.value })}
+                                onChange={(e) => {
+                                  const newMaterialType = e.target.value
+                                  // Auto-set audience based on material type
+                                  let newAudience = editFormData.audience || 'internal'
+                                  if (newMaterialType === 'product_brief' || newMaterialType === 'sales_enablement_deck') {
+                                    newAudience = 'internal'
+                                  } else if (newMaterialType === 'datasheet' || newMaterialType === 'sales_deck') {
+                                    newAudience = 'customer_facing'
+                                  }
+                                  setEditFormData({ ...editFormData, material_type: newMaterialType, audience: newAudience })
+                                }}
                                 className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
                               >
                                 <option value="product_brief">Product Brief</option>
@@ -864,7 +1025,6 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                               >
                                 <option value="internal">Internal</option>
                                 <option value="customer_facing">Customer Facing</option>
-                                <option value="shared_asset">Shared Asset</option>
                               </select>
                             </td>
                             <td className="border border-slate-300 px-4 py-2 text-sm">

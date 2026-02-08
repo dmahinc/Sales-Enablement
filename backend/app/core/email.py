@@ -268,3 +268,198 @@ This is an automated message. Please do not reply.
         html_body=html_body,
         text_body=text_body
     )
+
+
+def send_share_link_notification(
+    customer_email: str,
+    customer_name: str,
+    material_name: str,
+    share_url: str,
+    shared_by_name: str,
+    platform_url: str = "http://localhost:3003"
+) -> bool:
+    """
+    Send email notification when a document is shared with a customer
+    
+    Args:
+        customer_email: Customer's email address
+        customer_name: Customer's name or company name
+        material_name: Name of the shared document
+        share_url: URL to access the shared document
+        shared_by_name: Name of the person who shared the document
+        platform_url: URL to the platform
+    
+    Returns:
+        True if email sent successfully, False otherwise
+    """
+    # Use customer name or fallback to a friendly greeting
+    greeting_name = customer_name if customer_name else "Valued Customer"
+    
+    subject = f"Discover our {material_name} - OVHcloud"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+            }}
+            .header {{
+                background: linear-gradient(135deg, #0050d7 0%, #003d9e 100%);
+                color: white;
+                padding: 30px;
+                text-align: center;
+                border-radius: 8px 8px 0 0;
+            }}
+            .content {{
+                background: #f9fafb;
+                padding: 30px;
+                border: 1px solid #e5e7eb;
+                border-top: none;
+            }}
+            .document-box {{
+                background: white;
+                border: 2px solid #0050d7;
+                border-radius: 6px;
+                padding: 20px;
+                margin: 20px 0;
+                text-align: center;
+            }}
+            .document-name {{
+                font-size: 18px;
+                font-weight: bold;
+                color: #0050d7;
+                margin-bottom: 10px;
+            }}
+            .button {{
+                display: inline-block;
+                background-color: #0050d7 !important;
+                color: #ffffff !important;
+                padding: 14px 35px;
+                text-decoration: none;
+                border-radius: 6px;
+                margin: 20px 0;
+                font-weight: bold;
+                font-size: 16px;
+                border: 2px solid #0050d7;
+            }}
+            a.button {{
+                color: #ffffff !important;
+            }}
+            table.button-table {{
+                margin: 20px auto;
+            }}
+            table.button-table td {{
+                background-color: #0050d7;
+                border-radius: 6px;
+                padding: 0;
+            }}
+            table.button-table a {{
+                color: #ffffff !important;
+                text-decoration: none;
+                display: block;
+                padding: 14px 35px;
+            }}
+            .footer {{
+                text-align: center;
+                color: #6b7280;
+                font-size: 12px;
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+            }}
+            .signature {{
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+                color: #6b7280;
+                font-size: 14px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>OVHcloud</h1>
+        </div>
+        <div class="content">
+            <p>Dear {greeting_name},</p>
+            
+            <p>We hope this message finds you well.</p>
+            
+            <p>We're excited to share with you a valuable resource that we believe will be of great interest to you. <strong>{shared_by_name}</strong> has prepared a document that we think you'll find particularly relevant.</p>
+            
+            <div class="document-box">
+                <div class="document-name">{material_name}</div>
+                <p style="margin: 10px 0; color: #6b7280; font-size: 14px;">Available for your review and download</p>
+            </div>
+            
+            <p style="text-align: center; margin: 25px 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" class="button-table">
+                    <tr>
+                        <td align="center">
+                            <a href="{share_url}" class="button">Discover the Document</a>
+                        </td>
+                    </tr>
+                </table>
+            </p>
+            
+            <p>Simply click the button above to access the document. You'll be able to view and download it at your convenience.</p>
+            
+            <p>We're committed to providing you with the best possible support and resources. If you have any questions or would like to discuss this further, please don't hesitate to reach out to us.</p>
+            
+            <div class="signature">
+                <p>Best regards,<br>
+                <strong>OVHcloud Team</strong></p>
+                <p style="margin-top: 15px; font-size: 12px; color: #9ca3af;">
+                    This link will remain active for your convenience. If you have any questions, please contact your OVHcloud representative.
+                </p>
+            </div>
+        </div>
+        <div class="footer">
+            <p>© 2026 OVHcloud. All rights reserved.</p>
+            <p>This is an automated message. Please do not reply directly to this email.</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    text_body = f"""
+OVHcloud - Document Shared with You
+
+Dear {greeting_name},
+
+We hope this message finds you well.
+
+We're excited to share with you a valuable resource that we believe will be of great interest to you. {shared_by_name} has prepared a document that we think you'll find particularly relevant.
+
+Document: {material_name}
+
+You can access and download this document by clicking the following link:
+{share_url}
+
+Simply click the link above to access the document. You'll be able to view and download it at your convenience.
+
+We're committed to providing you with the best possible support and resources. If you have any questions or would like to discuss this further, please don't hesitate to reach out to us.
+
+Best regards,
+OVHcloud Team
+
+This link will remain active for your convenience. If you have any questions, please contact your OVHcloud representative.
+
+© 2026 OVHcloud. All rights reserved.
+This is an automated message. Please do not reply directly to this email.
+    """
+    
+    return send_email(
+        to_email=customer_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body
+    )

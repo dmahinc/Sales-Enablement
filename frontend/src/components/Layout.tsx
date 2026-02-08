@@ -40,40 +40,36 @@ export default function Layout() {
   // Director-specific navigation (monitoring and governance)
   const directorNavItems = [
     ...baseNavItems,
-    { path: '/health', label: 'Health Dashboard', icon: Activity },
-    { path: '/materials', label: 'All Materials', icon: FileText },
+    { path: '/materials', label: 'Manage Materials', icon: FileText },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { path: '/users', label: 'Team Management', icon: Users },
   ]
 
-  // PMM-specific navigation (contributor workspace)
+  // PMM-specific navigation (same as Director except Users management)
   const pmmNavItems = [
     ...baseNavItems,
-    { path: '/materials', label: 'My Materials', icon: FileText },
+    { path: '/materials', label: 'Manage Materials', icon: FileText },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
-    { path: '/health', label: 'Material Health', icon: Activity },
-    { path: '/discovery', label: 'Discover', icon: Search },
+    { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
   ]
 
   // Sales-specific navigation (consumption and sharing)
   const salesNavItems = [
     ...baseNavItems,
-    { path: '/discovery', label: 'Discover Materials', icon: Search },
+    { path: '/materials', label: 'Explore Materials', icon: FileText },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
     { path: '/sharing', label: 'My Shares', icon: Share2 },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
   ]
 
-  // Admin gets all items
+  // Admin gets all items (Admin is Director's role)
   const adminNavItems = [
     ...baseNavItems,
-    { path: '/materials', label: 'Materials', icon: FileText },
+    { path: '/materials', label: 'Manage Materials', icon: FileText },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
-    { path: '/health', label: 'Health', icon: Activity },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { path: '/sharing', label: 'Sharing', icon: Share2 },
-    { path: '/discovery', label: 'Discovery', icon: Search },
     { path: '/users', label: 'Users', icon: Users },
   ]
 

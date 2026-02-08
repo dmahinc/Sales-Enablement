@@ -377,6 +377,20 @@ async def update_material(
         if 'pain_points' in update_data and update_data['pain_points'] is not None:
             update_data['pain_points'] = str(update_data['pain_points']) if isinstance(update_data['pain_points'], list) else update_data['pain_points']
         
+        # Handle freshness_date - parse and set last_updated
+        if 'freshness_date' in update_data and update_data['freshness_date']:
+            try:
+                # Parse YYYY-MM-DD format
+                freshness_date = datetime.strptime(update_data['freshness_date'], "%Y-%m-%d")
+                # Set time to end of day (23:59:59) to ensure it's treated as the full day
+                freshness_date = freshness_date.replace(hour=23, minute=59, second=59)
+                update_data['last_updated'] = freshness_date
+            except ValueError:
+                # If parsing fails, ignore freshness_date
+                pass
+            # Remove freshness_date from update_data as it's not a model field
+            update_data.pop('freshness_date', None)
+        
         for key, value in update_data.items():
             setattr(material, key, value)
         
@@ -435,6 +449,7 @@ async def upload_material_file(
     product_name: Optional[str] = Form(None),
     universe_name: Optional[str] = Form(None),
     other_type_description: Optional[str] = Form(None),
+    freshness_date: Optional[str] = Form(None),
     replace_existing: str = Form("false"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -615,6 +630,18 @@ async def upload_material_file(
             folder_path=folder_path
         )
         
+        # Parse freshness_date if provided, otherwise use current date
+        last_updated_date = datetime.utcnow()
+        if freshness_date:
+            try:
+                # Parse YYYY-MM-DD format
+                last_updated_date = datetime.strptime(freshness_date, "%Y-%m-%d")
+                # Set time to end of day (23:59:59) to ensure it's treated as the full day
+                last_updated_date = last_updated_date.replace(hour=23, minute=59, second=59)
+            except ValueError:
+                # If parsing fails, use current date
+                pass
+        
         # Create material record (columns are String type, not enum, so no casting needed)
         material = Material(
             name=file.filename,
@@ -628,7 +655,8 @@ async def upload_material_file(
             file_format=file.filename.split('.')[-1] if '.' in file.filename else None,
             file_size=file_size,
             owner_id=current_user.id,
-            status="DRAFT"
+            status="DRAFT",
+            last_updated=last_updated_date
         )
         db.add(material)
         db.commit()

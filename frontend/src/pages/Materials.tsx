@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff } from 'lucide-react'
+import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder } from 'lucide-react'
 import Modal from '../components/Modal'
 import MaterialForm from '../components/MaterialForm'
 import FileUploadModal from '../components/FileUploadModal'
@@ -37,6 +37,14 @@ export default function Materials() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   // Track which universes have archived materials visible (default: all hidden)
   const [showArchivedByUniverse, setShowArchivedByUniverse] = useState<Record<string, boolean>>({})
+  // View toggle: 'list' or 'browse'
+  const [viewMode, setViewMode] = useState<'list' | 'browse'>('list')
+  // Browse view state
+  const [browseSelectedUniverseId, setBrowseSelectedUniverseId] = useState<number | null>(null)
+  const [browseSelectedCategoryId, setBrowseSelectedCategoryId] = useState<number | null>(null)
+  const [browseSelectedProductId, setBrowseSelectedProductId] = useState<number | null>(null)
+  const [expandedUniverses, setExpandedUniverses] = useState<Set<number>>(new Set())
+  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
 
   const { data: materials, isLoading } = useQuery({
     queryKey: ['materials'],
@@ -183,6 +191,160 @@ export default function Materials() {
     }
   }
 
+  // Browse view functions
+  const toggleUniverse = (universeId: number) => {
+    setExpandedUniverses(prev => {
+      const next = new Set(prev)
+      if (next.has(universeId)) {
+        next.delete(universeId)
+      } else {
+        next.add(universeId)
+      }
+      return next
+    })
+  }
+
+  const toggleCategory = (categoryId: number) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(categoryId)) {
+        next.delete(categoryId)
+      } else {
+        next.add(categoryId)
+      }
+      return next
+    })
+  }
+
+  const getCategoryProducts = (categoryId: number) => {
+    return allProducts.filter((p: any) => p.category_id === categoryId)
+  }
+
+  const handleBrowseUniverseSelect = (universeId: number) => {
+    setBrowseSelectedUniverseId(universeId)
+    setBrowseSelectedCategoryId(null)
+    setBrowseSelectedProductId(null)
+    if (!expandedUniverses.has(universeId)) {
+      toggleUniverse(universeId)
+    }
+  }
+
+  const handleBrowseCategorySelect = (categoryId: number) => {
+    setBrowseSelectedCategoryId(categoryId)
+    setBrowseSelectedProductId(null)
+    if (!expandedCategories.has(categoryId)) {
+      toggleCategory(categoryId)
+    }
+  }
+
+  const handleBrowseProductSelect = (productId: number) => {
+    setBrowseSelectedProductId(productId)
+  }
+
+  // Browse view filtered materials
+  const browseFilteredMaterials = useMemo(() => {
+    let filtered = materials || []
+
+    // Filter by hierarchy selection
+    if (browseSelectedUniverseId) {
+      const universe = universes.find((u: any) => u.id === browseSelectedUniverseId)
+      if (universe) {
+        filtered = filtered.filter((m: any) => m.universe_name === universe.name)
+      }
+    }
+    if (browseSelectedCategoryId) {
+      const category = allCategories.find((c: any) => c.id === browseSelectedCategoryId)
+      if (category) {
+        const categoryProducts = allProducts.filter((p: any) => p.category_id === browseSelectedCategoryId)
+        const productNames = categoryProducts.map((p: any) => p.name).concat(categoryProducts.map((p: any) => p.display_name))
+        filtered = filtered.filter((m: any) => m.product_name && productNames.includes(m.product_name))
+      }
+    }
+    if (browseSelectedProductId) {
+      const product = allProducts.find((p: any) => p.id === browseSelectedProductId)
+      if (product) {
+        filtered = filtered.filter((m: any) => 
+          m.product_name === product.name || m.product_name === product.display_name
+        )
+      }
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter((m: any) =>
+        m.name?.toLowerCase().includes(query) ||
+        m.description?.toLowerCase().includes(query) ||
+        m.product_name?.toLowerCase().includes(query) ||
+        m.universe_name?.toLowerCase().includes(query) ||
+        m.tags?.some((tag: string) => tag.toLowerCase().includes(query))
+      )
+    }
+
+    // Filter archived materials
+    filtered = filtered.filter((m: any) => {
+      if (m.status === 'archived') {
+        const universeName = m.universe_name || 'Uncategorized'
+        return showArchivedByUniverse[universeName] || false
+      }
+      return true
+    })
+
+    return filtered
+  }, [materials, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, searchQuery, universes, allCategories, allProducts, showArchivedByUniverse])
+
+  // Browse view materials grouped by universe
+  const browseMaterialsByUniverse = useMemo(() => {
+    const grouped: Record<string, any[]> = {}
+    browseFilteredMaterials.forEach((material: any) => {
+      const universe = material.universe_name || 'Uncategorized'
+      if (!grouped[universe]) {
+        grouped[universe] = []
+      }
+      grouped[universe].push(material)
+    })
+    return grouped
+  }, [browseFilteredMaterials])
+
+  // Browse view breadcrumbs
+  const browseBreadcrumbs = useMemo(() => {
+    const crumbs: Array<{ label: string; onClick?: () => void }> = [
+      { label: 'All Materials', onClick: () => {
+        setBrowseSelectedUniverseId(null)
+        setBrowseSelectedCategoryId(null)
+        setBrowseSelectedProductId(null)
+      }}
+    ]
+    if (browseSelectedUniverseId) {
+      const universe = universes.find((u: any) => u.id === browseSelectedUniverseId)
+      if (universe) {
+        crumbs.push({
+          label: universe.display_name,
+          onClick: () => {
+            setBrowseSelectedCategoryId(null)
+            setBrowseSelectedProductId(null)
+          }
+        })
+      }
+    }
+    if (browseSelectedCategoryId) {
+      const category = allCategories.find((c: any) => c.id === browseSelectedCategoryId)
+      if (category) {
+        crumbs.push({
+          label: category.display_name,
+          onClick: () => setBrowseSelectedProductId(null)
+        })
+      }
+    }
+    if (browseSelectedProductId) {
+      const product = allProducts.find((p: any) => p.id === browseSelectedProductId)
+      if (product) {
+        crumbs.push({ label: product.display_name })
+      }
+    }
+    return crumbs
+  }, [browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, universes, allCategories, allProducts])
+
   const handleDownload = async (material: any) => {
     try {
       const response = await api.get(`/materials/${material.id}/download`, {
@@ -214,12 +376,6 @@ export default function Materials() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
               <p className="text-sm font-medium text-slate-900 truncate">{material.name}</p>
-              {material.universe_name && (
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${universeInfo.bgColor} ${universeInfo.color} border ${universeInfo.borderColor}`}>
-                  <UniverseIcon className="h-3 w-3 mr-1" />
-                  {material.universe_name}
-                </span>
-              )}
             </div>
             <p className="text-xs text-slate-500">
               <span className="inline-flex items-center">
@@ -228,6 +384,12 @@ export default function Materials() {
                   <>
                     <span className="mx-2">•</span> 
                     <span>{material.product_name}</span>
+                  </>
+                )}
+                {material.last_updated && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span>Last update: {new Date(material.last_updated).toLocaleDateString()}</span>
                   </>
                 )}
               </span>
@@ -304,6 +466,349 @@ export default function Materials() {
     )
   }
 
+  // Render browse view
+  if (viewMode === 'browse') {
+    return (
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 px-4 pt-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
+            <p className="mt-1 text-slate-500">Browse materials by hierarchy</p>
+          </div>
+          <div className="mt-4 sm:mt-0 flex space-x-3">
+            {/* View Toggle */}
+            <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+              <button
+                onClick={() => setViewMode('list')}
+                className="px-4 py-2.5 text-sm font-medium transition-all bg-white text-slate-600 hover:bg-slate-50 flex items-center space-x-2"
+                title="List View"
+              >
+                <List className="w-5 h-5" />
+                <span>List</span>
+              </button>
+              <button
+                onClick={() => setViewMode('browse')}
+                className="px-4 py-2.5 text-sm font-medium transition-all border-l border-slate-200 bg-primary-500 text-white flex items-center space-x-2"
+                title="Browse View"
+              >
+                <Grid className="w-5 h-5" />
+                <span>Browse</span>
+              </button>
+            </div>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="btn-ovh-primary"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Material
+            </button>
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="btn-ovh-secondary"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload File
+            </button>
+            {(isDirector || isPMM) && (
+              <button
+                onClick={() => setIsBatchUploadModalOpen(true)}
+                className="btn-ovh-primary flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Batch Upload with AI
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left Sidebar - Hierarchical Navigation */}
+          <div className="w-80 border-r border-slate-200 bg-slate-50 overflow-y-auto flex-shrink-0">
+            <div className="p-4">
+              <h2 className="text-sm font-semibold text-slate-700 mb-3">Browse by Hierarchy</h2>
+              
+              {/* All Materials */}
+              <button
+                onClick={() => {
+                  setBrowseSelectedUniverseId(null)
+                  setBrowseSelectedCategoryId(null)
+                  setBrowseSelectedProductId(null)
+                }}
+                className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center space-x-2 ${
+                  !browseSelectedUniverseId && !browseSelectedCategoryId && !browseSelectedProductId
+                    ? 'bg-primary-50 text-primary-700 font-medium'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                <span>All Materials</span>
+              </button>
+
+              {/* Universes */}
+              {universes.map((universe: any) => {
+                const universeCategories = allCategories.filter((c: any) => c.universe_id === universe.id)
+                const isExpanded = expandedUniverses.has(universe.id)
+                const isSelected = browseSelectedUniverseId === universe.id && !browseSelectedCategoryId && !browseSelectedProductId
+
+                return (
+                  <div key={universe.id} className="mb-1">
+                    <button
+                      onClick={() => handleBrowseUniverseSelect(universe.id)}
+                      className={`w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 ${
+                        isSelected
+                          ? 'bg-primary-50 text-primary-700 font-medium'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {universeCategories.length > 0 ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleUniverse(universe.id)
+                          }}
+                          className="p-0.5"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4" />
+                          )}
+                        </button>
+                      ) : (
+                        <div className="w-4 h-4" />
+                      )}
+                      <FolderOpen className="w-4 h-4" />
+                      <span className="flex-1">{universe.display_name}</span>
+                      <span className="text-xs text-slate-400">
+                        {materials?.filter((m: any) => m.universe_name === universe.name).length || 0}
+                      </span>
+                    </button>
+
+                    {/* Categories */}
+                    {isExpanded && universeCategories.map((category: any) => {
+                      const categoryProducts = getCategoryProducts(category.id)
+                      const isCategoryExpanded = expandedCategories.has(category.id)
+                      const isCategorySelected = browseSelectedCategoryId === category.id && !browseSelectedProductId
+
+                      return (
+                        <div key={category.id} className="ml-6 mt-1">
+                          <button
+                            onClick={() => handleBrowseCategorySelect(category.id)}
+                            className={`w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 ${
+                              isCategorySelected
+                                ? 'bg-primary-50 text-primary-700 font-medium'
+                                : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            {categoryProducts.length > 0 ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleCategory(category.id)
+                                }}
+                                className="p-0.5"
+                              >
+                                {isCategoryExpanded ? (
+                                  <ChevronDown className="w-4 h-4" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4" />
+                                )}
+                              </button>
+                            ) : (
+                              <div className="w-4 h-4" />
+                            )}
+                            <Folder className="w-4 h-4" />
+                            <span className="flex-1">{category.display_name}</span>
+                            <span className="text-xs text-slate-400">
+                              {materials?.filter((m: any) => {
+                                const productNames = categoryProducts.map((p: any) => p.name).concat(categoryProducts.map((p: any) => p.display_name))
+                                return m.product_name && productNames.includes(m.product_name)
+                              }).length || 0}
+                            </span>
+                          </button>
+
+                          {/* Products */}
+                          {isCategoryExpanded && categoryProducts.map((product: any) => {
+                            const isProductSelected = browseSelectedProductId === product.id
+
+                            return (
+                              <button
+                                key={product.id}
+                                onClick={() => handleBrowseProductSelect(product.id)}
+                                className={`w-full text-left px-3 py-2 rounded-lg ml-6 mt-1 flex items-center space-x-2 ${
+                                  isProductSelected
+                                    ? 'bg-primary-50 text-primary-700 font-medium'
+                                    : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                              >
+                                <FileText className="w-4 h-4" />
+                                <span className="flex-1">{product.display_name}</span>
+                                <span className="text-xs text-slate-400">
+                                  {materials?.filter((m: any) => 
+                                    m.product_name === product.name || m.product_name === product.display_name
+                                  ).length || 0}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* Top Bar with Breadcrumbs and Search */}
+          <div className="border-b border-slate-200 bg-white p-4">
+            {/* Breadcrumbs */}
+            <div className="flex items-center space-x-2 mb-4">
+              {browseBreadcrumbs.map((crumb, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  {index > 0 && <ChevronRight className="w-4 h-4 text-slate-400" />}
+                  {crumb.onClick ? (
+                    <button
+                      onClick={crumb.onClick}
+                      className="text-sm text-primary-600 hover:text-primary-700"
+                    >
+                      {crumb.label}
+                    </button>
+                  ) : (
+                    <span className="text-sm text-slate-600 font-medium">{crumb.label}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search materials..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Materials Grid */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {browseFilteredMaterials.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <FileText className="w-16 h-16 text-slate-300 mb-4" />
+                <h3 className="text-lg font-medium text-slate-900 mb-2">No materials found</h3>
+                <p className="text-sm text-slate-500">
+                  {searchQuery ? 'Try adjusting your search terms' : 'Select a universe, category, or product to view materials'}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Show grouped by universe if no specific selection */}
+                {!browseSelectedUniverseId && !browseSelectedCategoryId && !browseSelectedProductId && !searchQuery ? (
+                  Object.entries(browseMaterialsByUniverse).map(([universeName, universeMaterials]) => (
+                    <div key={universeName} className="mb-8">
+                      <h2 className="text-xl font-semibold text-slate-900 mb-4">{universeName}</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {universeMaterials.map((material: any) => (
+                          <BrowseMaterialCard 
+                            key={material.id} 
+                            material={material}
+                            onDownload={handleDownload}
+                            onShare={(material) => {
+                              setSharingMaterial(material)
+                              setIsShareModalOpen(true)
+                            }}
+                            onEdit={(material) => setEditingMaterial(material)}
+                            onDelete={(id) => handleDelete(id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {browseFilteredMaterials.map((material: any) => (
+                      <BrowseMaterialCard 
+                        key={material.id} 
+                        material={material}
+                        onDownload={handleDownload}
+                        onShare={(material) => {
+                          setSharingMaterial(material)
+                          setIsShareModalOpen(true)
+                        }}
+                        onEdit={(material) => setEditingMaterial(material)}
+                        onDelete={(id) => handleDelete(id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        </div>
+
+        {/* Modals */}
+        <Modal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          title="Create Material"
+          size="lg"
+        >
+          <MaterialForm onClose={() => setIsCreateModalOpen(false)} />
+        </Modal>
+
+        <Modal
+          isOpen={!!editingMaterial}
+          onClose={() => setEditingMaterial(null)}
+          title="Edit Material"
+          size="lg"
+        >
+          <MaterialForm material={editingMaterial} onClose={() => setEditingMaterial(null)} />
+        </Modal>
+
+        <FileUploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+        />
+
+        {(isDirector || isPMM) && (
+          <BatchUploadModal
+            isOpen={isBatchUploadModalOpen}
+            onClose={() => setIsBatchUploadModalOpen(false)}
+          />
+        )}
+
+        {sharingMaterial && (
+          <ShareLinkModal
+            materialId={sharingMaterial.id}
+            materialName={sharingMaterial.name}
+            isOpen={isShareModalOpen}
+            onClose={() => {
+              setIsShareModalOpen(false)
+              setSharingMaterial(null)
+            }}
+          />
+        )}
+      </div>
+    )
+  }
+
+  // Render list view (default)
   return (
     <div className="space-y-6">
           {/* Header */}
@@ -320,6 +825,25 @@ export default function Materials() {
               </p>
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
+              {/* View Toggle */}
+              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                <button
+                  onClick={() => setViewMode('list' as 'list' | 'browse')}
+                  className="px-4 py-2.5 text-sm font-medium transition-all bg-primary-500 text-white flex items-center space-x-2"
+                  title="List View"
+                >
+                  <List className="w-5 h-5" />
+                  <span>List</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('browse' as 'list' | 'browse')}
+                  className="px-4 py-2.5 text-sm font-medium transition-all border-l border-slate-200 bg-white text-slate-600 hover:bg-slate-50 flex items-center space-x-2"
+                  title="Browse View"
+                >
+                  <Grid className="w-5 h-5" />
+                  <span>Browse</span>
+                </button>
+              </div>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="btn-ovh-primary"
@@ -699,6 +1223,101 @@ export default function Materials() {
             }}
           />
         )}
+    </div>
+  )
+}
+
+// Browse view material card component with edit/delete
+interface BrowseMaterialCardProps {
+  material: any
+  onDownload: (material: any) => void
+  onShare: (material: any) => void
+  onEdit: (material: any) => void
+  onDelete: (id: number) => void
+}
+
+function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete }: BrowseMaterialCardProps) {
+  return (
+    <div className="card-ovh p-4 hover:shadow-md transition-all group">
+      <div className="flex items-start space-x-3">
+        <div className="bg-primary-50 p-2 rounded-lg flex-shrink-0">
+          <FileText className="h-5 w-5 text-primary-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600 truncate mb-1">
+            {material.name}
+          </h3>
+          <p className="text-xs text-slate-500 mb-2">
+            {material.material_type?.replace(/_/g, ' ')}
+          </p>
+          {material.description && (
+            <p className="text-sm text-slate-600 line-clamp-2 mb-2">{material.description}</p>
+          )}
+          <div className="flex items-center justify-between mt-2">
+            {material.universe_name && (
+              <span className="text-xs text-slate-400">{material.universe_name}</span>
+            )}
+            {material.status && (
+              <span className={`text-xs px-2 py-0.5 rounded ${
+                material.status === 'published' ? 'bg-green-50 text-green-700' :
+                material.status === 'draft' ? 'bg-yellow-50 text-yellow-700' :
+                'bg-slate-50 text-slate-700'
+              }`}>
+                {material.status}
+              </span>
+            )}
+          </div>
+          {/* Action buttons */}
+          <div className="flex items-center justify-end space-x-2 mt-3 pt-3 border-t border-slate-100">
+            {material.status === 'published' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onShare(material)
+                }}
+                className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                title="Share"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            )}
+            {material.file_path && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDownload(material)
+                }}
+                className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+                title="Download"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(material)
+              }}
+              className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+              title="Edit"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (window.confirm('Are you sure you want to delete this material?')) {
+                  onDelete(material.id)
+                }
+              }}
+              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     OVH_AI_ENABLED: bool = Field(default=False, description="Enable OVHcloud AI Endpoints integration")
     OVH_AI_ENDPOINT_URL: str = Field(default="", description="OVHcloud AI Endpoint URL")
     OVH_AI_API_KEY: str = Field(default="", description="OVHcloud AI API Key")
-    OVH_AI_MODEL: str = Field(default="mistral-large-latest", description="AI model to use")
+    OVH_AI_MODEL: str = Field(default="Mistral-Small-3.2-24B-Instruct-2506", description="AI model to use")
     OVH_AI_CONFIDENCE_THRESHOLD: float = Field(default=0.9, description="Confidence threshold for auto-apply (0.0-1.0)")
     
     class Config:

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen } from 'lucide-react'
+import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2 } from 'lucide-react'
+import ShareLinkModal from '../components/ShareLinkModal'
 
 interface Material {
   id: number
@@ -12,6 +13,8 @@ interface Material {
   description?: string
   tags?: string[]
   status?: string
+  file_path?: string
+  file_name?: string
 }
 
 interface Universe {
@@ -42,6 +45,8 @@ export default function Discovery() {
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
   const [expandedUniverses, setExpandedUniverses] = useState<Set<number>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [sharingMaterial, setSharingMaterial] = useState<Material | null>(null)
 
   // Fetch data
   const { data: materials = [], isLoading: materialsLoading } = useQuery<Material[]>({
@@ -228,6 +233,24 @@ export default function Discovery() {
   // Handle product selection
   const handleProductSelect = (productId: number) => {
     setSelectedProductId(productId)
+  }
+
+  // Handle download
+  const handleDownload = async (material: Material) => {
+    try {
+      const response = await api.get(`/materials/${material.id}/download`, {
+        responseType: 'blob',
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', material.file_name || `${material.name}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (error) {
+      alert('Failed to download file')
+    }
   }
 
   if (materialsLoading) {
@@ -441,7 +464,15 @@ export default function Discovery() {
                     <h2 className="text-xl font-semibold text-slate-900 mb-4">{universeName}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {universeMaterials.map(material => (
-                        <MaterialCard key={material.id} material={material} />
+                        <MaterialCard 
+                          key={material.id} 
+                          material={material}
+                          onDownload={handleDownload}
+                          onShare={(material) => {
+                            setSharingMaterial(material)
+                            setIsShareModalOpen(true)
+                          }}
+                        />
                       ))}
                     </div>
                   </div>
@@ -449,7 +480,15 @@ export default function Discovery() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filteredMaterials.map(material => (
-                    <MaterialCard key={material.id} material={material} />
+                    <MaterialCard 
+                      key={material.id} 
+                      material={material}
+                      onDownload={handleDownload}
+                      onShare={(material) => {
+                        setSharingMaterial(material)
+                        setIsShareModalOpen(true)
+                      }}
+                    />
                   ))}
                 </div>
               )}
@@ -457,13 +496,32 @@ export default function Discovery() {
           )}
         </div>
       </div>
+
+      {/* Share Modal */}
+      {sharingMaterial && (
+        <ShareLinkModal
+          materialId={sharingMaterial.id}
+          materialName={sharingMaterial.name}
+          isOpen={isShareModalOpen}
+          onClose={() => {
+            setIsShareModalOpen(false)
+            setSharingMaterial(null)
+          }}
+        />
+      )}
     </div>
   )
 }
 
-function MaterialCard({ material }: { material: Material }) {
+interface MaterialCardProps {
+  material: Material
+  onDownload: (material: Material) => void
+  onShare: (material: Material) => void
+}
+
+function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
   return (
-    <div className="card-ovh p-4 hover:shadow-md transition-all cursor-pointer group">
+    <div className="card-ovh p-4 hover:shadow-md transition-all group">
       <div className="flex items-start space-x-3">
         <div className="bg-primary-50 p-2 rounded-lg flex-shrink-0">
           <FileText className="h-5 w-5 text-primary-500" />
@@ -490,6 +548,33 @@ function MaterialCard({ material }: { material: Material }) {
               }`}>
                 {material.status}
               </span>
+            )}
+          </div>
+          {/* Action buttons */}
+          <div className="flex items-center justify-end space-x-2 mt-3 pt-3 border-t border-slate-100">
+            {material.status === 'published' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onShare(material)
+                }}
+                className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                title="Share"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            )}
+            {material.file_path && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDownload(material)
+                }}
+                className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+                title="Download"
+              >
+                <Download className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>

@@ -15,10 +15,16 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   const isDirector = user?.role === 'director' || user?.is_superuser
   
   const [file, setFile] = useState<File | null>(null)
+  // Initialize freshness_date to today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date()
+    return today.toISOString().split('T')[0]
+  }
   const [formData, setFormData] = useState({
     material_type: 'product_brief',
     other_type_description: '',
     audience: 'internal',
+    freshness_date: getTodayDate(),
     universe_id: null as number | null,
     category_id: null as number | null,
     product_id: null as number | null,
@@ -286,6 +292,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
               formDataToStore.append('other_type_description', formData.other_type_description)
             }
             formDataToStore.append('audience', formData.audience)
+            formDataToStore.append('freshness_date', formData.freshness_date)
             formDataToStore.append('universe_id', formData.universe_id!.toString())
             formDataToStore.append('category_id', formData.category_id!.toString())
             formDataToStore.append('product_id', formData.product_id!.toString())
@@ -378,6 +385,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       formDataToSend.append('other_type_description', formData.other_type_description)
     }
     formDataToSend.append('audience', formData.audience)
+    formDataToSend.append('freshness_date', formData.freshness_date)
     formDataToSend.append('universe_id', formData.universe_id.toString())
     formDataToSend.append('category_id', formData.category_id.toString())
     formDataToSend.append('product_id', formData.product_id.toString())
@@ -472,6 +480,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         formDataToSend.append('other_type_description', formData.other_type_description)
       }
       formDataToSend.append('audience', formData.audience)
+      formDataToSend.append('freshness_date', formData.freshness_date)
       formDataToSend.append('universe_id', formData.universe_id!.toString())
       formDataToSend.append('category_id', formData.category_id!.toString())
       formDataToSend.append('product_id', formData.product_id!.toString())
@@ -517,6 +526,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       material_type: 'product_brief',
       other_type_description: '',
       audience: 'internal',
+      freshness_date: getTodayDate(),
       universe_id: null,
       category_id: null,
       product_id: null,
@@ -631,7 +641,22 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                 <select
                   required
                   value={formData.material_type}
-                  onChange={(e) => setFormData({ ...formData, material_type: e.target.value, other_type_description: e.target.value === 'other' ? formData.other_type_description : '' })}
+                  onChange={(e) => {
+                    const newMaterialType = e.target.value
+                    // Auto-set audience based on material type
+                    let newAudience = formData.audience
+                    if (newMaterialType === 'product_brief' || newMaterialType === 'sales_enablement_deck') {
+                      newAudience = 'internal'
+                    } else if (newMaterialType === 'datasheet' || newMaterialType === 'sales_deck') {
+                      newAudience = 'customer_facing'
+                    }
+                    setFormData({ 
+                      ...formData, 
+                      material_type: newMaterialType, 
+                      audience: newAudience,
+                      other_type_description: newMaterialType === 'other' ? formData.other_type_description : '' 
+                    })
+                  }}
                   className="input-ovh"
                 >
                   <option value="product_brief">Product Brief</option>
@@ -665,13 +690,35 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                   required
                   value={formData.audience}
                   onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-                  className="input-ovh"
+                  disabled={formData.material_type !== 'other'}
+                  className={`input-ovh ${formData.material_type !== 'other' ? 'bg-slate-100 cursor-not-allowed' : ''}`}
                 >
                   <option value="internal">Internal</option>
                   <option value="customer_facing">Customer Facing</option>
-                  <option value="shared_asset">Shared Asset</option>
                 </select>
+                {formData.material_type !== 'other' && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Automatically set based on material type
+                  </p>
+                )}
               </div>
+            </div>
+
+            {/* Freshness Date */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Freshness Date *
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.freshness_date}
+                onChange={(e) => setFormData({ ...formData, freshness_date: e.target.value })}
+                className="input-ovh"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Date when the material was created or last updated
+              </p>
             </div>
 
             {/* Product Hierarchy Selection */}

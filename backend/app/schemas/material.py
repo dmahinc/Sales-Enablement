@@ -133,6 +133,7 @@ class MaterialUpdate(BaseModel):
     keywords: Optional[List[str]] = None
     use_cases: Optional[List[str]] = None
     pain_points: Optional[List[str]] = None
+    freshness_date: Optional[str] = Field(None, description="Date in YYYY-MM-DD format for last_updated field")
 
     @validator('material_type')
     def validate_material_type(cls, v):

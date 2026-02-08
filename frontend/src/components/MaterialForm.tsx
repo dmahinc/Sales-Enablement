@@ -13,12 +13,23 @@ interface MaterialFormProps {
 export default function MaterialForm({ material, onClose }: MaterialFormProps) {
   const { user } = useAuth()
   const isDirector = user?.role === 'director' || user?.is_superuser
+  const isPMM = user?.role === 'pmm'
+  const canEditFreshness = isDirector || isPMM
+
+  // Helper function to format date for date input (YYYY-MM-DD)
+  const formatDateForInput = (date: string | Date | null | undefined): string => {
+    if (!date) return ''
+    const d = typeof date === 'string' ? new Date(date) : date
+    if (isNaN(d.getTime())) return ''
+    return d.toISOString().split('T')[0]
+  }
 
   const [formData, setFormData] = useState({
     name: '',
     material_type: 'product_brief',
     other_type_description: '',
     audience: 'internal',
+    freshness_date: '',
     universe_id: null as number | null,
     category_id: null as number | null,
     product_id: null as number | null,
@@ -66,6 +77,7 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
         material_type: material.material_type || 'product_brief',
         other_type_description: material.other_type_description || '',
         audience: material.audience || 'internal',
+        freshness_date: formatDateForInput(material.last_updated),
         status: material.status || 'draft',
         description: material.description || '',
         tags: Array.isArray(material.tags) ? material.tags.join(', ') : (material.tags || ''),
@@ -77,54 +89,76 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
       }))
 
       // Look up universe/category/product IDs if universe_name exists
-      if (material.universe_name && !formData.universe_id) {
+      if (material.universe_name) {
         // Look up universe ID from name
         api.get('/products/universes').then(res => {
           const universe = res.data.find((u: any) => u.name === material.universe_name || u.display_name === material.universe_name)
           if (universe) {
+            // Set universe_id first, then wait a bit for ProductHierarchySelector to start loading categories
             setFormData(prev => ({ ...prev, universe_id: universe.id }))
             
             // Look up product if product_name exists
             if (material.product_name) {
-              api.get(`/products/?universe_id=${universe.id}&search=${encodeURIComponent(material.product_name)}`).then(prodRes => {
+              // Use Promise.all to fetch both categories and products
+              Promise.all([
+                api.get(`/products/categories?universe_id=${universe.id}`),
+                api.get(`/products/?universe_id=${universe.id}&search=${encodeURIComponent(material.product_name)}`)
+              ]).then(([categoriesRes, productsRes]) => {
                 // Try to find product by name or display_name
-                const product = prodRes.data.find((p: any) => 
+                const product = productsRes.data.find((p: any) => 
                   p.name === material.product_name || 
                   p.display_name === material.product_name ||
                   p.name.toLowerCase().includes(material.product_name.toLowerCase()) ||
                   p.display_name.toLowerCase().includes(material.product_name.toLowerCase())
                 )
                 if (product) {
-                  setFormData(prev => ({
-                    ...prev,
-                    category_id: product.category_id,
-                    product_id: product.id,
-                    product_name: product.display_name || product.name,
-                    universe_name: universe.name
-                  }))
+                  // Verify category exists in the loaded categories
+                  const category = categoriesRes.data.find((c: any) => c.id === product.category_id)
+                  if (category) {
+                    // Set both category_id and product_id together after a small delay to ensure ProductHierarchySelector has processed universe_id
+                    setTimeout(() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        category_id: product.category_id,
+                        product_id: product.id,
+                        product_name: product.display_name || product.name,
+                        universe_name: universe.name
+                      }))
+                    }, 100)
+                  }
                 }
               }).catch(() => {
                 // If search fails, try without search parameter
-                api.get(`/products/?universe_id=${universe.id}`).then(prodRes => {
-                  const product = prodRes.data.find((p: any) => 
+                Promise.all([
+                  api.get(`/products/categories?universe_id=${universe.id}`),
+                  api.get(`/products/?universe_id=${universe.id}`)
+                ]).then(([categoriesRes, productsRes]) => {
+                  const product = productsRes.data.find((p: any) => 
                     p.name === material.product_name || 
                     p.display_name === material.product_name
                   )
                   if (product) {
-                    setFormData(prev => ({
-                      ...prev,
-                      category_id: product.category_id,
-                      product_id: product.id,
-                      product_name: product.display_name || product.name,
-                      universe_name: universe.name
-                    }))
+                    const category = categoriesRes.data.find((c: any) => c.id === product.category_id)
+                    if (category) {
+                      setTimeout(() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          category_id: product.category_id,
+                          product_id: product.id,
+                          product_name: product.display_name || product.name,
+                          universe_name: universe.name
+                        }))
+                      }, 100)
+                    }
                   }
                 })
               })
             }
           }
+        }).catch(err => {
+          console.error('Failed to load universes:', err)
         })
-      } else if (!material.universe_name) {
+      } else {
         // Reset form if material has no universe
         setFormData(prev => ({
           ...prev,
@@ -133,6 +167,16 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
           product_id: null,
         }))
       }
+    } else {
+      // Reset form when material is cleared
+      setFormData(prev => ({
+        ...prev,
+        universe_id: null,
+        category_id: null,
+        product_id: null,
+        product_name: '',
+        universe_name: '',
+      }))
     }
   }, [material])
 
@@ -338,6 +382,9 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
     mutationFn: (data: any) => api.put(`/materials/${material.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['materials'] })
+      // Also invalidate health dashboard cache to reflect freshness changes
+      queryClient.invalidateQueries({ queryKey: ['health-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['health'] })
       onClose()
     },
     onError: (error: any) => {
@@ -400,6 +447,11 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
       submitData.other_type_description = formData.other_type_description
     }
     
+    // Include freshness_date only when editing and user has permission
+    if (material && canEditFreshness && formData.freshness_date) {
+      submitData.freshness_date = formData.freshness_date
+    }
+    
     if (material) {
       updateMutation.mutate(submitData)
     } else {
@@ -442,7 +494,22 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
           <select
             required
             value={formData.material_type}
-            onChange={(e) => setFormData({ ...formData, material_type: e.target.value, other_type_description: e.target.value === 'other' ? formData.other_type_description : '' })}
+            onChange={(e) => {
+              const newMaterialType = e.target.value
+              // Auto-set audience based on material type
+              let newAudience = formData.audience
+              if (newMaterialType === 'product_brief' || newMaterialType === 'sales_enablement_deck') {
+                newAudience = 'internal'
+              } else if (newMaterialType === 'datasheet' || newMaterialType === 'sales_deck') {
+                newAudience = 'customer_facing'
+              }
+              setFormData({ 
+                ...formData, 
+                material_type: newMaterialType, 
+                audience: newAudience,
+                other_type_description: newMaterialType === 'other' ? formData.other_type_description : '' 
+              })
+            }}
             className="input-ovh"
           >
             <option value="product_brief">Product Brief</option>
@@ -474,12 +541,17 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
             required
             value={formData.audience}
             onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-            className="input-ovh"
+            disabled={formData.material_type !== 'other'}
+            className={`input-ovh ${formData.material_type !== 'other' ? 'bg-slate-100 cursor-not-allowed' : ''}`}
           >
             <option value="internal">Internal</option>
             <option value="customer_facing">Customer Facing</option>
-            <option value="shared_asset">Shared Asset</option>
           </select>
+          {formData.material_type !== 'other' && (
+            <p className="mt-1 text-xs text-slate-500">
+              Automatically set based on material type
+            </p>
+          )}
         </div>
       </div>
 
@@ -816,18 +888,35 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
         }
       />
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
-        <select
-          value={formData.status}
-          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-          className="input-ovh"
-        >
-          <option value="draft">Draft</option>
-          <option value="review">Review</option>
-          <option value="published">Published</option>
-          <option value="archived">Archived</option>
-        </select>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="input-ovh"
+          >
+            <option value="draft">Draft</option>
+            <option value="review">Review</option>
+            <option value="published">Published</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+
+        {material && canEditFreshness && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Freshness Date</label>
+            <input
+              type="date"
+              value={formData.freshness_date}
+              onChange={(e) => setFormData({ ...formData, freshness_date: e.target.value })}
+              className="input-ovh"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Date when the material was created or last updated
+            </p>
+          </div>
+        )}
       </div>
 
       <div>

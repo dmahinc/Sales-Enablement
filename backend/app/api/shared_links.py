@@ -2,7 +2,7 @@
 Shared Links API endpoints - Document sharing with customers
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.responses import FileResponse
 from typing import List, Optional
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from app.schemas.shared_link import (
     SharedLinkStats, MaterialShareStats, CustomerShareStats
 )
 from app.services.storage import storage_service
+from app.core.email import send_share_link_notification
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -88,6 +89,85 @@ async def create_shared_link(
     response_data = SharedLinkResponse(**response_dict)
     
     return response_data
+
+
+@router.post("/{link_id}/send-email", status_code=status.HTTP_200_OK)
+async def send_share_link_email(
+    link_id: int,
+    customer_email: str = Query(..., description="Customer email address to send the link to"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Send share link via email to a customer"""
+    # Get shared link
+    shared_link = db.query(SharedLink).filter(SharedLink.id == link_id).first()
+    if not shared_link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shared link not found"
+        )
+    
+    # Check permissions
+    if (current_user.role != "admin" and not current_user.is_superuser and 
+        shared_link.shared_by_user_id != current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to send email for this shared link"
+        )
+    
+    # Validate email format
+    import re
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, customer_email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email address"
+        )
+    
+    # Get material name
+    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+    
+    # Get share URL
+    share_url = get_share_url(shared_link.unique_token)
+    
+    # Get shared by user name
+    shared_by_user = db.query(User).filter(User.id == shared_link.shared_by_user_id).first()
+    shared_by_name = shared_by_user.full_name if shared_by_user else "OVHcloud Team"
+    
+    # Use customer name from shared link or fallback
+    customer_name = shared_link.customer_name or ""
+    
+    # Send email
+    platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+    email_sent = send_share_link_notification(
+        customer_email=customer_email,
+        customer_name=customer_name,
+        material_name=material.name,
+        share_url=share_url,
+        shared_by_name=shared_by_name,
+        platform_url=platform_url
+    )
+    
+    if not email_sent:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send email. Please check email configuration."
+        )
+    
+    # Update customer email if not already set
+    if not shared_link.customer_email:
+        shared_link.customer_email = customer_email
+        db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Email sent successfully to {customer_email}"
+    }
 
 
 @router.get("", response_model=List[SharedLinkResponse])
@@ -216,6 +296,7 @@ async def download_shared_document(
     # Verify token and get shared link
     shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
     if not shared_link:
+        logger.error(f"Shared link not found for token: {token}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Shared link not found"
@@ -223,6 +304,7 @@ async def download_shared_document(
     
     # Check if link is valid
     if not shared_link.is_valid():
+        logger.warning(f"Invalid shared link accessed: {token}")
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="This shared link has expired or been deactivated"
@@ -231,12 +313,14 @@ async def download_shared_document(
     # Get material
     material = db.query(Material).filter(Material.id == shared_link.material_id).first()
     if not material:
+        logger.error(f"Material not found for shared link token: {token}, material_id: {shared_link.material_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Material not found"
         )
     
     if not material.file_path:
+        logger.error(f"Material {material.id} has no file_path")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not available for this material"
@@ -248,10 +332,13 @@ async def download_shared_document(
     
     # Get file path
     file_path = storage_service.get_file_path(material.file_path)
+    logger.info(f"Attempting to download file. Material ID: {material.id}, file_path in DB: {material.file_path}, full path: {file_path}")
+    
     if not file_path.exists():
+        logger.error(f"File not found at path: {file_path}. Storage path: {storage_service.storage_path}, relative path: {material.file_path}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found on server"
+            detail=f"File not found on server. Path: {material.file_path}"
         )
     
     # Determine media type based on file format
@@ -277,11 +364,25 @@ async def download_shared_document(
     else:
         filename = material.name
     
-    return FileResponse(
+    # Properly encode filename for Content-Disposition header
+    # Use RFC 5987 encoding for filenames with special characters
+    from urllib.parse import quote
+    
+    # Encode filename properly - quote the UTF-8 encoded bytes
+    encoded_filename = quote(filename, safe='', encoding='utf-8')
+    
+    # Return FileResponse with properly encoded filename
+    # Use both filename (for older browsers) and filename* (RFC 5987 for modern browsers)
+    response = FileResponse(
         path=str(file_path),
         filename=filename,
         media_type=media_type
     )
+    
+    # Set Content-Disposition header with proper encoding
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded_filename}'
+    
+    return response
 
 
 @router.put("/{link_id}", response_model=SharedLinkResponse)

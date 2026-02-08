@@ -124,25 +124,27 @@ export default function ProductHierarchySelector({
   const selectedProduct = products.find(p => p.id === productId)
 
   // Reset category and product when universe changes
+  // Only reset if categories have loaded and the category doesn't exist or doesn't belong to universe
   useEffect(() => {
-    if (universeId && categoryId) {
+    if (universeId && categoryId && !categoriesLoading && categories.length > 0) {
       const category = categories.find(c => c.id === categoryId)
       if (!category || category.universe_id !== universeId) {
         onCategoryChange(null)
         onProductChange(null)
       }
     }
-  }, [universeId, categoryId, categories, onCategoryChange, onProductChange])
+  }, [universeId, categoryId, categories, categoriesLoading, onCategoryChange, onProductChange])
 
   // Reset product when category changes
+  // Only reset if products have loaded and the product doesn't exist or doesn't belong to category
   useEffect(() => {
-    if (categoryId && productId) {
+    if (categoryId && productId && !productsLoading && products.length > 0) {
       const product = products.find(p => p.id === productId)
       if (!product || product.category_id !== categoryId) {
         onProductChange(null)
       }
     }
-  }, [categoryId, productId, products, onProductChange])
+  }, [categoryId, productId, products, productsLoading, onProductChange])
 
   return (
     <div className="space-y-4">

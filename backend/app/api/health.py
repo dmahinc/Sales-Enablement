@@ -6,7 +6,7 @@ from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import statistics
-from app.models.material import Material
+from app.models.material import Material, MaterialStatus
 from app.models.health import MaterialHealthHistory
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -78,6 +78,7 @@ async def get_health_dashboard(
     
     # Calculate health scores and individual metrics
     freshness_scores = []
+    non_archived_freshness_scores = []  # For freshness metrics (exclude archived)
     completeness_scores = []
     usage_scores = []
     age_distribution = {
@@ -101,21 +102,24 @@ async def get_health_dashboard(
         completeness_scores.append(completeness_score)
         usage_scores.append(usage_score)
         
-        # Age distribution
-        if material.last_updated:
-            days_old = (datetime.utcnow() - material.last_updated).days
-            if days_old <= 30:
-                age_distribution["fresh"] += 1
-            elif days_old <= 90:
-                age_distribution["recent"] += 1
-            elif days_old <= 180:
-                age_distribution["aging"] += 1
-            elif days_old <= 365:
-                age_distribution["stale"] += 1
+        # Age distribution (exclude archived materials)
+        is_archived = material.status == MaterialStatus.ARCHIVED or str(material.status).lower() == "archived"
+        if not is_archived:
+            non_archived_freshness_scores.append(freshness_score)
+            if material.last_updated:
+                days_old = (datetime.utcnow() - material.last_updated).days
+                if days_old <= 30:
+                    age_distribution["fresh"] += 1
+                elif days_old <= 90:
+                    age_distribution["recent"] += 1
+                elif days_old <= 180:
+                    age_distribution["aging"] += 1
+                elif days_old <= 365:
+                    age_distribution["stale"] += 1
+                else:
+                    age_distribution["very_stale"] += 1
             else:
-                age_distribution["very_stale"] += 1
-        else:
-            age_distribution["no_date"] += 1
+                age_distribution["no_date"] += 1
         
         health_data.append({
             "material_id": material.id,
@@ -139,15 +143,16 @@ async def get_health_dashboard(
     # Paginate results
     paginated_data = health_data[skip:skip+limit]
     
-    # Calculate quartiles
+    # Calculate quartiles (exclude archived materials from freshness quartiles)
     completeness_quartiles = calculate_quartiles(completeness_scores)
     usage_quartiles = calculate_quartiles(usage_scores)
-    freshness_quartiles = calculate_quartiles(freshness_scores)
+    freshness_quartiles = calculate_quartiles(non_archived_freshness_scores)
     
     # Aggregate statistics
     total_materials = len(all_materials)
     avg_health_score = sum(h["health_score"] for h in health_data) / total_materials if total_materials > 0 else 0
-    avg_freshness = sum(freshness_scores) / len(freshness_scores) if freshness_scores else 0
+    # Calculate average freshness excluding archived materials
+    avg_freshness = sum(non_archived_freshness_scores) / len(non_archived_freshness_scores) if non_archived_freshness_scores else 0
     avg_completeness = sum(completeness_scores) / len(completeness_scores) if completeness_scores else 0
     avg_usage = sum(usage_scores) / len(usage_scores) if usage_scores else 0
     low_health_count = len([h for h in health_data if h["health_score"] < 70])
