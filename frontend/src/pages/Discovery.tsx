@@ -550,7 +550,6 @@ function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
         <div className="bg-primary-50 p-2 rounded-lg flex-shrink-0">
           {(() => {
             const MaterialIcon = getMaterialTypeIcon(material.material_type)
-            console.log('Discovery - Rendering icon for material:', material.name, 'type:', material.material_type, 'Icon component:', MaterialIcon)
             return <MaterialIcon className="h-5 w-5 text-primary-500" />
           })()}
         </div>

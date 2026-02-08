@@ -12,14 +12,11 @@ import { useAuth } from '../contexts/AuthContext'
 
 // Helper function to get icon for material type
 function getMaterialTypeIcon(materialType: string | null | undefined): LucideIcon {
-  console.log('[getMaterialTypeIcon] Input:', materialType, 'Type:', typeof materialType)
   if (!materialType) {
-    console.log('[getMaterialTypeIcon] No materialType, returning FileText')
     return FileText
   }
   
   const type = materialType.toLowerCase().trim()
-  console.log('[getMaterialTypeIcon] Normalized type:', type)
   
   // Handle all possible formats:
   // - Frontend format: product_brief, sales_deck, sales_enablement_deck, datasheet
@@ -27,26 +24,21 @@ function getMaterialTypeIcon(materialType: string | null | undefined): LucideIco
   // - Mixed case variations
   
   if (type === 'product_brief' || type === 'product_brief') {
-    console.log('[getMaterialTypeIcon] Matched product_brief -> ClipboardList')
     return ClipboardList
   }
   
   if (type === 'sales_deck' || type === 'product_sales_deck' || type.includes('sales_deck')) {
-    console.log('[getMaterialTypeIcon] Matched sales_deck -> Presentation')
     return Presentation
   }
   
   if (type === 'sales_enablement_deck' || type === 'product_sales_enablement_deck' || type.includes('sales_enablement')) {
-    console.log('[getMaterialTypeIcon] Matched sales_enablement_deck -> GraduationCap')
     return GraduationCap
   }
   
   if (type === 'datasheet' || type === 'product_datasheet' || type.includes('datasheet')) {
-    console.log('[getMaterialTypeIcon] Matched datasheet -> FileSpreadsheet')
     return FileSpreadsheet
   }
   
-  console.log('[getMaterialTypeIcon] No match for type:', type, '-> FileText')
   return FileText
 }
 
