@@ -4,8 +4,6 @@ import { api } from '../services/api'
 import { Link } from 'react-router-dom'
 import { 
   Activity, 
-  TrendingUp, 
-  TrendingDown,
   AlertTriangle, 
   CheckCircle,
   ArrowRight,
@@ -93,8 +91,6 @@ export default function DirectorDashboard() {
   const ageDist = freshnessMetrics.age_distribution || {}
 
   const totalMaterials = healthStats.total_materials || 0
-  const overallHealth = healthStats.average_health_score || 0
-  const healthColor = overallHealth >= 70 ? 'emerald' : overallHealth >= 40 ? 'amber' : 'red'
 
   // Age distribution labels
   const ageLabels = {
@@ -137,58 +133,6 @@ export default function DirectorDashboard() {
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh Data
         </button>
-      </div>
-
-      {/* Overall Health Score */}
-      <div className="card-ovh p-8">
-        <div className="flex flex-col md:flex-row items-center justify-between">
-          <div className="text-center md:text-left mb-6 md:mb-0">
-            <h2 className="text-lg font-medium text-slate-600">Overall Health Score</h2>
-            <p className="text-sm text-slate-400 mt-1">Weighted average of freshness, completeness, and usage</p>
-          </div>
-          <div className="flex items-center space-x-8">
-            <div className="relative w-32 h-32">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
-                  fill="none"
-                  stroke="#e2e8f0"
-                  strokeWidth="12"
-                />
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
-                  fill="none"
-                  stroke={healthColor === 'emerald' ? '#10b981' : healthColor === 'amber' ? '#f59e0b' : '#ef4444'}
-                  strokeWidth="12"
-                  strokeDasharray={`${overallHealth * 3.52} 352`}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className={`text-3xl font-bold text-${healthColor}-500`}>{Math.round(overallHealth)}%</span>
-              </div>
-            </div>
-            <div className="text-center md:text-left">
-              <div className="flex items-center space-x-2">
-                {overallHealth >= 70 ? (
-                  <TrendingUp className="w-5 h-5 text-emerald-500" />
-                ) : (
-                  <TrendingDown className="w-5 h-5 text-red-500" />
-                )}
-                <span className={`text-sm font-medium text-${healthColor}-600`}>
-                  {overallHealth >= 70 ? 'Good Health' : overallHealth >= 40 ? 'Needs Attention' : 'Critical'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {totalMaterials} total materials
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Stats Grid */}
