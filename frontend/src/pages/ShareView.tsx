@@ -31,8 +31,15 @@ export default function ShareView() {
     setDownloading(true)
     try {
       // Use public download endpoint (no auth required)
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api'
-      const response = await fetch(`${apiUrl}/shared-links/token/${token}/download`, {
+      // Try to use relative URL first (works when frontend and backend are on same domain)
+      // Fallback to absolute URL if VITE_API_URL is set
+      const apiUrl = import.meta.env.VITE_API_URL || '/api'
+      const downloadUrl = apiUrl.startsWith('http') 
+        ? `${apiUrl}/shared-links/token/${token}/download`
+        : `/api/shared-links/token/${token}/download`
+      
+      console.log('Downloading from:', downloadUrl)
+      const response = await fetch(downloadUrl, {
         method: 'GET',
       })
       

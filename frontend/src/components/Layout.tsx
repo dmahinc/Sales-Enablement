@@ -60,7 +60,6 @@ export default function Layout() {
     { path: '/materials', label: 'Explore Materials', icon: FileText },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
     { path: '/sharing', label: 'My Shares', icon: Share2 },
-    { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
   ]
 
   // Admin gets all items (Admin is Director's role)

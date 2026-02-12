@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.responses import FileResponse
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct
+from sqlalchemy import func, distinct, and_
 from datetime import datetime, timedelta
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -16,7 +16,7 @@ from app.models.material import Material
 from app.models.shared_link import SharedLink
 from app.schemas.shared_link import (
     SharedLinkCreate, SharedLinkResponse, SharedLinkUpdate,
-    SharedLinkStats, MaterialShareStats, CustomerShareStats
+    SharedLinkStats, MaterialShareStats, CustomerShareStats, TimelineEvent
 )
 from app.services.storage import storage_service
 from app.core.email import send_share_link_notification
@@ -174,6 +174,8 @@ async def send_share_link_email(
 async def list_shared_links(
     material_id: Optional[int] = None,
     customer_email: Optional[str] = None,
+    start_date: Optional[str] = Query(default=None, description="Filter links created from this date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="Filter links created until this date (YYYY-MM-DD)"),
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -187,6 +189,24 @@ async def list_shared_links(
     
     if customer_email:
         query = query.filter(SharedLink.customer_email == customer_email)
+    
+    # Date filtering
+    if start_date and end_date:
+        try:
+            date_filter_start = datetime.strptime(start_date, "%Y-%m-%d")
+            date_filter_end = datetime.strptime(end_date, "%Y-%m-%d")
+            # Set end date to end of day
+            date_filter_end = date_filter_end.replace(hour=23, minute=59, second=59)
+            if date_filter_start > date_filter_end:
+                raise HTTPException(status_code=400, detail="Start date must be before end date")
+            query = query.filter(
+                and_(
+                    SharedLink.created_at >= date_filter_start,
+                    SharedLink.created_at <= date_filter_end
+                )
+            )
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
     # Users can only see their own shares unless admin
     if current_user.role != "admin" and not current_user.is_superuser:
@@ -210,6 +230,116 @@ async def list_shared_links(
         result.append(link_data)
     
     return result
+
+
+@router.get("/timeline", response_model=List[TimelineEvent])
+async def get_customer_engagement_timeline(
+    limit: int = Query(default=50, ge=1, le=200, description="Maximum number of events to return"),
+    customer_email: Optional[str] = Query(default=None, description="Filter by customer email"),
+    material_id: Optional[int] = Query(default=None, description="Filter by material ID"),
+    event_type: Optional[str] = Query(default=None, description="Filter by event type: shared, viewed, or downloaded"),
+    start_date: Optional[str] = Query(default=None, description="Filter events from this date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(default=None, description="Filter events until this date (YYYY-MM-DD)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get chronological timeline of customer engagement events (shared, viewed, downloaded)
+    
+    Note: 
+    - 'viewed' means the customer accessed/viewed the shared link page (last_accessed_at is set)
+    - 'downloaded' means the customer downloaded the document (last_downloaded_at is set)
+    These are separate events - viewing does not imply downloading.
+    """
+    # Get all shared links for the current user
+    query = db.query(SharedLink).join(Material, SharedLink.material_id == Material.id)
+    
+    # Users can only see their own timeline unless admin
+    if current_user.role != "admin" and not current_user.is_superuser:
+        query = query.filter(SharedLink.shared_by_user_id == current_user.id)
+    
+    # Parse date filters if provided
+    date_filter_start = None
+    date_filter_end = None
+    if start_date and end_date:
+        try:
+            date_filter_start = datetime.strptime(start_date, "%Y-%m-%d")
+            date_filter_end = datetime.strptime(end_date, "%Y-%m-%d")
+            # Set end date to end of day
+            date_filter_end = date_filter_end.replace(hour=23, minute=59, second=59)
+            if date_filter_start > date_filter_end:
+                raise HTTPException(status_code=400, detail="Start date must be before end date")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    # Apply filters
+    if customer_email:
+        query = query.filter(SharedLink.customer_email == customer_email)
+    
+    if material_id:
+        query = query.filter(SharedLink.material_id == material_id)
+    
+    # Apply date filter to shared links (filter by created_at)
+    if date_filter_start and date_filter_end:
+        query = query.filter(
+            and_(
+                SharedLink.created_at >= date_filter_start,
+                SharedLink.created_at <= date_filter_end
+            )
+        )
+    
+    shared_links = query.order_by(SharedLink.created_at.desc()).limit(limit * 3).all()  # Get more to account for multiple events per link
+    
+    events = []
+    
+    for link in shared_links:
+        # Get material name
+        material = db.query(Material).filter(Material.id == link.material_id).first()
+        material_name = material.name if material else f"Material {link.material_id}"
+        
+        # Event 1: Shared (always present) - check date filter
+        if not event_type or event_type == "shared":
+            if not date_filter_start or not date_filter_end or (date_filter_start <= link.created_at <= date_filter_end):
+                events.append(TimelineEvent(
+                    event_type="shared",
+                    timestamp=link.created_at,
+                    material_id=link.material_id,
+                    material_name=material_name,
+                    customer_email=link.customer_email,
+                    customer_name=link.customer_name,
+                    shared_link_id=link.id
+                ))
+        
+        # Event 2: Viewed (if link was accessed) - check date filter
+        if link.last_accessed_at and (not event_type or event_type == "viewed"):
+            if not date_filter_start or not date_filter_end or (date_filter_start <= link.last_accessed_at <= date_filter_end):
+                events.append(TimelineEvent(
+                    event_type="viewed",
+                    timestamp=link.last_accessed_at,
+                    material_id=link.material_id,
+                    material_name=material_name,
+                    customer_email=link.customer_email,
+                    customer_name=link.customer_name,
+                    shared_link_id=link.id
+                ))
+        
+        # Event 3: Downloaded (if link was downloaded) - check date filter
+        if link.last_downloaded_at and (not event_type or event_type == "downloaded"):
+            if not date_filter_start or not date_filter_end or (date_filter_start <= link.last_downloaded_at <= date_filter_end):
+                events.append(TimelineEvent(
+                    event_type="downloaded",
+                    timestamp=link.last_downloaded_at,
+                    material_id=link.material_id,
+                    material_name=material_name,
+                    customer_email=link.customer_email,
+                    customer_name=link.customer_name,
+                    shared_link_id=link.id
+                ))
+    
+    # Sort all events by timestamp (newest first)
+    events.sort(key=lambda e: e.timestamp, reverse=True)
+    
+    # Return only the requested limit (FastAPI will serialize Pydantic models automatically)
+    return events[:limit]
 
 
 @router.get("/{link_id}", response_model=SharedLinkResponse)
@@ -268,8 +398,8 @@ async def get_shared_link_by_token(
             detail="This shared link has expired or been deactivated"
         )
     
-    # Record access
-    shared_link.record_access()
+    # Record view (not download)
+    shared_link.record_view()
     db.commit()
     
     # Get material name
@@ -326,8 +456,8 @@ async def download_shared_document(
             detail="File not available for this material"
         )
     
-    # Record access (already done when viewing, but record download specifically)
-    shared_link.record_access()
+    # Record download (this also increments access_count)
+    shared_link.record_download()
     db.commit()
     
     # Get file path
@@ -479,6 +609,12 @@ async def get_sharing_stats(
     expired_shares = query.filter(SharedLink.expires_at <= datetime.utcnow()).count()
     total_accesses = db.query(func.sum(SharedLink.access_count)).scalar() or 0
     
+    # Get total downloads
+    downloads_query = db.query(func.sum(SharedLink.download_count))
+    if current_user.role != "admin" and not current_user.is_superuser:
+        downloads_query = downloads_query.filter(SharedLink.shared_by_user_id == current_user.id)
+    total_downloads = downloads_query.scalar() or 0
+    
     # Count unique customers
     unique_customers_query = query.filter(SharedLink.customer_email.isnot(None))
     if current_user.role != "admin" and not current_user.is_superuser:
@@ -490,6 +626,7 @@ async def get_sharing_stats(
         active_shares=active_shares,
         expired_shares=expired_shares,
         total_accesses=total_accesses,
+        total_downloads=total_downloads,
         unique_customers=unique_customers
     )
 
@@ -508,6 +645,7 @@ async def get_material_sharing_stats(
         func.count(SharedLink.id).label('total_shares'),
         func.count(distinct(SharedLink.customer_email)).label('unique_customers'),
         func.sum(SharedLink.access_count).label('total_accesses'),
+        func.sum(SharedLink.download_count).label('total_downloads'),
         func.max(SharedLink.created_at).label('last_shared_at')
     ).join(SharedLink, Material.id == SharedLink.material_id)
     
@@ -524,6 +662,7 @@ async def get_material_sharing_stats(
             total_shares=r.total_shares or 0,
             unique_customers=r.unique_customers or 0,
             total_accesses=r.total_accesses or 0,
+            total_downloads=r.total_downloads or 0,
             last_shared_at=r.last_shared_at
         )
         for r in results
@@ -543,8 +682,10 @@ async def get_customer_sharing_stats(
         func.max(SharedLink.customer_name).label('customer_name'),
         func.count(distinct(SharedLink.material_id)).label('total_documents'),
         func.sum(SharedLink.access_count).label('total_accesses'),
+        func.sum(SharedLink.download_count).label('total_downloads'),
         func.max(SharedLink.created_at).label('last_shared_at'),
-        func.max(SharedLink.last_accessed_at).label('last_accessed_at')
+        func.max(SharedLink.last_accessed_at).label('last_accessed_at'),
+        func.max(SharedLink.last_downloaded_at).label('last_downloaded_at')
     ).filter(SharedLink.customer_email.isnot(None))
     
     # Users can only see their own stats unless admin
@@ -559,8 +700,10 @@ async def get_customer_sharing_stats(
             customer_name=r.customer_name,
             total_documents_shared=r.total_documents or 0,
             total_accesses=r.total_accesses or 0,
+            total_downloads=r.total_downloads or 0,
             last_shared_at=r.last_shared_at,
-            last_accessed_at=r.last_accessed_at
+            last_accessed_at=r.last_accessed_at,
+            last_downloaded_at=r.last_downloaded_at
         )
         for r in results
     ]

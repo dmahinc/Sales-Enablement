@@ -23,8 +23,9 @@ async def get_director_dashboard(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get Director Dashboard - Monitoring team progress on document completion"""
-    if current_user.role != "director" and not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Requires director role")
+    # Allow director, pmm, and superuser roles
+    if current_user.role not in ["director", "pmm"] and not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Requires director or PMM role")
     
     # Get all materials with product hierarchy info
     materials = db.query(Material).all()
@@ -287,12 +288,28 @@ async def get_pmm_dashboard(
 
 @router.get("/sales")
 async def get_sales_dashboard(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Get Sales Dashboard - Discovery and sharing hub"""
     if current_user.role != "sales" and not current_user.is_superuser:
         raise HTTPException(status_code=403, detail="Requires sales role")
+    
+    # Parse date filters if provided
+    date_filter_start = None
+    date_filter_end = None
+    if start_date and end_date:
+        try:
+            date_filter_start = datetime.strptime(start_date, "%Y-%m-%d")
+            date_filter_end = datetime.strptime(end_date, "%Y-%m-%d")
+            # Set end date to end of day
+            date_filter_end = date_filter_end.replace(hour=23, minute=59, second=59)
+            if date_filter_start > date_filter_end:
+                raise HTTPException(status_code=400, detail="Start date must be before end date")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
     # Get published materials only
     published_materials = db.query(Material).filter(Material.status == "published").all()
@@ -310,8 +327,17 @@ async def get_sales_dashboard(
             "created_at": material.created_at.isoformat() if material.created_at else None
         })
     
-    # Get user's usage history (if tracking exists)
-    user_usage = db.query(MaterialUsage).filter(MaterialUsage.user_id == current_user.id).all()
+    # Get user's usage history (if tracking exists) - filter by date if provided
+    user_usage_query = db.query(MaterialUsage).filter(MaterialUsage.user_id == current_user.id)
+    if date_filter_start and date_filter_end:
+        user_usage_query = user_usage_query.filter(
+            and_(
+                MaterialUsage.viewed_at >= date_filter_start,
+                MaterialUsage.viewed_at <= date_filter_end
+            )
+        )
+    user_usage = user_usage_query.all()
+    
     recently_viewed = []
     if user_usage:
         recent_usage = sorted(user_usage, key=lambda u: u.viewed_at or datetime.min, reverse=True)[:5]
@@ -325,13 +351,21 @@ async def get_sales_dashboard(
                     "viewed_at": usage.viewed_at.isoformat() if usage.viewed_at else None
                 })
     
-    # Get popular materials (most used)
-    popular_materials = []
-    usage_counts = db.query(
+    # Get popular materials (most used) - filter by date if provided
+    usage_counts_query = db.query(
         MaterialUsage.material_id,
         func.count(MaterialUsage.id).label('usage_count')
-    ).group_by(MaterialUsage.material_id).order_by(func.count(MaterialUsage.id).desc()).limit(5).all()
+    )
+    if date_filter_start and date_filter_end:
+        usage_counts_query = usage_counts_query.filter(
+            and_(
+                MaterialUsage.viewed_at >= date_filter_start,
+                MaterialUsage.viewed_at <= date_filter_end
+            )
+        )
+    usage_counts = usage_counts_query.group_by(MaterialUsage.material_id).order_by(func.count(MaterialUsage.id).desc()).limit(5).all()
     
+    popular_materials = []
     for material_id, count in usage_counts:
         material = db.query(Material).filter(Material.id == material_id).first()
         if material and material.status == "published":

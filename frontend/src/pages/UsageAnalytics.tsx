@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import { 
   TrendingUp, 
@@ -19,6 +21,13 @@ import {
 type PeriodType = 'preset' | 'custom'
 
 export default function UsageAnalytics() {
+  const { user } = useAuth()
+  
+  // Only allow Director and PMM roles to access Usage Analytics
+  if (user && user.role !== 'director' && user.role !== 'pmm' && !user.is_superuser) {
+    return <Navigate to="/" replace />
+  }
+  
   const [periodType, setPeriodType] = useState<PeriodType>('preset')
   const [days, setDays] = useState(30)
   const [startDate, setStartDate] = useState('')

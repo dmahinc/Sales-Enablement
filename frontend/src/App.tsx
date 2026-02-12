@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import DirectorDashboard from './pages/DirectorDashboard'
@@ -34,24 +35,42 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function RoleBasedDashboard() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  
+  useEffect(() => {
+    console.log('RoleBasedDashboard - User:', user, 'Loading:', loading, 'Role:', user?.role)
+  }, [user, loading])
+  
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading user...</div>
+  }
   
   if (!user) {
+    console.log('RoleBasedDashboard - No user, redirecting to login')
     return <Navigate to="/login" replace />
   }
   
+  console.log('RoleBasedDashboard - Rendering dashboard for role:', user.role)
+  
   // Route to role-specific dashboard
   // PMM has the same dashboard as Director
-  switch (user.role) {
-    case 'director':
-      return <DirectorDashboard />
-    case 'pmm':
-      return <DirectorDashboard />
-    case 'sales':
-      return <SalesDashboard />
-    default:
-      // Fallback to generic dashboard for admin or unknown roles
-      return <Dashboard />
+  try {
+    switch (user.role) {
+      case 'director':
+        return <DirectorDashboard />
+      case 'pmm':
+        return <DirectorDashboard />
+      case 'sales':
+        console.log('RoleBasedDashboard - Rendering SalesDashboard')
+        return <SalesDashboard />
+      default:
+        console.log('RoleBasedDashboard - Unknown role, using default Dashboard')
+        // Fallback to generic dashboard for admin or unknown roles
+        return <Dashboard />
+    }
+  } catch (error) {
+    console.error('RoleBasedDashboard - Error rendering dashboard:', error)
+    return <div className="p-4 text-red-600">Error loading dashboard: {error instanceof Error ? error.message : 'Unknown error'}</div>
   }
 }
 
@@ -71,7 +90,14 @@ function AppRoutes() {
         <Route index element={<RoleBasedDashboard />} />
         <Route path="materials" element={<Materials />} />
         <Route path="health" element={<HealthDashboard />} />
-        <Route path="analytics" element={<UsageAnalytics />} />
+        <Route 
+          path="analytics" 
+          element={
+            <ProtectedRoute>
+              <UsageAnalytics />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="sharing" element={<ShareHistory />} />
         <Route path="tracks" element={<Tracks />} />
         <Route path="tracks/:id" element={<TrackDetail />} />

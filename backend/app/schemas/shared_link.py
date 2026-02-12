@@ -27,6 +27,8 @@ class SharedLinkResponse(BaseModel):
     is_active: bool
     access_count: int
     last_accessed_at: Optional[datetime] = None
+    download_count: int
+    last_downloaded_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     share_url: str  # Full URL to access the shared document
@@ -49,6 +51,7 @@ class SharedLinkStats(BaseModel):
     active_shares: int
     expired_shares: int
     total_accesses: int
+    total_downloads: int
     unique_customers: int
 
 
@@ -59,6 +62,7 @@ class MaterialShareStats(BaseModel):
     total_shares: int
     unique_customers: int
     total_accesses: int
+    total_downloads: int
     last_shared_at: Optional[datetime] = None
 
 
@@ -68,5 +72,18 @@ class CustomerShareStats(BaseModel):
     customer_name: Optional[str] = None
     total_documents_shared: int
     total_accesses: int
+    total_downloads: int
     last_shared_at: Optional[datetime] = None
     last_accessed_at: Optional[datetime] = None
+    last_downloaded_at: Optional[datetime] = None
+
+
+class TimelineEvent(BaseModel):
+    """Schema for timeline event"""
+    event_type: str  # "shared" | "viewed" | "downloaded"
+    timestamp: datetime
+    material_id: int
+    material_name: str
+    customer_email: Optional[str] = None
+    customer_name: Optional[str] = None
+    shared_link_id: int

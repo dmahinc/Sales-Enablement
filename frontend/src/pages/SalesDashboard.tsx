@@ -11,29 +11,13 @@ import {
   Star,
   Filter
 } from 'lucide-react'
+import CustomerEngagementTimeline from '../components/CustomerEngagementTimeline'
 
 export default function SalesDashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['sales-dashboard'],
     queryFn: () => api.get('/dashboard/sales').then(res => res.data),
   })
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
-        <span className="ml-3 text-slate-500">Loading sales dashboard...</span>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="card-ovh p-6 text-center">
-        <p className="text-sm text-slate-500">Error loading dashboard. Please try refreshing the page.</p>
-      </div>
-    )
-  }
 
   const stats = [
     {
@@ -87,7 +71,23 @@ export default function SalesDashboard() {
         </Link>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
+          <span className="ml-3 text-slate-500">Loading sales dashboard...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="card-ovh p-6 text-center">
+          <p className="text-sm text-slate-500">Error loading dashboard. Please try refreshing the page.</p>
+        </div>
+      )}
+
       {/* Stats Grid */}
+      {!isLoading && !error && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => {
           const Icon = stat.icon
@@ -114,8 +114,28 @@ export default function SalesDashboard() {
           )
         })}
       </div>
+      )}
+
+      {/* Customer Engagement Timeline */}
+      {!isLoading && !error && (
+      <div className="card-ovh">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-primary-700">Customer Engagement Timeline</h2>
+            <p className="text-sm text-slate-500 mt-1">Track when materials are shared, viewed, and downloaded by customers</p>
+          </div>
+          <Link to="/sharing" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
+            View all <ArrowRight className="w-4 h-4 ml-1" />
+          </Link>
+        </div>
+        <div className="p-6">
+          <CustomerEngagementTimeline limit={20} />
+        </div>
+      </div>
+      )}
 
       {/* Content Grid */}
+      {!isLoading && !error && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Popular Materials */}
         <div className="card-ovh">
@@ -206,8 +226,10 @@ export default function SalesDashboard() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Quick Actions */}
+      {!isLoading && !error && (
       <div className="card-ovh">
         <div className="px-6 py-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-primary-700">Quick Actions</h2>
@@ -246,9 +268,10 @@ export default function SalesDashboard() {
           </Link>
         </div>
       </div>
+      )}
 
       {/* Materials by Type */}
-      {data?.available_materials?.by_type && Object.keys(data.available_materials.by_type).length > 0 && (
+      {!isLoading && !error && data?.available_materials?.by_type && Object.keys(data.available_materials.by_type).length > 0 && (
         <div className="card-ovh">
           <div className="px-6 py-4 border-b border-slate-200">
             <h2 className="text-lg font-semibold text-primary-700">Browse by Material Type</h2>

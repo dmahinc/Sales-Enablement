@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { 
   Activity, 
   AlertTriangle, 
@@ -18,6 +19,7 @@ import ProductCompletionTable from '../components/ProductCompletionTable'
 import ProductForm from '../components/ProductForm'
 
 export default function DirectorDashboard() {
+  const { user } = useAuth()
   const [showProductForm, setShowProductForm] = useState(false)
 
   const { data, isLoading, error, refetch: refetchDashboard } = useQuery({
@@ -31,10 +33,11 @@ export default function DirectorDashboard() {
   })
 
   if (isLoading) {
+    const dashboardLabel = user?.role === 'pmm' ? 'PMM dashboard' : 'director dashboard'
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
-        <span className="ml-3 text-slate-500">Loading director dashboard...</span>
+        <span className="ml-3 text-slate-500">Loading {dashboardLabel}...</span>
       </div>
     )
   }

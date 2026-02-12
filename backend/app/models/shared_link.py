@@ -31,8 +31,10 @@ class SharedLink(BaseModel):
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Tracking
-    access_count = Column(Integer, default=0, nullable=False)
+    access_count = Column(Integer, default=0, nullable=False)  # Total views/accesses
     last_accessed_at = Column(DateTime, nullable=True)
+    download_count = Column(Integer, default=0, nullable=False)  # Total downloads
+    last_downloaded_at = Column(DateTime, nullable=True)
     
     # Relationships
     material = relationship("Material", back_populates="shared_links")
@@ -60,6 +62,18 @@ class SharedLink(BaseModel):
         return self.is_active and not self.is_expired()
     
     def record_access(self):
-        """Record that the link was accessed"""
+        """Record that the link was accessed (viewed)"""
+        self.access_count += 1
+        self.last_accessed_at = datetime.utcnow()
+    
+    def record_view(self):
+        """Record that the link was viewed (alias for record_access for clarity)"""
+        self.record_access()
+    
+    def record_download(self):
+        """Record that the document was downloaded"""
+        self.download_count += 1
+        self.last_downloaded_at = datetime.utcnow()
+        # Also increment access count since download implies access
         self.access_count += 1
         self.last_accessed_at = datetime.utcnow()
