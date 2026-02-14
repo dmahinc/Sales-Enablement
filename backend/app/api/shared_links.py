@@ -1,45 +1,39 @@
 """
-Shared Links API endpoints - Document sharing with customers
+Shared Links API endpoints - Public and authenticated endpoints for sharing materials
 """
-import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+import secrets
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct, and_
 from datetime import datetime, timedelta
 from app.core.database import get_db
 from app.core.security import get_current_active_user
-from app.core.config import settings
 from app.models.user import User
 from app.models.material import Material
 from app.models.shared_link import SharedLink
+from app.models.usage import MaterialUsage, UsageAction
 from app.schemas.shared_link import (
-    SharedLinkCreate, SharedLinkResponse, SharedLinkUpdate,
-    SharedLinkStats, MaterialShareStats, CustomerShareStats, TimelineEvent
+    SharedLinkCreate, SharedLinkResponse, SharedLinkPublicResponse, SharedLinkUpdate
 )
 from app.services.storage import storage_service
-from app.core.email import send_share_link_notification
-from pathlib import Path
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/shared-links", tags=["shared-links"])
 
 
-def get_share_url(token: str) -> str:
-    """Generate the full URL for accessing a shared link"""
-    platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
-    return f"{platform_url}/share/{token}"
+def generate_unique_token() -> str:
+    """Generate a unique token for shared links"""
+    return secrets.token_urlsafe(48)  # 64 characters when base64 encoded
 
 
 @router.post("", response_model=SharedLinkResponse, status_code=status.HTTP_201_CREATED)
 async def create_shared_link(
     link_data: SharedLinkCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Create a new shareable link for a document"""
+    """Create a new shared link for a material (requires authentication)"""
     # Verify material exists and is published
     material = db.query(Material).filter(Material.id == link_data.material_id).first()
     if not material:
@@ -48,21 +42,19 @@ async def create_shared_link(
             detail="Material not found"
         )
     
-    # Only allow sharing published materials
-    if material.status.value != "published":
+    if material.status != "published":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only published materials can be shared"
         )
     
     # Generate unique token
-    token = SharedLink.generate_token()
-    
-    # Ensure token is unique
+    token = generate_unique_token()
+    # Ensure token is unique (very unlikely collision, but check anyway)
     while db.query(SharedLink).filter(SharedLink.unique_token == token).first():
-        token = SharedLink.generate_token()
+        token = generate_unique_token()
     
-    # Calculate expiration
+    # Calculate expiration date
     expires_at = datetime.utcnow() + timedelta(days=link_data.expires_in_days)
     
     # Create shared link
@@ -80,51 +72,54 @@ async def create_shared_link(
     db.commit()
     db.refresh(shared_link)
     
-    # Build response with share URL and material name
-    response_dict = {
-        **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
-        'share_url': get_share_url(token),
-        'material_name': material.name
-    }
-    response_data = SharedLinkResponse(**response_dict)
+    # Build share URL
+    base_url = str(request.base_url).rstrip('/')
+    share_url = f"{base_url}/share/{token}"
     
-    return response_data
+    # Return response with share URL
+    return {
+        "id": shared_link.id,
+        "unique_token": shared_link.unique_token,
+        "material_id": shared_link.material_id,
+        "material_name": material.name,
+        "shared_by_user_id": shared_link.shared_by_user_id,
+        "shared_by_user_name": current_user.full_name or current_user.email,
+        "customer_email": shared_link.customer_email,
+        "customer_name": shared_link.customer_name,
+        "expires_at": shared_link.expires_at,
+        "is_active": shared_link.is_active,
+        "access_count": shared_link.access_count,
+        "last_accessed_at": shared_link.last_accessed_at,
+        "created_at": shared_link.created_at,
+        "share_url": share_url
+    }
 
 
-@router.post("/{link_id}/send-email", status_code=status.HTTP_200_OK)
-async def send_share_link_email(
-    link_id: int,
-    customer_email: str = Query(..., description="Customer email address to send the link to"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+@router.get("/token/{token}", response_model=SharedLinkPublicResponse)
+async def get_shared_link_by_token(
+    token: str,
+    db: Session = Depends(get_db)
 ):
-    """Send share link via email to a customer"""
-    # Get shared link
-    shared_link = db.query(SharedLink).filter(SharedLink.id == link_id).first()
+    """
+    Get shared link information by token (PUBLIC - no authentication required)
+    This is the endpoint that validates shared links for external customers
+    """
+    shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
+    
     if not shared_link:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shared link not found"
+            detail="Link not found. This shared link is invalid, expired, or has been deactivated."
         )
     
-    # Check permissions
-    if (current_user.role != "admin" and not current_user.is_superuser and 
-        shared_link.shared_by_user_id != current_user.id):
+    # Check if link is valid (active and not expired)
+    if not shared_link.is_valid():
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to send email for this shared link"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Link not found. This shared link is invalid, expired, or has been deactivated."
         )
     
-    # Validate email format
-    import re
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(email_pattern, customer_email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid email address"
-        )
-    
-    # Get material name
+    # Get material
     material = db.query(Material).filter(Material.id == shared_link.material_id).first()
     if not material:
         raise HTTPException(
@@ -132,343 +127,94 @@ async def send_share_link_email(
             detail="Material not found"
         )
     
-    # Get share URL
-    share_url = get_share_url(shared_link.unique_token)
-    
-    # Get shared by user name
-    shared_by_user = db.query(User).filter(User.id == shared_link.shared_by_user_id).first()
-    shared_by_name = shared_by_user.full_name if shared_by_user else "OVHcloud Team"
-    
-    # Use customer name from shared link or fallback
-    customer_name = shared_link.customer_name or ""
-    
-    # Send email
-    platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
-    email_sent = send_share_link_notification(
-        customer_email=customer_email,
-        customer_name=customer_name,
-        material_name=material.name,
-        share_url=share_url,
-        shared_by_name=shared_by_name,
-        platform_url=platform_url
-    )
-    
-    if not email_sent:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send email. Please check email configuration."
-        )
-    
-    # Update customer email if not already set
-    if not shared_link.customer_email:
-        shared_link.customer_email = customer_email
-        db.commit()
-    
-    return {
-        "success": True,
-        "message": f"Email sent successfully to {customer_email}"
-    }
-
-
-@router.get("", response_model=List[SharedLinkResponse])
-async def list_shared_links(
-    material_id: Optional[int] = None,
-    customer_email: Optional[str] = None,
-    start_date: Optional[str] = Query(default=None, description="Filter links created from this date (YYYY-MM-DD)"),
-    end_date: Optional[str] = Query(default=None, description="Filter links created until this date (YYYY-MM-DD)"),
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """List shared links with optional filters"""
-    query = db.query(SharedLink)
-    
-    if material_id:
-        query = query.filter(SharedLink.material_id == material_id)
-    
-    if customer_email:
-        query = query.filter(SharedLink.customer_email == customer_email)
-    
-    # Date filtering
-    if start_date and end_date:
-        try:
-            date_filter_start = datetime.strptime(start_date, "%Y-%m-%d")
-            date_filter_end = datetime.strptime(end_date, "%Y-%m-%d")
-            # Set end date to end of day
-            date_filter_end = date_filter_end.replace(hour=23, minute=59, second=59)
-            if date_filter_start > date_filter_end:
-                raise HTTPException(status_code=400, detail="Start date must be before end date")
-            query = query.filter(
-                and_(
-                    SharedLink.created_at >= date_filter_start,
-                    SharedLink.created_at <= date_filter_end
-                )
-            )
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
-    
-    # Users can only see their own shares unless admin
-    if current_user.role != "admin" and not current_user.is_superuser:
-        query = query.filter(SharedLink.shared_by_user_id == current_user.id)
-    
-    shared_links = query.order_by(SharedLink.created_at.desc()).offset(skip).limit(limit).all()
-    
-    # Add share URLs and material names
-    result = []
-    for link in shared_links:
-        # Get material name
-        material = db.query(Material).filter(Material.id == link.material_id).first()
-        material_name = material.name if material else None
-        
-        link_dict = {
-            **{c.name: getattr(link, c.name) for c in link.__table__.columns},
-            'share_url': get_share_url(link.unique_token),
-            'material_name': material_name
-        }
-        link_data = SharedLinkResponse(**link_dict)
-        result.append(link_data)
-    
-    return result
-
-
-@router.get("/timeline", response_model=List[TimelineEvent])
-async def get_customer_engagement_timeline(
-    limit: int = Query(default=50, ge=1, le=200, description="Maximum number of events to return"),
-    customer_email: Optional[str] = Query(default=None, description="Filter by customer email"),
-    material_id: Optional[int] = Query(default=None, description="Filter by material ID"),
-    event_type: Optional[str] = Query(default=None, description="Filter by event type: shared, viewed, or downloaded"),
-    start_date: Optional[str] = Query(default=None, description="Filter events from this date (YYYY-MM-DD)"),
-    end_date: Optional[str] = Query(default=None, description="Filter events until this date (YYYY-MM-DD)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get chronological timeline of customer engagement events (shared, viewed, downloaded)
-    
-    Note: 
-    - 'viewed' means the customer accessed/viewed the shared link page (last_accessed_at is set)
-    - 'downloaded' means the customer downloaded the document (last_downloaded_at is set)
-    These are separate events - viewing does not imply downloading.
-    """
-    # Get all shared links for the current user
-    query = db.query(SharedLink).join(Material, SharedLink.material_id == Material.id)
-    
-    # Users can only see their own timeline unless admin
-    if current_user.role != "admin" and not current_user.is_superuser:
-        query = query.filter(SharedLink.shared_by_user_id == current_user.id)
-    
-    # Parse date filters if provided
-    date_filter_start = None
-    date_filter_end = None
-    if start_date and end_date:
-        try:
-            date_filter_start = datetime.strptime(start_date, "%Y-%m-%d")
-            date_filter_end = datetime.strptime(end_date, "%Y-%m-%d")
-            # Set end date to end of day
-            date_filter_end = date_filter_end.replace(hour=23, minute=59, second=59)
-            if date_filter_start > date_filter_end:
-                raise HTTPException(status_code=400, detail="Start date must be before end date")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
-    
-    # Apply filters
-    if customer_email:
-        query = query.filter(SharedLink.customer_email == customer_email)
-    
-    if material_id:
-        query = query.filter(SharedLink.material_id == material_id)
-    
-    # Apply date filter to shared links (filter by created_at)
-    if date_filter_start and date_filter_end:
-        query = query.filter(
-            and_(
-                SharedLink.created_at >= date_filter_start,
-                SharedLink.created_at <= date_filter_end
-            )
-        )
-    
-    shared_links = query.order_by(SharedLink.created_at.desc()).limit(limit * 3).all()  # Get more to account for multiple events per link
-    
-    events = []
-    
-    for link in shared_links:
-        # Get material name
-        material = db.query(Material).filter(Material.id == link.material_id).first()
-        material_name = material.name if material else f"Material {link.material_id}"
-        
-        # Event 1: Shared (always present) - check date filter
-        if not event_type or event_type == "shared":
-            if not date_filter_start or not date_filter_end or (date_filter_start <= link.created_at <= date_filter_end):
-                events.append(TimelineEvent(
-                    event_type="shared",
-                    timestamp=link.created_at,
-                    material_id=link.material_id,
-                    material_name=material_name,
-                    customer_email=link.customer_email,
-                    customer_name=link.customer_name,
-                    shared_link_id=link.id
-                ))
-        
-        # Event 2: Viewed (if link was accessed) - check date filter
-        if link.last_accessed_at and (not event_type or event_type == "viewed"):
-            if not date_filter_start or not date_filter_end or (date_filter_start <= link.last_accessed_at <= date_filter_end):
-                events.append(TimelineEvent(
-                    event_type="viewed",
-                    timestamp=link.last_accessed_at,
-                    material_id=link.material_id,
-                    material_name=material_name,
-                    customer_email=link.customer_email,
-                    customer_name=link.customer_name,
-                    shared_link_id=link.id
-                ))
-        
-        # Event 3: Downloaded (if link was downloaded) - check date filter
-        if link.last_downloaded_at and (not event_type or event_type == "downloaded"):
-            if not date_filter_start or not date_filter_end or (date_filter_start <= link.last_downloaded_at <= date_filter_end):
-                events.append(TimelineEvent(
-                    event_type="downloaded",
-                    timestamp=link.last_downloaded_at,
-                    material_id=link.material_id,
-                    material_name=material_name,
-                    customer_email=link.customer_email,
-                    customer_name=link.customer_name,
-                    shared_link_id=link.id
-                ))
-    
-    # Sort all events by timestamp (newest first)
-    events.sort(key=lambda e: e.timestamp, reverse=True)
-    
-    # Return only the requested limit (FastAPI will serialize Pydantic models automatically)
-    return events[:limit]
-
-
-@router.get("/{link_id}", response_model=SharedLinkResponse)
-async def get_shared_link(
-    link_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get a specific shared link"""
-    shared_link = db.query(SharedLink).filter(SharedLink.id == link_id).first()
-    if not shared_link:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shared link not found"
-        )
-    
-    # Check permissions
-    if (current_user.role != "admin" and not current_user.is_superuser and 
-        shared_link.shared_by_user_id != current_user.id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this shared link"
-        )
-    
-    # Get material name
-    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
-    material_name = material.name if material else None
-    
-    response_dict = {
-        **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
-        'share_url': get_share_url(shared_link.unique_token),
-        'material_name': material_name
-    }
-    response_data = SharedLinkResponse(**response_dict)
-    
-    return response_data
-
-
-@router.get("/token/{token}", response_model=SharedLinkResponse)
-async def get_shared_link_by_token(
-    token: str,
-    db: Session = Depends(get_db)
-):
-    """Get shared link by token (public endpoint for accessing shared documents)"""
-    shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
-    if not shared_link:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shared link not found"
-        )
-    
-    # Check if link is valid
-    if not shared_link.is_valid():
-        raise HTTPException(
-            status_code=status.HTTP_410_GONE,
-            detail="This shared link has expired or been deactivated"
-        )
-    
-    # Record view (not download)
-    shared_link.record_view()
+    # Update access tracking
+    shared_link.access_count += 1
+    shared_link.last_accessed_at = datetime.utcnow()
     db.commit()
     
-    # Get material name
-    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
-    material_name = material.name if material else None
-    
-    response_dict = {
-        **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
-        'share_url': get_share_url(token),
-        'material_name': material_name
+    return {
+        "material_id": material.id,
+        "material_name": material.name,
+        "material_type": material.material_type,
+        "material_description": material.description,
+        "file_name": material.file_name,
+        "file_format": material.file_format,
+        "file_size": material.file_size,
+        "expires_at": shared_link.expires_at,
+        "is_valid": True
     }
-    response_data = SharedLinkResponse(**response_dict)
-    
-    return response_data
 
 
 @router.get("/token/{token}/download")
-async def download_shared_document(
+async def download_shared_material(
     token: str,
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """Download a document via shared link (public endpoint, no authentication required)"""
-    # Verify token and get shared link
+    """
+    Download material file via shared link (PUBLIC - no authentication required)
+    """
     shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
+    
     if not shared_link:
-        logger.error(f"Shared link not found for token: {token}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Shared link not found"
+            detail="Link not found. This shared link is invalid, expired, or has been deactivated."
         )
     
     # Check if link is valid
     if not shared_link.is_valid():
-        logger.warning(f"Invalid shared link accessed: {token}")
         raise HTTPException(
-            status_code=status.HTTP_410_GONE,
-            detail="This shared link has expired or been deactivated"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Link not found. This shared link is invalid, expired, or has been deactivated."
         )
     
     # Get material
     material = db.query(Material).filter(Material.id == shared_link.material_id).first()
     if not material:
-        logger.error(f"Material not found for shared link token: {token}, material_id: {shared_link.material_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Material not found"
         )
     
     if not material.file_path:
-        logger.error(f"Material {material.id} has no file_path")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File not available for this material"
         )
     
-    # Record download (this also increments access_count)
-    shared_link.record_download()
+    # Update access tracking
+    shared_link.access_count += 1
+    shared_link.last_accessed_at = datetime.utcnow()
+    
+    # Track download usage (if we have user info, otherwise track anonymously)
+    try:
+        usage_event = MaterialUsage(
+            material_id=material.id,
+            user_id=shared_link.shared_by_user_id or 0,  # Use 0 for anonymous
+            action=UsageAction.DOWNLOAD.value,
+            used_at=datetime.utcnow(),
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        )
+        db.add(usage_event)
+        
+        # Increment usage count
+        material.usage_count = (material.usage_count or 0) + 1
+        material.last_updated = datetime.utcnow()
+    except Exception as e:
+        # Log error but don't fail the download
+        import logging
+        logging.error(f"Failed to track usage: {str(e)}")
+    
     db.commit()
     
-    # Get file path
+    # Get file path and serve
     file_path = storage_service.get_file_path(material.file_path)
-    logger.info(f"Attempting to download file. Material ID: {material.id}, file_path in DB: {material.file_path}, full path: {file_path}")
-    
     if not file_path.exists():
-        logger.error(f"File not found at path: {file_path}. Storage path: {storage_service.storage_path}, relative path: {material.file_path}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"File not found on server. Path: {material.file_path}"
+            detail="File not found on server"
         )
     
     # Determine media type based on file format
@@ -484,85 +230,107 @@ async def download_shared_document(
     }
     media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
     
-    # Use original file_name to preserve extension, or construct from name + format
-    if material.file_name:
-        filename = material.file_name
-    elif material.file_format:
-        # Construct filename with proper extension
-        base_name = material.name.rsplit('.', 1)[0] if '.' in material.name else material.name
-        filename = f"{base_name}.{material.file_format}"
-    else:
-        filename = material.name
-    
-    # Properly encode filename for Content-Disposition header
-    # Use RFC 5987 encoding for filenames with special characters
-    from urllib.parse import quote
-    
-    # Encode filename properly - quote the UTF-8 encoded bytes
-    encoded_filename = quote(filename, safe='', encoding='utf-8')
-    
-    # Return FileResponse with properly encoded filename
-    # Use both filename (for older browsers) and filename* (RFC 5987 for modern browsers)
-    response = FileResponse(
+    return FileResponse(
         path=str(file_path),
-        filename=filename,
+        filename=material.file_name,
         media_type=media_type
     )
+
+
+@router.get("", response_model=List[SharedLinkResponse])
+async def list_shared_links(
+    material_id: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """List shared links (requires authentication - only shows links created by current user)"""
+    query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
     
-    # Set Content-Disposition header with proper encoding
-    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded_filename}'
+    if material_id:
+        query = query.filter(SharedLink.material_id == material_id)
     
-    return response
+    shared_links = query.order_by(SharedLink.created_at.desc()).offset(skip).limit(limit).all()
+    
+    result = []
+    for link in shared_links:
+        material = db.query(Material).filter(Material.id == link.material_id).first()
+        result.append({
+            "id": link.id,
+            "unique_token": link.unique_token,
+            "material_id": link.material_id,
+            "material_name": material.name if material else "Unknown",
+            "shared_by_user_id": link.shared_by_user_id,
+            "shared_by_user_name": link.shared_by_user.full_name if link.shared_by_user else None,
+            "customer_email": link.customer_email,
+            "customer_name": link.customer_name,
+            "expires_at": link.expires_at,
+            "is_active": link.is_active,
+            "access_count": link.access_count,
+            "last_accessed_at": link.last_accessed_at,
+            "created_at": link.created_at,
+            "share_url": None  # Will be set by frontend
+        })
+    
+    return result
 
 
 @router.put("/{link_id}", response_model=SharedLinkResponse)
 async def update_shared_link(
     link_id: int,
     link_data: SharedLinkUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Update a shared link"""
+    """Update a shared link (requires authentication - only creator can update)"""
     shared_link = db.query(SharedLink).filter(SharedLink.id == link_id).first()
+    
     if not shared_link:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Shared link not found"
         )
     
-    # Check permissions
-    if (current_user.role != "admin" and not current_user.is_superuser and 
-        shared_link.shared_by_user_id != current_user.id):
+    # Only creator can update
+    if shared_link.shared_by_user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this shared link"
+            detail="You can only update your own shared links"
         )
     
     # Update fields
-    update_data = link_data.dict(exclude_unset=True)
-    
-    if "expires_in_days" in update_data:
-        shared_link.expires_at = datetime.utcnow() + timedelta(days=update_data.pop("expires_in_days"))
-    
-    for key, value in update_data.items():
-        if hasattr(shared_link, key):
-            setattr(shared_link, key, value)
+    if link_data.is_active is not None:
+        shared_link.is_active = link_data.is_active
+    if link_data.customer_email is not None:
+        shared_link.customer_email = link_data.customer_email
+    if link_data.customer_name is not None:
+        shared_link.customer_name = link_data.customer_name
     
     db.commit()
     db.refresh(shared_link)
     
-    # Get material name
     material = db.query(Material).filter(Material.id == shared_link.material_id).first()
-    material_name = material.name if material else None
+    base_url = str(request.base_url).rstrip('/')
+    share_url = f"{base_url}/share/{shared_link.unique_token}"
     
-    response_dict = {
-        **{c.name: getattr(shared_link, c.name) for c in shared_link.__table__.columns},
-        'share_url': get_share_url(shared_link.unique_token),
-        'material_name': material_name
+    return {
+        "id": shared_link.id,
+        "unique_token": shared_link.unique_token,
+        "material_id": shared_link.material_id,
+        "material_name": material.name if material else "Unknown",
+        "shared_by_user_id": shared_link.shared_by_user_id,
+        "shared_by_user_name": shared_link.shared_by_user.full_name if shared_link.shared_by_user else None,
+        "customer_email": shared_link.customer_email,
+        "customer_name": shared_link.customer_name,
+        "expires_at": shared_link.expires_at,
+        "is_active": shared_link.is_active,
+        "access_count": shared_link.access_count,
+        "last_accessed_at": shared_link.last_accessed_at,
+        "created_at": shared_link.created_at,
+        "share_url": share_url
     }
-    response_data = SharedLinkResponse(**response_dict)
-    
-    return response_data
 
 
 @router.delete("/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -571,139 +339,24 @@ async def delete_shared_link(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Delete (deactivate) a shared link"""
+    """Delete (deactivate) a shared link (requires authentication - only creator can delete)"""
     shared_link = db.query(SharedLink).filter(SharedLink.id == link_id).first()
+    
     if not shared_link:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Shared link not found"
         )
     
-    # Check permissions
-    if (current_user.role != "admin" and not current_user.is_superuser and 
-        shared_link.shared_by_user_id != current_user.id):
+    # Only creator can delete
+    if shared_link.shared_by_user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this shared link"
+            detail="You can only delete your own shared links"
         )
     
-    # Deactivate instead of deleting (for audit trail)
+    # Deactivate instead of deleting (preserve history)
     shared_link.is_active = False
     db.commit()
-
-
-@router.get("/stats/overview", response_model=SharedLinkStats)
-async def get_sharing_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get overall sharing statistics"""
-    query = db.query(SharedLink)
     
-    # Users can only see their own stats unless admin
-    if current_user.role != "admin" and not current_user.is_superuser:
-        query = query.filter(SharedLink.shared_by_user_id == current_user.id)
-    
-    total_shares = query.count()
-    active_shares = query.filter(SharedLink.is_active == True).filter(SharedLink.expires_at > datetime.utcnow()).count()
-    expired_shares = query.filter(SharedLink.expires_at <= datetime.utcnow()).count()
-    total_accesses = db.query(func.sum(SharedLink.access_count)).scalar() or 0
-    
-    # Get total downloads
-    downloads_query = db.query(func.sum(SharedLink.download_count))
-    if current_user.role != "admin" and not current_user.is_superuser:
-        downloads_query = downloads_query.filter(SharedLink.shared_by_user_id == current_user.id)
-    total_downloads = downloads_query.scalar() or 0
-    
-    # Count unique customers
-    unique_customers_query = query.filter(SharedLink.customer_email.isnot(None))
-    if current_user.role != "admin" and not current_user.is_superuser:
-        unique_customers_query = unique_customers_query.filter(SharedLink.shared_by_user_id == current_user.id)
-    unique_customers = unique_customers_query.with_entities(func.count(distinct(SharedLink.customer_email))).scalar() or 0
-    
-    return SharedLinkStats(
-        total_shares=total_shares,
-        active_shares=active_shares,
-        expired_shares=expired_shares,
-        total_accesses=total_accesses,
-        total_downloads=total_downloads,
-        unique_customers=unique_customers
-    )
-
-
-@router.get("/stats/materials", response_model=List[MaterialShareStats])
-async def get_material_sharing_stats(
-    skip: int = 0,
-    limit: int = 50,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get sharing statistics by material"""
-    query = db.query(
-        Material.id,
-        Material.name,
-        func.count(SharedLink.id).label('total_shares'),
-        func.count(distinct(SharedLink.customer_email)).label('unique_customers'),
-        func.sum(SharedLink.access_count).label('total_accesses'),
-        func.sum(SharedLink.download_count).label('total_downloads'),
-        func.max(SharedLink.created_at).label('last_shared_at')
-    ).join(SharedLink, Material.id == SharedLink.material_id)
-    
-    # Users can only see their own stats unless admin
-    if current_user.role != "admin" and not current_user.is_superuser:
-        query = query.filter(SharedLink.shared_by_user_id == current_user.id)
-    
-    results = query.group_by(Material.id, Material.name).order_by(func.count(SharedLink.id).desc()).offset(skip).limit(limit).all()
-    
-    return [
-        MaterialShareStats(
-            material_id=r.id,
-            material_name=r.name,
-            total_shares=r.total_shares or 0,
-            unique_customers=r.unique_customers or 0,
-            total_accesses=r.total_accesses or 0,
-            total_downloads=r.total_downloads or 0,
-            last_shared_at=r.last_shared_at
-        )
-        for r in results
-    ]
-
-
-@router.get("/stats/customers", response_model=List[CustomerShareStats])
-async def get_customer_sharing_stats(
-    skip: int = 0,
-    limit: int = 50,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get sharing statistics by customer"""
-    query = db.query(
-        SharedLink.customer_email,
-        func.max(SharedLink.customer_name).label('customer_name'),
-        func.count(distinct(SharedLink.material_id)).label('total_documents'),
-        func.sum(SharedLink.access_count).label('total_accesses'),
-        func.sum(SharedLink.download_count).label('total_downloads'),
-        func.max(SharedLink.created_at).label('last_shared_at'),
-        func.max(SharedLink.last_accessed_at).label('last_accessed_at'),
-        func.max(SharedLink.last_downloaded_at).label('last_downloaded_at')
-    ).filter(SharedLink.customer_email.isnot(None))
-    
-    # Users can only see their own stats unless admin
-    if current_user.role != "admin" and not current_user.is_superuser:
-        query = query.filter(SharedLink.shared_by_user_id == current_user.id)
-    
-    results = query.group_by(SharedLink.customer_email).order_by(func.count(distinct(SharedLink.material_id)).desc()).offset(skip).limit(limit).all()
-    
-    return [
-        CustomerShareStats(
-            customer_email=r.customer_email,
-            customer_name=r.customer_name,
-            total_documents_shared=r.total_documents or 0,
-            total_accesses=r.total_accesses or 0,
-            total_downloads=r.total_downloads or 0,
-            last_shared_at=r.last_shared_at,
-            last_accessed_at=r.last_accessed_at,
-            last_downloaded_at=r.last_downloaded_at
-        )
-        for r in results
-    ]
+    return None

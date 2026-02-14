@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown, RefreshCw, Calendar } from 'lucide-react'
+import ProductCompletenessMatrix from '../components/ProductCompletenessMatrix'
 
 export default function HealthDashboard() {
   const { data: healthData, isLoading, refetch } = useQuery({
@@ -266,6 +267,9 @@ export default function HealthDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Product-Material Type Completeness Matrix */}
+      <ProductCompletenessMatrix />
     </div>
   )
 }
