@@ -8,11 +8,31 @@ from datetime import datetime, timedelta
 import statistics
 from app.models.material import Material, MaterialStatus
 from app.models.health import MaterialHealthHistory
+from app.models.product import Product, Universe, Category
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
 
 router = APIRouter(prefix="/api/health", tags=["health"])
+
+# Essential material types for completeness calculation
+MATERIAL_TYPES = [
+    "PRODUCT_BRIEF",
+    "PRODUCT_SALES_ENABLEMENT_DECK", 
+    "PRODUCT_SALES_DECK",
+    "PRODUCT_DATASHEET"
+]
+
+# Map database material_type values to frontend format
+MATERIAL_TYPE_MAP = {
+    "product_brief": "PRODUCT_BRIEF",
+    "sales_enablement_deck": "PRODUCT_SALES_ENABLEMENT_DECK",
+    "product_sales_enablement_deck": "PRODUCT_SALES_ENABLEMENT_DECK",
+    "sales_deck": "PRODUCT_SALES_DECK",
+    "product_sales_deck": "PRODUCT_SALES_DECK",
+    "datasheet": "PRODUCT_DATASHEET",
+    "product_datasheet": "PRODUCT_DATASHEET",
+}
 
 def calculate_freshness_score(material: Material) -> int:
     """Calculate freshness score (0-100) based on material age"""
@@ -298,4 +318,180 @@ async def get_quarterly_review(
             "current_count": len([h for h in health_data if h["status"] == "current"]),
             "needs_update_count": len([h for h in health_data if h["status"] == "needs_update"])
         }
+    }
+
+@router.get("/completeness-matrix")
+async def get_completeness_matrix(
+    universe_id: Optional[int] = None,
+    category_id: Optional[int] = None,
+    only_published: bool = True,
+    include_inactive: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get product-material type completeness matrix"""
+    
+    # Query products with filters
+    products_query = db.query(Product)
+    
+    if universe_id:
+        products_query = products_query.filter(Product.universe_id == universe_id)
+    
+    if category_id:
+        products_query = products_query.filter(Product.category_id == category_id)
+    
+    if not include_inactive:
+        products_query = products_query.filter(Product.is_active == True)
+    
+    products = products_query.all()
+    
+    # Query materials
+    materials_query = db.query(Material)
+    if only_published:
+        materials_query = materials_query.filter(Material.status == MaterialStatus.PUBLISHED)
+    
+    all_materials = materials_query.all()
+    
+    # Build a map of product_name -> material types
+    product_materials: Dict[str, Dict[str, List[Material]]] = {}
+    for material in all_materials:
+        if not material.product_name:
+            continue
+        
+        product_name = material.product_name.strip()
+        if product_name not in product_materials:
+            product_materials[product_name] = {}
+        
+        # Normalize material type
+        material_type_db = (material.material_type or "").lower().strip()
+        material_type_frontend = MATERIAL_TYPE_MAP.get(material_type_db)
+        
+        if material_type_frontend and material_type_frontend in MATERIAL_TYPES:
+            if material_type_frontend not in product_materials[product_name]:
+                product_materials[product_name][material_type_frontend] = []
+            product_materials[product_name][material_type_frontend].append(material)
+    
+    # Build matrix rows
+    matrix = []
+    total_filled = 0
+    total_possible = len(products) * len(MATERIAL_TYPES)
+    
+    universe_stats: Dict[int, Dict] = {}
+    category_stats: Dict[int, Dict] = {}
+    
+    for product in products:
+        # Get universe and category info
+        universe = db.query(Universe).filter(Universe.id == product.universe_id).first()
+        category = None
+        if product.category_id:
+            category = db.query(Category).filter(Category.id == product.category_id).first()
+        
+        # Check which material types exist for this product
+        product_name = product.name
+        materials_for_product = product_materials.get(product_name, {})
+        
+        material_types_status = {}
+        product_filled = 0
+        
+        for mat_type in MATERIAL_TYPES:
+            materials = materials_for_product.get(mat_type, [])
+            has_material = len(materials) > 0
+            
+            if has_material:
+                product_filled += 1
+                total_filled += 1
+                latest_material = max(materials, key=lambda m: m.last_updated or datetime.min)
+                material_types_status[mat_type] = {
+                    "has_material": True,
+                    "material_count": len(materials),
+                    "latest_material_date": latest_material.last_updated.isoformat() if latest_material.last_updated else None
+                }
+            else:
+                material_types_status[mat_type] = {
+                    "has_material": False,
+                    "material_count": 0,
+                    "latest_material_date": None
+                }
+        
+        # Calculate product completeness
+        product_completeness = (product_filled / len(MATERIAL_TYPES)) * 100 if MATERIAL_TYPES else 0
+        
+        matrix.append({
+            "product_id": product.id,
+            "product_name": product.name,
+            "product_display_name": product.display_name,
+            "universe_id": product.universe_id,
+            "universe_name": universe.display_name if universe else universe.name if universe else "Unknown",
+            "category_id": product.category_id,
+            "category_name": category.display_name if category else category.name if category else None,
+            "material_types": material_types_status,
+            "product_completeness": round(product_completeness, 2)
+        })
+        
+        # Aggregate by universe
+        if product.universe_id not in universe_stats:
+            universe_stats[product.universe_id] = {
+                "universe_id": product.universe_id,
+                "universe_name": universe.display_name if universe else universe.name if universe else "Unknown",
+                "total_products": 0,
+                "filled_combinations": 0,
+                "total_combinations": 0
+            }
+        universe_stats[product.universe_id]["total_products"] += 1
+        universe_stats[product.universe_id]["filled_combinations"] += product_filled
+        universe_stats[product.universe_id]["total_combinations"] += len(MATERIAL_TYPES)
+        
+        # Aggregate by category
+        if product.category_id:
+            if product.category_id not in category_stats:
+                category_stats[product.category_id] = {
+                    "category_id": product.category_id,
+                    "category_name": category.display_name if category else category.name if category else "Unknown",
+                    "universe_id": product.universe_id,
+                    "total_products": 0,
+                    "filled_combinations": 0,
+                    "total_combinations": 0
+                }
+            category_stats[product.category_id]["total_products"] += 1
+            category_stats[product.category_id]["filled_combinations"] += product_filled
+            category_stats[product.category_id]["total_combinations"] += len(MATERIAL_TYPES)
+    
+    # Calculate overall score
+    overall_score = (total_filled / total_possible * 100) if total_possible > 0 else 0
+    
+    # Calculate scores for universes and categories
+    by_universe = []
+    for universe_id, stats in universe_stats.items():
+        score = (stats["filled_combinations"] / stats["total_combinations"] * 100) if stats["total_combinations"] > 0 else 0
+        by_universe.append({
+            "universe_id": stats["universe_id"],
+            "universe_name": stats["universe_name"],
+            "score": round(score, 2),
+            "total_products": stats["total_products"],
+            "filled_combinations": stats["filled_combinations"],
+            "total_combinations": stats["total_combinations"]
+        })
+    
+    by_category = []
+    for category_id, stats in category_stats.items():
+        score = (stats["filled_combinations"] / stats["total_combinations"] * 100) if stats["total_combinations"] > 0 else 0
+        by_category.append({
+            "category_id": stats["category_id"],
+            "category_name": stats["category_name"],
+            "universe_id": stats["universe_id"],
+            "score": round(score, 2),
+            "total_products": stats["total_products"],
+            "filled_combinations": stats["filled_combinations"],
+            "total_combinations": stats["total_combinations"]
+        })
+    
+    return {
+        "overall_score": round(overall_score, 2),
+        "total_products": len(products),
+        "total_material_types": len(MATERIAL_TYPES),
+        "total_combinations": total_possible,
+        "filled_combinations": total_filled,
+        "by_universe": by_universe,
+        "by_category": by_category,
+        "matrix": matrix
     }

@@ -15,12 +15,10 @@ import {
   Plus,
   RefreshCw
 } from 'lucide-react'
-import ProductCompletionTable from '../components/ProductCompletionTable'
-import ProductForm from '../components/ProductForm'
+import ProductCompletenessMatrix from '../components/ProductCompletenessMatrix'
 
 export default function DirectorDashboard() {
   const { user } = useAuth()
-  const [showProductForm, setShowProductForm] = useState(false)
 
   const { data, isLoading, error, refetch: refetchDashboard } = useQuery({
     queryKey: ['director-dashboard'],
@@ -163,7 +161,7 @@ export default function DirectorDashboard() {
       </div>
 
       {/* Health Metrics Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Freshness Score with Age Distribution */}
         <div className="card-ovh">
           <div className="px-6 py-4 border-b border-slate-200">
@@ -202,140 +200,6 @@ export default function DirectorDashboard() {
           </div>
         </div>
 
-        {/* Completeness Score with Quartiles */}
-        <div className="card-ovh">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-primary-700">Completeness Score</h2>
-            <p className="text-sm text-slate-500 mt-1">Material metadata completeness</p>
-          </div>
-          <div className="p-6">
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-600">Average Score</span>
-                <span className="text-2xl font-bold text-primary-700">
-                  {Math.round(completenessMetrics.average_score || 0)}%
-                </span>
-              </div>
-              {completenessMetrics.quartiles && (
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span className="text-sm text-slate-600">Q1 (25th percentile)</span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {completenessMetrics.quartiles.q1}%
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-primary-50 rounded-lg border-2 border-primary-200">
-                    <span className="text-sm font-medium text-primary-700">Q2 (Median)</span>
-                    <span className="text-lg font-bold text-primary-700">
-                      {completenessMetrics.quartiles.q2}%
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span className="text-sm text-slate-600">Q3 (75th percentile)</span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {completenessMetrics.quartiles.q3}%
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-xs text-slate-600">
-                <strong>Interpretation:</strong> Materials above Q3 ({completenessMetrics.quartiles?.q3 || 0}%) are well-documented. 
-                Materials below Q1 ({completenessMetrics.quartiles?.q1 || 0}%) need attention.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Usage Score with Quartiles */}
-        <div className="card-ovh">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-primary-700">Usage Score</h2>
-            <p className="text-sm text-slate-500 mt-1">Material access and sharing frequency</p>
-          </div>
-          <div className="p-6">
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-600">Average Score</span>
-                <span className="text-2xl font-bold text-primary-700">
-                  {Math.round(usageMetrics.average_score || 0)}%
-                </span>
-              </div>
-              {usageMetrics.quartiles && (
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span className="text-sm text-slate-600">Q1 (25th percentile)</span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {usageMetrics.quartiles.q1}%
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border-2 border-emerald-200">
-                    <span className="text-sm font-medium text-emerald-700">Q2 (Median)</span>
-                    <span className="text-lg font-bold text-emerald-700">
-                      {usageMetrics.quartiles.q2}%
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <span className="text-sm text-slate-600">Q3 (75th percentile)</span>
-                    <span className="text-sm font-semibold text-slate-900">
-                      {usageMetrics.quartiles.q3}%
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="mt-6 p-4 bg-emerald-50 rounded-lg">
-              <p className="text-xs text-slate-600">
-                <strong>Interpretation:</strong> Materials above Q3 ({usageMetrics.quartiles?.q3 || 0}%) are highly used. 
-                Materials below Q1 ({usageMetrics.quartiles?.q1 || 0}%) may need promotion or review.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Product Completion Table */}
-      <div className="card-ovh">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-primary-700">Product Completion Status</h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Comprehensive view of material completion across all products and material types
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowProductForm(true)}
-              className="btn-ovh-primary flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Product
-            </button>
-            <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
-              View all <ArrowRight className="w-4 h-4 ml-1" />
-            </Link>
-          </div>
-        </div>
-        <div className="p-6">
-          {data?.product_completion_matrix && data.material_types && data.material_type_labels ? (
-            <ProductCompletionTable
-              products={data.product_completion_matrix}
-              materialTypes={data.material_types}
-              materialTypeLabels={data.material_type_labels}
-            />
-          ) : (
-            <div className="py-12 text-center">
-              <FileText className="mx-auto h-12 w-12 text-slate-300" />
-              <p className="mt-2 text-sm text-slate-500">No product data available</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
         {/* Team Contributions */}
         <div className="card-ovh">
           <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -373,44 +237,8 @@ export default function DirectorDashboard() {
         </div>
       </div>
 
-      {/* Gap Analysis */}
-      {data?.gap_analysis && data.gap_analysis.length > 0 && (
-        <div className="card-ovh">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-primary-700">Gap Analysis - Products Needing Attention</h2>
-            <p className="text-sm text-slate-500 mt-1">Products missing critical materials</p>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {data.gap_analysis.map((gap: any, index: number) => (
-              <div key={index} className="px-6 py-4 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <AlertTriangle className="h-5 w-5 text-amber-500 mr-3" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{gap.product_name}</p>
-                      <p className="text-xs text-slate-500">Missing {gap.missing_count} material type(s)</p>
-                    </div>
-                  </div>
-                  <div className="ml-4">
-                    <span className={`badge-ovh ${
-                      gap.completion >= 50 ? 'badge-ovh-warning' : 'badge-ovh-danger'
-                    }`}>
-                      {gap.completion}% complete
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Product Form Modal */}
-      {showProductForm && (
-        <ProductForm
-          onClose={() => setShowProductForm(false)}
-        />
-      )}
+      {/* Product-Material Type Completeness Matrix */}
+      <ProductCompletenessMatrix />
     </div>
   )
 }
