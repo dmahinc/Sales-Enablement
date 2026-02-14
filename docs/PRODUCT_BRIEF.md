@@ -1,15 +1,15 @@
 # Sales Enablement Platform - Product Brief
 
-**Document Version:** 1.0  
-**Date:** February 2, 2026  
-**Status:** Draft  
+**Document Version:** 1.1  
+**Date:** February 14, 2026  
+**Status:** Updated  
 **Owner:** Product Marketing Team
 
 ---
 
 ## 1. Executive Summary
 
-The **Product & Solutions Sales Enablement Platform** is a collaborative internal tool designed to serve as the single source of truth for OVHcloud's product and solution sales materials. It enables Product Marketing Managers (PMMs), Product teams, and Sales teams to work together in managing, organizing, and accessing sales content across all product universes (Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration).
+The **Product & Solutions Sales Enablement Platform** is a collaborative internal tool designed to serve as the single source of truth for OVHcloud's product and solution sales materials. It enables Product Marketing Managers (PMMs), Product teams, Sales teams, and Directors to work together in managing, organizing, and accessing sales content across all product universes (Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration).
 
 ### Vision Statement
 > *"The collaborative single source of truth that empowers Sales and Product teams to deliver consistent, up-to-date product and solution messaging."*
@@ -29,6 +29,7 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
 | **Lack of Collaboration** | Product and Sales teams work in silos, no shared platform | High |
 | **Manual Tracking** | No visibility into content usage or effectiveness | Medium |
 | **Inconsistent Messaging** | Different PMMs create overlapping/conflicting narratives | Medium |
+| **No Completeness Visibility** | Directors cannot see which products have which essential materials | High |
 
 ### User Pain Points
 
@@ -45,6 +46,12 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
 - "I want to collaborate with Product teams but there's no shared platform"
 - "I need to track which documents I've sent to which customers for follow-up"
 - "I want to know if customers actually viewed the materials I shared"
+
+**For Directors:**
+- "I need visibility into which products have complete material coverage"
+- "I want to see material freshness and age distribution across universes"
+- "I need to understand material status breakdown (draft, published, review, archived)"
+- "I want to identify gaps in essential material types across products"
 
 ---
 
@@ -74,12 +81,23 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
   - Follow Sales Enablement Tracks for product training
   - Collaborate with Product teams on content gaps
 
+#### 3. Directors & Leadership
+- **Count:** ~5-10 users
+- **Usage Frequency:** Weekly/Monthly
+- **Key Activities:**
+  - Monitor product-material type completeness across the portfolio
+  - Review age distribution and material freshness metrics
+  - Analyze material status breakdown (draft, published, review, archived)
+  - Identify gaps in essential material coverage
+  - Track team contributions and recent activity
+  - Make strategic decisions based on completeness data
+
 ### Secondary Users
 
-#### 3. Sales Managers
+#### 4. Sales Managers
 - **Key Activities:** Review content usage metrics, identify gaps
 
-#### 4. Marketing Leadership
+#### 5. Marketing Leadership
 - **Key Activities:** Strategic oversight, content governance
 
 ---
@@ -94,6 +112,7 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
 | **Universe Organization** | Categorize by Public Cloud, Private Cloud, Bare Metal, H&C | P0 |
 | **Content Discovery** | Search materials by keywords, tags, filters, product name | P0 |
 | **Health Dashboard** | Track content status (draft, review, published, archived) | P1 |
+| **Product Completeness Matrix** | Matrix view showing which products have which essential material types, with completeness scores and age distribution | P1 |
 | **Sales Enablement Tracks** | Create learning paths/syllabi for products, solutions, use cases | P1 |
 | **Document Sharing** | Generate shareable links to send documents to customers with tracking | P1 |
 | **Collaborative Platform** | Shared workspace for Product and Sales teams | P0 |
@@ -199,6 +218,29 @@ US-4.1: As a PMM, I want to see overall content health score to understand portf
 US-4.2: As a PMM, I want to identify stale content that needs updating.
 
 US-4.3: As a PMM, I want to see content distribution across universes to identify gaps.
+
+US-4.4: As a Director, I want to see product-material type completeness matrix to understand which products have which essential materials.
+  Acceptance Criteria:
+  - Matrix shows products as rows, essential material types as columns
+  - Visual indicators (checkmarks/crosses) for material presence
+  - Completeness score per product and per universe
+  - Age distribution showing material freshness (Fresh, Recent, Aging, Stale, Very Stale)
+  - Filtering by universe, category, and search
+  - Excludes draft and archived materials from age distribution
+  - Shows "Other" materials count per product
+
+US-4.5: As a Director, I want to see material status breakdown (draft, published, review, archived) in the Total Materials widget.
+  Acceptance Criteria:
+  - Total Materials widget displays count breakdown by status
+  - Format: "Including X draft, X published, X review and X archived"
+  - Helps understand material lifecycle distribution
+
+US-4.6: As a Director, I want to see age distribution per universe to understand material freshness.
+  Acceptance Criteria:
+  - Age distribution shows counts for: Fresh (0-30 days), Recent (31-90 days), Aging (91-180 days), Stale (181-365 days), Very Stale (>365 days)
+  - Only includes published and review materials (excludes draft and archived)
+  - Displayed in "By Universe" section of completeness matrix
+  - Visual progress bars showing distribution percentages
 ```
 
 ---
@@ -226,6 +268,17 @@ US-4.3: As a PMM, I want to see content distribution across universes to identif
 │   ├── Overall Health Score
 │   ├── Status Distribution
 │   ├── Universe Coverage
+│   ├── Product-Material Type Completeness Matrix
+│   │   ├── Matrix view (products × material types)
+│   │   ├── Completeness scores (overall, universe, category, product)
+│   │   ├── Age distribution per universe
+│   │   │   ├── Fresh (0-30 days)
+│   │   │   ├── Recent (31-90 days)
+│   │   │   ├── Aging (91-180 days)
+│   │   │   ├── Stale (181-365 days)
+│   │   │   └── Very Stale (>365 days)
+│   │   ├── "Other" materials count per product
+│   │   └── Filters (universe, category, search)
 │   └── Recommendations
 ├── 📈 Usage Analytics
 │   ├── Usage Rates
@@ -256,7 +309,7 @@ Material
 ├── tags[], keywords[], use_cases[], pain_points[]
 ├── health_score, usage_count
 ├── owner_id (PMM/Product team member)
-└── created_at, updated_at
+└── created_at, updated_at, last_updated
 
 Track (Sales Enablement Track)
 ├── id, name, description
@@ -274,6 +327,13 @@ SharedLink (Document Sharing)
 ├── access_count (times link was accessed)
 ├── last_accessed_at
 ├── is_active (can be revoked)
+└── created_at, updated_at
+
+Product (Product Hierarchy)
+├── id, name, display_name
+├── universe_id (foreign key)
+├── category_id (foreign key)
+├── is_active
 └── created_at, updated_at
 ```
 
@@ -296,6 +356,8 @@ SharedLink (Document Sharing)
 | **Documents shared with customers** | 0 | 500/month | 2000/month |
 | **Unique customers reached** | 0 | 200 | 1000 |
 | **Customer engagement rate** | N/A | 40% | 60% |
+| **Product completeness score** | N/A | 50% | 75% |
+| **Products with all 4 essential materials** | N/A | 30% | 60% |
 
 ### Qualitative Success Criteria
 
@@ -309,6 +371,9 @@ SharedLink (Document Sharing)
 - [ ] Visibility into which materials are shared with customers
 - [ ] Ability to track customer engagement with shared content
 - [ ] Data-driven insights on content effectiveness based on sharing patterns
+- [ ] Directors can identify products missing essential materials
+- [ ] Clear visibility into material freshness and age distribution
+- [ ] Material status breakdown helps prioritize content work
 
 ---
 
@@ -397,6 +462,7 @@ The platform follows OVHcloud's design system with:
 | Inconsistent tagging | Medium | Medium | Tag suggestions, governance guidelines |
 | Performance with large files | Low | Medium | Chunked uploads, background processing |
 | Security concerns | Low | High | Role-based access, audit logging |
+| Data accuracy in completeness matrix | Medium | Medium | Regular validation, clear material type mapping |
 
 ---
 
@@ -410,6 +476,18 @@ The platform follows OVHcloud's design system with:
 - ✅ Universe-based organization
 - ✅ Basic discovery/search
 - ✅ Health dashboard
+- ✅ Product-Material Type Completeness Matrix widget
+  - Completeness calculation based on 4 essential material types (Product Brief, Sales Enablement Deck, Sales Deck, Datasheet)
+  - Matrix view with products as rows, material types as columns
+  - Visual indicators (checkmarks/crosses) for material presence
+  - Completeness scores at multiple levels (overall, universe, category, product)
+  - Age distribution tracking per universe (Fresh, Recent, Aging, Stale, Very Stale)
+  - Excludes draft and archived materials from age distribution
+  - "Other" materials count per product
+  - Filtering capabilities (universe, category, search, incomplete only)
+  - Collapsible universe groups
+- ✅ Material status breakdown in Total Materials widget
+- ✅ Director Dashboard with completeness metrics
 - ✅ Sales Enablement Tracks
 - ✅ Usage analytics
 - ✅ OVHcloud design system
@@ -423,6 +501,8 @@ The platform follows OVHcloud's design system with:
 - [ ] Bulk operations (upload, edit, delete)
 - [ ] Version history
 - [ ] Content expiration alerts
+- [ ] Completeness matrix export (CSV/Excel)
+- [ ] Historical completeness tracking
 
 ### Phase 3: Intelligence (Q3 2026)
 - [ ] AI-powered semantic search
@@ -430,6 +510,7 @@ The platform follows OVHcloud's design system with:
 - [ ] Auto-tagging suggestions
 - [ ] Gap analysis reports
 - [ ] Integration with Slack/Teams
+- [ ] Completeness alerts and notifications
 
 ### Phase 4: Scale (Q4 2026)
 - [ ] Multi-region support
@@ -457,11 +538,15 @@ The platform follows OVHcloud's design system with:
 
 | Term | Definition |
 |------|------------|
-| **Universe** | OVHcloud product category (Public Cloud, Private Cloud, etc.) |
+| **Universe** | OVHcloud product category (Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration) |
 | **Material** | Any product/solution sales document (deck, brief, datasheet) |
 | **Track** | Structured learning path for products, solutions, or use cases |
 | **Single Source of Truth** | One authoritative version of each material with clear status |
 | **Content Block** | Reusable content component (future feature) |
+| **Essential Material Types** | The 4 core material types tracked for completeness: Product Brief, Sales Enablement Deck, Sales Deck, Datasheet |
+| **Completeness Score** | Percentage of product-material type combinations that have at least one material |
+| **Age Distribution** | Categorization of materials by freshness: Fresh (0-30 days), Recent (31-90 days), Aging (91-180 days), Stale (181-365 days), Very Stale (>365 days) |
+| **Other Materials** | Materials that don't match the 4 essential types but are associated with a product |
 
 ### B. Related Documents
 
@@ -469,13 +554,17 @@ The platform follows OVHcloud's design system with:
 - [Technical Architecture](./DEVELOPMENT_STATUS.md)
 - [Quick Start Guide](../QUICK_START.md)
 - [Testing Guide](../TESTING_GUIDE.md)
+- [Completeness Widget Proposal](./COMPLETENESS_WIDGET_PROPOSAL.md)
+- [Completeness Widget Implementation](./COMPLETENESS_WIDGET_IMPLEMENTATION.md)
+- [Completeness Widget Complete](./COMPLETENESS_WIDGET_COMPLETE.md)
 
 ### C. Approval History
 
 | Version | Date | Approver | Notes |
 |---------|------|----------|-------|
 | 0.1 | 2026-02-02 | - | Initial draft |
-| 1.0 | TBD | - | Pending review |
+| 1.0 | 2026-02-02 | - | Initial version |
+| 1.1 | 2026-02-14 | - | Added Product Completeness Matrix, age distribution, material status breakdown, Director Dashboard features |
 
 ---
 
