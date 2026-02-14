@@ -23,6 +23,7 @@ interface ProductCompletenessRow {
     PRODUCT_SALES_DECK: MaterialTypeStatus
     PRODUCT_DATASHEET: MaterialTypeStatus
   }
+  other_materials_count?: number
   product_completeness: number
 }
 
@@ -36,6 +37,16 @@ interface CompletenessMatrixData {
     universe_id: number
     universe_name: string
     score: number
+    freshness_score?: number
+    age_distribution?: {
+      fresh: number
+      recent: number
+      aging: number
+      stale: number
+      very_stale: number
+      no_date: number
+    }
+    total_materials?: number
     total_products: number
     filled_combinations: number
     total_combinations: number
@@ -250,16 +261,84 @@ export default function ProductCompletenessMatrix() {
             <h3 className="text-sm font-medium text-slate-700 mb-3">By Universe</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {data.by_universe.map(universe => {
-                const uColorClasses = getScoreColorClasses(universe.score)
+                const completenessColorClasses = getScoreColorClasses(universe.score)
+                const ageDist = universe.age_distribution || {
+                  fresh: 0,
+                  recent: 0,
+                  aging: 0,
+                  stale: 0,
+                  very_stale: 0,
+                  no_date: 0
+                }
+                // Calculate total materials with dates (excluding no_date)
+                const totalWithDate = ageDist.fresh + ageDist.recent + ageDist.aging + ageDist.stale + ageDist.very_stale
+                const ageLabels = {
+                  fresh: 'Fresh (0-30 days)',
+                  recent: 'Recent (31-90 days)',
+                  aging: 'Aging (91-180 days)',
+                  stale: 'Stale (181-365 days)',
+                  very_stale: 'Very Stale (>365 days)'
+                  // Note: 'no_date' is excluded from display
+                }
+                const ageColors = {
+                  fresh: 'bg-emerald-500',
+                  recent: 'bg-blue-500',
+                  aging: 'bg-amber-500',
+                  stale: 'bg-orange-500',
+                  very_stale: 'bg-red-500'
+                  // Note: 'no_date' color removed as it's not displayed
+                }
+                
                 return (
-                  <div key={universe.universe_id} className="p-3 bg-slate-50 rounded-lg">
-                    <div className="text-xs text-slate-600 mb-1">{universe.universe_name}</div>
-                    <div className={`text-lg font-bold ${uColorClasses.text}`}>
-                      {universe.score.toFixed(1)}%
+                  <div key={universe.universe_id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="text-xs font-medium text-slate-700 mb-3">{universe.universe_name}</div>
+                    
+                    {/* Completeness Score */}
+                    <div className="mb-4">
+                      <div className="text-xs text-slate-500 mb-1">Completeness</div>
+                      <div className={`text-xl font-bold ${completenessColorClasses.text}`}>
+                        {universe.score.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {universe.filled_combinations} / {universe.total_combinations} combinations
+                      </div>
+                      {universe.total_materials !== undefined && (
+                        <div className="text-xs text-slate-400 mt-1">
+                          Total materials: {universe.total_materials}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-xs text-slate-500">
-                      {universe.filled_combinations} / {universe.total_combinations}
-                    </div>
+                    
+                    {/* Age Distribution */}
+                    {universe.age_distribution && (
+                      <div className="pt-3 border-t border-slate-200">
+                        <div className="text-xs text-slate-500 mb-2">Age Distribution</div>
+                        <div className="space-y-1.5">
+                          {Object.entries(ageLabels).map(([key, label]) => {
+                            const count = ageDist[key as keyof typeof ageDist] || 0
+                            const percentage = totalWithDate > 0 
+                              ? (count / totalWithDate) * 100 
+                              : 0
+                            return (
+                              <div key={key}>
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <span className="text-xs text-slate-600">{label}</span>
+                                  <span className="text-xs font-semibold text-slate-900">{count}</span>
+                                </div>
+                                {count > 0 && (
+                                  <div className="w-full bg-slate-200 rounded-full h-1.5">
+                                    <div 
+                                      className={`${ageColors[key as keyof typeof ageColors]} h-1.5 rounded-full transition-all`}
+                                      style={{ width: `${percentage}%` }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -347,6 +426,9 @@ export default function ProductCompletenessMatrix() {
                   </th>
                 ))}
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider min-w-[80px]">
+                  Other
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider min-w-[80px]">
                   Score
                 </th>
               </tr>
@@ -368,7 +450,7 @@ export default function ProductCompletenessMatrix() {
                   <React.Fragment key={universeId}>
                     {/* Universe Header Row */}
                     <tr className="bg-slate-100 hover:bg-slate-150 cursor-pointer" onClick={() => toggleUniverse(universeId)}>
-                      <td colSpan={materialTypeKeys.length + 2} className="px-4 py-3">
+                      <td colSpan={materialTypeKeys.length + 3} className="px-4 py-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {isExpanded ? (
@@ -425,6 +507,16 @@ export default function ProductCompletenessMatrix() {
                               </td>
                             )
                           })}
+                          <td className="px-4 py-3 text-center">
+                            {row.other_materials_count && row.other_materials_count > 0 ? (
+                              <div className="flex flex-col items-center">
+                                <span className="text-sm font-semibold text-slate-700">{row.other_materials_count}</span>
+                                <span className="text-xs text-slate-500">material{row.other_materials_count !== 1 ? 's' : ''}</span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-center">
                             <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${rowColorClasses.bgLight} ${rowColorClasses.textDark}`}>
                               {row.product_completeness.toFixed(0)}%

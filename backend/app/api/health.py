@@ -324,7 +324,7 @@ async def get_quarterly_review(
 async def get_completeness_matrix(
     universe_id: Optional[int] = None,
     category_id: Optional[int] = None,
-    only_published: bool = True,
+    only_published: bool = False,
     include_inactive: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -353,23 +353,50 @@ async def get_completeness_matrix(
     all_materials = materials_query.all()
     
     # Build a map of product_name -> material types
+    # Also create a reverse lookup: product -> all possible names (name, display_name)
     product_materials: Dict[str, Dict[str, List[Material]]] = {}
+    product_name_mapping: Dict[int, List[str]] = {}  # product_id -> [name, display_name]
+    
+    # Pre-build product name mapping and create a set of all product names for quick lookup
+    all_product_names = set()
+    for product in products:
+        names = [product.name]
+        all_product_names.add(product.name)
+        if product.display_name and product.display_name != product.name:
+            names.append(product.display_name)
+            all_product_names.add(product.display_name)
+        product_name_mapping[product.id] = names
+    
+    # Also track materials by universe_name for materials without product_name
+    materials_by_universe: Dict[str, List[Material]] = {}
+    
     for material in all_materials:
-        if not material.product_name:
-            continue
+        if material.product_name:
+            product_name = material.product_name.strip()
+            if product_name not in product_materials:
+                product_materials[product_name] = {}
+            
+            # Normalize material type
+            material_type_db = (material.material_type or "").strip()
+            # Check if already in frontend format (uppercase)
+            if material_type_db in MATERIAL_TYPES:
+                material_type_frontend = material_type_db
+            else:
+                # Try mapping from database format
+                material_type_db_lower = material_type_db.lower()
+                material_type_frontend = MATERIAL_TYPE_MAP.get(material_type_db_lower)
+            
+            if material_type_frontend and material_type_frontend in MATERIAL_TYPES:
+                if material_type_frontend not in product_materials[product_name]:
+                    product_materials[product_name][material_type_frontend] = []
+                product_materials[product_name][material_type_frontend].append(material)
         
-        product_name = material.product_name.strip()
-        if product_name not in product_materials:
-            product_materials[product_name] = {}
-        
-        # Normalize material type
-        material_type_db = (material.material_type or "").lower().strip()
-        material_type_frontend = MATERIAL_TYPE_MAP.get(material_type_db)
-        
-        if material_type_frontend and material_type_frontend in MATERIAL_TYPES:
-            if material_type_frontend not in product_materials[product_name]:
-                product_materials[product_name][material_type_frontend] = []
-            product_materials[product_name][material_type_frontend].append(material)
+        # Also track materials by universe_name (for materials without product_name or with unmatched product_name)
+        if material.universe_name:
+            universe_name = material.universe_name.strip()
+            if universe_name not in materials_by_universe:
+                materials_by_universe[universe_name] = []
+            materials_by_universe[universe_name].append(material)
     
     # Build matrix rows
     matrix = []
@@ -379,6 +406,10 @@ async def get_completeness_matrix(
     universe_stats: Dict[int, Dict] = {}
     category_stats: Dict[int, Dict] = {}
     
+    # Track freshness scores and age distribution per universe
+    universe_freshness_scores: Dict[int, List[int]] = {}
+    universe_age_distribution: Dict[int, Dict[str, int]] = {}
+    
     for product in products:
         # Get universe and category info
         universe = db.query(Universe).filter(Universe.id == product.universe_id).first()
@@ -387,8 +418,20 @@ async def get_completeness_matrix(
             category = db.query(Category).filter(Category.id == product.category_id).first()
         
         # Check which material types exist for this product
+        # Try matching by both product.name and product.display_name
         product_name = product.name
+        product_display_name = product.display_name
+        
+        # Get materials matching either name or display_name
         materials_for_product = product_materials.get(product_name, {})
+        if product_display_name != product_name:
+            # Also check display_name
+            display_name_materials = product_materials.get(product_display_name, {})
+            # Merge materials from display_name into materials_for_product
+            for mat_type, materials_list in display_name_materials.items():
+                if mat_type not in materials_for_product:
+                    materials_for_product[mat_type] = []
+                materials_for_product[mat_type].extend(materials_list)
         
         material_types_status = {}
         product_filled = 0
@@ -413,6 +456,39 @@ async def get_completeness_matrix(
                     "latest_material_date": None
                 }
         
+        # Count "other" materials (materials for this product that don't match the 4 essential types)
+        # Also track their age distribution
+        # Match by both product.name and product.display_name
+        other_materials_count = 0
+        other_materials_list = []
+        product_names_to_match = [product_name]
+        if product_display_name != product_name:
+            product_names_to_match.append(product_display_name)
+        
+        for material in all_materials:
+            if not material.product_name:
+                continue
+            
+            material_product_name = material.product_name.strip()
+            # Check if material matches this product by name or display_name
+            if material_product_name not in product_names_to_match:
+                continue
+            
+            # Normalize material type
+            material_type_db = (material.material_type or "").strip()
+            # Check if already in frontend format (uppercase)
+            if material_type_db in MATERIAL_TYPES:
+                material_type_frontend = material_type_db
+            else:
+                # Try mapping from database format
+                material_type_db_lower = material_type_db.lower()
+                material_type_frontend = MATERIAL_TYPE_MAP.get(material_type_db_lower)
+            
+            # Count materials that don't match the 4 essential types
+            if not material_type_frontend or material_type_frontend not in MATERIAL_TYPES:
+                other_materials_count += 1
+                other_materials_list.append(material)
+        
         # Calculate product completeness
         product_completeness = (product_filled / len(MATERIAL_TYPES)) * 100 if MATERIAL_TYPES else 0
         
@@ -425,6 +501,7 @@ async def get_completeness_matrix(
             "category_id": product.category_id,
             "category_name": category.display_name if category else category.name if category else None,
             "material_types": material_types_status,
+            "other_materials_count": other_materials_count,
             "product_completeness": round(product_completeness, 2)
         })
         
@@ -437,9 +514,72 @@ async def get_completeness_matrix(
                 "filled_combinations": 0,
                 "total_combinations": 0
             }
+            universe_freshness_scores[product.universe_id] = []
+            universe_age_distribution[product.universe_id] = {
+                "fresh": 0,
+                "recent": 0,
+                "aging": 0,
+                "stale": 0,
+                "very_stale": 0,
+                "no_date": 0
+            }
         universe_stats[product.universe_id]["total_products"] += 1
         universe_stats[product.universe_id]["filled_combinations"] += product_filled
         universe_stats[product.universe_id]["total_combinations"] += len(MATERIAL_TYPES)
+        
+        # Calculate freshness for materials in this product
+        # Get all materials for this product and calculate their freshness scores
+        # Exclude draft and archived materials from age distribution
+        product_materials_list = materials_for_product.values()
+        for materials_list in product_materials_list:
+            for material in materials_list:
+                # Skip draft and archived materials for age distribution
+                if material.status == MaterialStatus.DRAFT or material.status == MaterialStatus.ARCHIVED:
+                    continue
+                    
+                freshness_score = calculate_freshness_score(material)
+                universe_freshness_scores[product.universe_id].append(freshness_score)
+                
+                # Track age distribution (excluding drafts)
+                if material.last_updated:
+                    days_old = (datetime.utcnow() - material.last_updated).days
+                    if days_old <= 30:
+                        universe_age_distribution[product.universe_id]["fresh"] += 1
+                    elif days_old <= 90:
+                        universe_age_distribution[product.universe_id]["recent"] += 1
+                    elif days_old <= 180:
+                        universe_age_distribution[product.universe_id]["aging"] += 1
+                    elif days_old <= 365:
+                        universe_age_distribution[product.universe_id]["stale"] += 1
+                    else:
+                        universe_age_distribution[product.universe_id]["very_stale"] += 1
+                else:
+                    universe_age_distribution[product.universe_id]["no_date"] += 1
+        
+        # Also include "other" materials in freshness and age distribution (excluding drafts and archived)
+        for material in other_materials_list:
+            # Skip draft and archived materials for age distribution
+            if material.status == MaterialStatus.DRAFT or material.status == MaterialStatus.ARCHIVED:
+                continue
+                
+            freshness_score = calculate_freshness_score(material)
+            universe_freshness_scores[product.universe_id].append(freshness_score)
+            
+            # Track age distribution for "other" materials (excluding drafts)
+            if material.last_updated:
+                days_old = (datetime.utcnow() - material.last_updated).days
+                if days_old <= 30:
+                    universe_age_distribution[product.universe_id]["fresh"] += 1
+                elif days_old <= 90:
+                    universe_age_distribution[product.universe_id]["recent"] += 1
+                elif days_old <= 180:
+                    universe_age_distribution[product.universe_id]["aging"] += 1
+                elif days_old <= 365:
+                    universe_age_distribution[product.universe_id]["stale"] += 1
+                else:
+                    universe_age_distribution[product.universe_id]["very_stale"] += 1
+            else:
+                universe_age_distribution[product.universe_id]["no_date"] += 1
         
         # Aggregate by category
         if product.category_id:
@@ -459,14 +599,116 @@ async def get_completeness_matrix(
     # Calculate overall score
     overall_score = (total_filled / total_possible * 100) if total_possible > 0 else 0
     
+    # Also process materials that have universe_name but no matching product
+    # These should still be counted in freshness and age distribution
+    for universe_name, materials in materials_by_universe.items():
+        # Find universe by name
+        universe = db.query(Universe).filter(
+            (Universe.name == universe_name) | 
+            (Universe.display_name == universe_name)
+        ).first()
+        
+        if not universe:
+            continue
+        
+        universe_id = universe.id
+        
+        # Initialize if universe not already in stats (might have no products)
+        if universe_id not in universe_stats:
+            universe_stats[universe_id] = {
+                "universe_id": universe_id,
+                "universe_name": universe.display_name if universe else universe.name if universe else universe_name,
+                "total_products": 0,
+                "filled_combinations": 0,
+                "total_combinations": 0
+            }
+        if universe_id not in universe_freshness_scores:
+            universe_freshness_scores[universe_id] = []
+        if universe_id not in universe_age_distribution:
+            universe_age_distribution[universe_id] = {
+                "fresh": 0,
+                "recent": 0,
+                "aging": 0,
+                "stale": 0,
+                "very_stale": 0,
+                "no_date": 0
+            }
+        
+        # Process materials that don't match any product
+        for material in materials:
+            # Skip if this material already matched a product
+            if material.product_name and material.product_name.strip() in all_product_names:
+                continue
+            
+            # Normalize material type
+            material_type_db = (material.material_type or "").strip()
+            # Check if already in frontend format (uppercase)
+            if material_type_db in MATERIAL_TYPES:
+                material_type_frontend = material_type_db
+            else:
+                # Try mapping from database format
+                material_type_db_lower = material_type_db.lower()
+                material_type_frontend = MATERIAL_TYPE_MAP.get(material_type_db_lower)
+            
+            # Only count essential types for completeness, but count all for freshness/age
+            if material_type_frontend and material_type_frontend in MATERIAL_TYPES:
+                # This material could contribute to completeness if we had a product for it
+                # But since we don't, we'll only count it for freshness/age distribution
+                pass
+            
+            # Always count for freshness and age distribution (excluding drafts and archived)
+            # Skip draft and archived materials for age distribution
+            if material.status == MaterialStatus.DRAFT or material.status == MaterialStatus.ARCHIVED:
+                continue
+                
+            freshness_score = calculate_freshness_score(material)
+            universe_freshness_scores[universe_id].append(freshness_score)
+            
+            # Track age distribution (excluding drafts)
+            if material.last_updated:
+                days_old = (datetime.utcnow() - material.last_updated).days
+                if days_old <= 30:
+                    universe_age_distribution[universe_id]["fresh"] += 1
+                elif days_old <= 90:
+                    universe_age_distribution[universe_id]["recent"] += 1
+                elif days_old <= 180:
+                    universe_age_distribution[universe_id]["aging"] += 1
+                elif days_old <= 365:
+                    universe_age_distribution[universe_id]["stale"] += 1
+                else:
+                    universe_age_distribution[universe_id]["very_stale"] += 1
+            else:
+                universe_age_distribution[universe_id]["no_date"] += 1
+    
     # Calculate scores for universes and categories
     by_universe = []
     for universe_id, stats in universe_stats.items():
-        score = (stats["filled_combinations"] / stats["total_combinations"] * 100) if stats["total_combinations"] > 0 else 0
+        completeness_score = (stats["filled_combinations"] / stats["total_combinations"] * 100) if stats["total_combinations"] > 0 else 0
+        
+        # Calculate average freshness score for this universe
+        freshness_scores = universe_freshness_scores.get(universe_id, [])
+        freshness_score = sum(freshness_scores) / len(freshness_scores) if freshness_scores else 0
+        
+        # Get age distribution for this universe
+        age_dist = universe_age_distribution.get(universe_id, {
+            "fresh": 0,
+            "recent": 0,
+            "aging": 0,
+            "stale": 0,
+            "very_stale": 0,
+            "no_date": 0
+        })
+        
+        # Calculate total materials count (sum of all age distribution categories)
+        total_materials_count = sum(age_dist.values())
+        
         by_universe.append({
             "universe_id": stats["universe_id"],
             "universe_name": stats["universe_name"],
-            "score": round(score, 2),
+            "score": round(completeness_score, 2),
+            "freshness_score": round(freshness_score, 2),
+            "age_distribution": age_dist,
+            "total_materials": total_materials_count,
             "total_products": stats["total_products"],
             "filled_combinations": stats["filled_combinations"],
             "total_combinations": stats["total_combinations"]
