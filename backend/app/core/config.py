@@ -5,6 +5,8 @@ from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator
 from typing import List, Union
 import json
+import os
+from pathlib import Path
 
 class Settings(BaseSettings):
     # Application
@@ -65,5 +67,30 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = False
 
-settings = Settings()
+# Create settings instance
+_settings = Settings()
+
+# Override with .env file values (prioritize .env over environment variables)
+env_file_path = Path(".env")
+if env_file_path.exists():
+    with open(env_file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                # Force override with .env values for OVH_AI settings and other config
+                if key.startswith("OVH_AI_"):
+                    # Handle boolean values
+                    if key == "OVH_AI_ENABLED":
+                        setattr(_settings, key, value.lower() in ("true", "1", "yes"))
+                    else:
+                        setattr(_settings, key, value)
+                elif key == "SECRET_KEY":
+                    setattr(_settings, key, value)
+
+settings = _settings
