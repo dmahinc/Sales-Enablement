@@ -15,7 +15,8 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
-  X
+  X,
+  HelpCircle
 } from 'lucide-react'
 
 type PeriodType = 'preset' | 'custom'
@@ -33,6 +34,7 @@ export default function UsageAnalytics() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedMaterial, setSelectedMaterial] = useState<number | null>(null)
+  const [tooltipState, setTooltipState] = useState<{ content: string; title: string; x: number; y: number; position?: 'above' | 'below'; elementId: string } | null>(null)
 
   // Build query parameters based on period type
   const buildQueryParams = () => {
@@ -108,6 +110,37 @@ export default function UsageAnalytics() {
 
   return (
     <div className="space-y-8">
+      {/* Tooltip */}
+      {tooltipState && (
+        <div
+          className="fixed z-[99999]"
+          style={{
+            left: `${tooltipState.x}px`,
+            top: `${tooltipState.y}px`,
+            transform: tooltipState.position === 'above' 
+              ? 'translateX(-50%) translateY(calc(-100% - 10px))' 
+              : 'translateX(-50%) translateY(10px)',
+            willChange: 'transform'
+          }}
+          onMouseEnter={() => {
+            // Keep tooltip visible when hovering over it
+          }}
+          onMouseLeave={() => {
+            // Only hide if we're leaving the tooltip area
+            setTooltipState(null)
+          }}
+        >
+          <div className="w-64 p-3 bg-slate-900 text-white text-xs rounded-lg shadow-2xl border border-slate-700">
+            <p className="font-semibold mb-1 text-white">{tooltipState.title}</p>
+            <p className="text-slate-300 leading-relaxed">{tooltipState.content}</p>
+            {tooltipState.position === 'above' ? (
+              <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-slate-900"></div>
+            ) : (
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-[6px] border-r-[6px] border-b-[6px] border-transparent border-b-slate-900"></div>
+            )}
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -265,12 +298,44 @@ export default function UsageAnalytics() {
       {/* Usage Rates Table */}
       <div className="card-ovh overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-semibold text-primary-700">Material Usage Rates</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-primary-700">Material Usage Rates</h2>
+            <button
+              type="button"
+              className="relative inline-flex items-center justify-center p-1 text-slate-400 hover:text-slate-600 focus:outline-none rounded-full hover:bg-slate-100 transition-colors"
+              onMouseEnter={(e) => {
+                e.stopPropagation()
+                const rect = e.currentTarget.getBoundingClientRect()
+                const x = rect.left + rect.width / 2
+                const y = rect.top - 10
+                setTooltipState({
+                  title: 'Material Usage Rates',
+                  content: 'This table shows how often each sales material is used over the selected time period. It helps identify which materials are most popular, which are declining, and which may need attention. Click on any row to see detailed usage history for that material.',
+                  x,
+                  y,
+                  position: 'above',
+                  elementId: 'title-help'
+                })
+              }}
+              onMouseLeave={(e) => {
+                e.stopPropagation()
+                // Don't hide immediately - let the tooltip's onMouseLeave handle it
+                // This prevents flickering when moving from button to tooltip
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                e.preventDefault()
+              }}
+              aria-label="Help: Material Usage Rates"
+            >
+              <HelpCircle className="h-4 w-4 text-slate-400" strokeWidth={2} fill="none" />
+            </button>
+          </div>
           <p className="mt-1 text-sm text-slate-500">
             Usage statistics and trends for all materials
           </p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative">
           <table className="w-full">
             <thead className="bg-slate-50">
               <tr>
@@ -278,16 +343,140 @@ export default function UsageAnalytics() {
                   Material
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Total Usage
+                  <div className="flex items-center gap-1.5">
+                    <span>Total Usage</span>
+                    <button
+                      type="button"
+                      className="relative inline-flex items-center justify-center p-0.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      onMouseEnter={(e) => {
+                        e.stopPropagation()
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const x = rect.left + rect.width / 2
+                        const y = rect.bottom + 10
+                        setTooltipState({
+                          title: 'Total Usage',
+                          content: 'The total count of all usage events (downloads, views, shares, copies) for this material within the selected time period.',
+                          x,
+                          y,
+                          position: 'below',
+                          elementId: 'total-usage-help'
+                        })
+                      }}
+                      onMouseLeave={(e) => {
+                        e.stopPropagation()
+                        // Don't hide immediately - let the tooltip's onMouseLeave handle it
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                      }}
+                      aria-label="Help: Total Usage"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5 text-slate-400" strokeWidth={2} />
+                    </button>
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Daily Rate
+                  <div className="flex items-center gap-1.5">
+                    <span>Daily Rate</span>
+                    <button
+                      type="button"
+                      className="relative inline-flex items-center justify-center p-0.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      onMouseEnter={(e) => {
+                        e.stopPropagation()
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const x = rect.left + rect.width / 2
+                        const y = rect.bottom + 10
+                        setTooltipState({
+                          title: 'Daily Rate',
+                          content: 'The average number of usage events per day, calculated by dividing Total Usage by the number of days in the selected period.',
+                          x,
+                          y,
+                          position: 'below',
+                          elementId: 'daily-rate-help'
+                        })
+                      }}
+                      onMouseLeave={(e) => {
+                        e.stopPropagation()
+                        // Don't hide immediately - let the tooltip's onMouseLeave handle it
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                      }}
+                      aria-label="Help: Daily Rate"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5 text-slate-400" strokeWidth={2} />
+                    </button>
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Weekly Rate
+                  <div className="flex items-center gap-1.5">
+                    <span>Weekly Rate</span>
+                    <button
+                      type="button"
+                      className="relative inline-flex items-center justify-center p-0.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      onMouseEnter={(e) => {
+                        e.stopPropagation()
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const x = rect.left + rect.width / 2
+                        const y = rect.bottom + 10
+                        setTooltipState({
+                          title: 'Weekly Rate',
+                          content: 'The projected weekly usage rate, calculated by multiplying the Daily Rate by 7. This helps estimate how often the material is used per week.',
+                          x,
+                          y,
+                          position: 'below',
+                          elementId: 'weekly-rate-help'
+                        })
+                      }}
+                      onMouseLeave={(e) => {
+                        e.stopPropagation()
+                        // Don't hide immediately - let the tooltip's onMouseLeave handle it
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                      }}
+                      aria-label="Help: Weekly Rate"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5 text-slate-400" strokeWidth={2} />
+                    </button>
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Monthly Rate
+                  <div className="flex items-center gap-1.5">
+                    <span>Monthly Rate</span>
+                    <button
+                      type="button"
+                      className="relative inline-flex items-center justify-center p-0.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                      onMouseEnter={(e) => {
+                        e.stopPropagation()
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const x = rect.left + rect.width / 2
+                        const y = rect.bottom + 10
+                        setTooltipState({
+                          title: 'Monthly Rate',
+                          content: 'The projected monthly usage rate, calculated by multiplying the Daily Rate by 30. This helps estimate how often the material is used per month.',
+                          x,
+                          y,
+                          position: 'below',
+                          elementId: 'monthly-rate-help'
+                        })
+                      }}
+                      onMouseLeave={(e) => {
+                        e.stopPropagation()
+                        // Don't hide immediately - let the tooltip's onMouseLeave handle it
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                      }}
+                      aria-label="Help: Monthly Rate"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5 text-slate-400" strokeWidth={2} />
+                    </button>
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Trend

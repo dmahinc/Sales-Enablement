@@ -166,7 +166,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
         )}
         
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100 z-20">
           <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
             <Eye className="w-4 h-4 text-slate-700" />
             <span className="text-sm font-medium text-slate-700">Preview</span>
