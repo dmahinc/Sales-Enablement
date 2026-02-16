@@ -8,7 +8,14 @@ from app.core.config import settings
 
 # Import models early to ensure SQLAlchemy relationships are configured correctly
 # This must happen before any routes that use models are imported
-from app.models import Base, User, Material, AICorrection  # noqa: F401
+from app.models.base import Base  # noqa: F401
+from app.models.user import User  # noqa: F401
+from app.models.material import Material  # noqa: F401
+# AICorrection model may not exist in all deployments
+try:
+    from app.models.ai_correction import AICorrection  # noqa: F401
+except ImportError:
+    pass
 
 app = FastAPI(
     title="Products & Solutions Enablement API",
@@ -70,21 +77,51 @@ async def health_check():
     return {"status": "healthy"}
 
 # Import routers
-from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, challenge, products, dashboard, batch_upload
+# Import routers - handle missing modules gracefully
+from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session
+
+# Challenge-response authentication endpoints
+from app.api import challenge as challenge_router
+
+# Optional routers that may not exist in all deployments
+try:
+    from app.api import challenge
+except ImportError:
+    challenge = None
+try:
+    from app.api import products
+except ImportError:
+    products = None
+
+# Always try to import products router (it should exist now)
+from app.api import products
+try:
+    from app.api import dashboard
+except ImportError:
+    dashboard = None
+try:
+    from app.api import batch_upload
+except ImportError:
+    batch_upload = None
 
 # Register routers
 app.include_router(auth.router)
 app.include_router(session.router)  # Obfuscated authentication endpoint outside /auth
-app.include_router(challenge.router)  # Challenge-response authentication (most secure)
+app.include_router(challenge_router.router)  # Challenge-response authentication endpoints (/api/data/*)
 app.include_router(materials.router)
-app.include_router(batch_upload.router)  # Batch upload with AI suggestions
+if batch_upload:
+    app.include_router(batch_upload.router)  # Batch upload with AI suggestions
 app.include_router(personas.router)
 app.include_router(segments.router)
-app.include_router(products.router)
+try:
+    app.include_router(products.router)
+except (ImportError, AttributeError):
+    pass  # Products router is optional
 app.include_router(health.router)
 app.include_router(discovery.router)
 app.include_router(analytics.router)
 app.include_router(tracks.router)
 app.include_router(users.router)
 app.include_router(shared_links.router)
-app.include_router(dashboard.router)
+if dashboard:
+    app.include_router(dashboard.router)

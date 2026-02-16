@@ -11,6 +11,16 @@ from app.models.user import User
 from app.schemas.material import MaterialCreate, MaterialUpdate, MaterialResponse
 from app.schemas.error import ErrorResponse
 from datetime import datetime, timedelta
+from app.services.file_extraction import extract_text_from_file
+from app.services.ai_service import generate_executive_summary
+from app.core.config import settings
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Import storage_service from storage module
+from app.services.storage import storage_service
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
@@ -756,3 +766,129 @@ async def download_material_file(
         filename=filename,
         media_type=media_type
     )
+
+
+@router.get("/{material_id}/executive-summary")
+async def get_executive_summary(
+    material_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get or generate executive summary for a material using OVHcloud AI"""
+    import logging
+    import sys
+    logger = logging.getLogger(__name__)
+    
+    # Force immediate logging to stdout
+    print(f"[STEP 1/4] Executive summary request received for material {material_id}", flush=True)
+    logger.info(f"[STEP 1/4] Executive summary request received for material {material_id}")
+    
+    material = db.query(Material).filter(Material.id == material_id).first()
+    if not material:
+        print(f"[ERROR] Material {material_id} not found", flush=True)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+    
+    # Check if material has a file
+    if not material.file_path:
+        print(f"[ERROR] Material {material_id} has no file_path", flush=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Material does not have an associated file"
+        )
+    
+    # Check if summary already exists in database
+    if material.executive_summary:
+        print(f"[CACHE HIT] Returning cached executive summary for material {material_id}", flush=True)
+        logger.info(f"[CACHE HIT] Returning cached executive summary for material {material_id}")
+        return {
+            "material_id": material_id,
+            "summary": material.executive_summary,
+            "generated_at": material.executive_summary_generated_at.isoformat() if material.executive_summary_generated_at else None,
+            "cached": True
+        }
+    
+    # Summary doesn't exist, generate it
+    print(f"[CACHE MISS] No cached summary found. Generating new summary for material {material_id}", flush=True)
+    logger.info(f"[CACHE MISS] No cached summary found. Generating new summary for material {material_id}")
+    
+    try:
+        print(f"[STEP 2/4] Starting text extraction for material {material_id}", flush=True)
+        logger.info(f"[STEP 2/4] Starting text extraction for material {material_id}")
+        
+        # Get file path
+        file_path = storage_service.get_file_path(material.file_path)
+        if not file_path.exists():
+            print(f"[ERROR] File not found: {file_path}", flush=True)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="File not found on server"
+            )
+        
+        print(f"[STEP 2/4] File found: {file_path}", flush=True)
+        logger.info(f"[STEP 2/4] File found: {file_path}")
+        
+        # Extract text from file
+        file_format = material.file_format or (material.file_name.split('.')[-1] if material.file_name else '')
+        print(f"[STEP 2/4] Extracting text from {file_format} file...", flush=True)
+        logger.info(f"[STEP 2/4] Extracting text from {file_format} file: {file_path}")
+        document_text = await extract_text_from_file(file_path, file_format)
+        
+        if not document_text:
+            print(f"[ERROR] Failed to extract text from material {material_id}", flush=True)
+            logger.error(f"[ERROR] Failed to extract text from material {material_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not extract text from document. The file format may not be supported for text extraction."
+            )
+        
+        print(f"[STEP 3/4] Extracted {len(document_text)} characters. Calling AI service...", flush=True)
+        logger.info(f"[STEP 3/4] Extracted {len(document_text)} characters from document. Calling AI service...")
+        
+        # Generate executive summary using AI
+        print(f"[STEP 3/4] Sending request to AI endpoint...", flush=True)
+        logger.info(f"[STEP 3/4] Sending request to AI endpoint: {settings.OVH_AI_ENDPOINT_URL}")
+        summary = await generate_executive_summary(document_text, material.name)
+        
+        if summary:
+            print(f"[STEP 4/4] Successfully generated summary ({len(summary)} characters)", flush=True)
+            logger.info(f"[STEP 4/4] Successfully generated summary for material {material_id} ({len(summary)} characters)")
+        else:
+            print(f"[ERROR] AI service returned no summary", flush=True)
+            logger.warning(f"[ERROR] AI service returned no summary for material {material_id}")
+        
+        if not summary:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="AI service is not available or failed to generate summary. Please check AI configuration."
+            )
+        
+        # Save summary to database
+        print(f"[STEP 4/4] Saving summary to database for material {material_id}", flush=True)
+        logger.info(f"[STEP 4/4] Saving summary to database for material {material_id}")
+        material.executive_summary = summary
+        material.executive_summary_generated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(material)
+        
+        print(f"[SUCCESS] Summary saved and returned for material {material_id}", flush=True)
+        logger.info(f"[SUCCESS] Summary saved and returned for material {material_id}")
+        
+        return {
+            "material_id": material_id,
+            "summary": summary,
+            "generated_at": material.executive_summary_generated_at.isoformat(),
+            "cached": False
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Exception: {str(e)}", flush=True)
+        logger.error(f"[ERROR] Exception generating executive summary: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate executive summary: {str(e)}"
+        )

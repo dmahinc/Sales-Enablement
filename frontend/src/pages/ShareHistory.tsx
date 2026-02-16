@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Link as LinkIcon, Mail, User, Calendar, Eye, Copy, ExternalLink, Filter, Download, X } from 'lucide-react'
+import { Mail, User, Calendar, Eye, Filter, Download, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import CustomerEngagementTimeline from '../components/CustomerEngagementTimeline'
 
@@ -23,7 +23,6 @@ export default function ShareHistory() {
   const [dateFilterActive, setDateFilterActive] = useState<boolean>(true)
 
   const [filterType, setFilterType] = useState<'all' | 'by-material' | 'by-customer'>('all')
-  const [materialFilter, setMaterialFilter] = useState<number | null>(null)
   const [customerFilter, setCustomerFilter] = useState<string>('')
 
   // Auto-apply filter when both dates are set
@@ -46,20 +45,6 @@ export default function ShareHistory() {
     setDateFilterActive(true) // Keep filter active with defaults
   }
 
-  const { data: sharedLinks, isLoading } = useQuery({
-    queryKey: ['shared-links', materialFilter, customerFilter, startDate, endDate, dateFilterActive],
-    queryFn: () => {
-      const params = new URLSearchParams()
-      if (materialFilter) params.append('material_id', materialFilter.toString())
-      if (customerFilter) params.append('customer_email', customerFilter)
-      if (dateFilterActive && startDate && endDate) {
-        params.append('start_date', startDate)
-        params.append('end_date', endDate)
-      }
-      return api.get(`/shared-links?${params}`).then(res => res.data)
-    },
-  })
-
   const { data: stats } = useQuery({
     queryKey: ['shared-links-stats'],
     queryFn: () => api.get('/shared-links/stats/overview').then(res => res.data),
@@ -74,29 +59,6 @@ export default function ShareHistory() {
     queryKey: ['shared-links-customer-stats'],
     queryFn: () => api.get('/shared-links/stats/customers?limit=10').then(res => res.data),
   })
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
-        <span className="ml-3 text-slate-500">Loading share history...</span>
-      </div>
-    )
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
-  const isExpired = (expiresAt: string) => {
-    return new Date(expiresAt) < new Date()
-  }
 
   return (
     <div className="space-y-8">
@@ -289,106 +251,6 @@ export default function ShareHistory() {
           </div>
         </div>
       )}
-
-      {/* Share History Table */}
-      <div className="card-ovh overflow-hidden">
-        <h2 className="text-lg font-semibold text-primary-700 px-6 py-4 border-b border-slate-200">
-          Recent Shares
-        </h2>
-        {sharedLinks && sharedLinks.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Document</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Shared</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Expires</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Views</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Downloads</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {sharedLinks.map((link: any) => (
-                  <tr key={link.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <LinkIcon className="w-4 h-4 text-slate-400 mr-2" />
-                        <span className="text-sm text-slate-900">{link.material_id}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {link.customer_email ? (
-                        <div>
-                          <p className="text-sm text-slate-900">{link.customer_name || link.customer_email}</p>
-                          <p className="text-xs text-slate-500">{link.customer_email}</p>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                      {formatDate(link.created_at)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                      {formatDate(link.expires_at)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-slate-600">
-                        <Eye className="w-4 h-4 mr-1" />
-                        {link.access_count}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-emerald-600">
-                        <Download className="w-4 h-4 mr-1" />
-                        {link.download_count || 0}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {isExpired(link.expires_at) || !link.is_active ? (
-                        <span className="badge-ovh badge-ovh-gray">Expired</span>
-                      ) : (
-                        <span className="badge-ovh badge-ovh-success">Active</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(link.share_url)
-                        }}
-                        className="text-primary-500 hover:text-primary-600 p-2"
-                        title="Copy link"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                      <a
-                        href={link.share_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-500 hover:text-primary-600 p-2 ml-2"
-                        title="Open link"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-12 text-center">
-            <LinkIcon className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900">No shares yet</h3>
-            <p className="mt-2 text-sm text-slate-500">
-              Start sharing documents with customers to see them here
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

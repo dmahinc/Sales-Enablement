@@ -10,7 +10,7 @@ class MaterialHealthHistory(BaseModel):
     __tablename__ = "material_health_history"
     
     material_id = Column(Integer, ForeignKey("materials.id"))
-    material = relationship("Material", back_populates="health_history")
+    # material = relationship("Material", back_populates="health_history")  # Commented out - Material model doesn't have this relationship
     
     # Health Metrics
     freshness_score = Column(Integer)  # 0-100

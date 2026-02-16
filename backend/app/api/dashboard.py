@@ -3,9 +3,10 @@ Dashboard API endpoints
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, and_, desc, or_
 from app.models.material import Material, MaterialStatus
 from app.models.product import Product
+from app.models.usage import MaterialUsage
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
@@ -74,4 +75,94 @@ async def get_director_dashboard(
         "recent_activity": {
             "materials_last_7_days": materials_last_7_days
         }
+    }
+
+@router.get("/sales")
+async def get_sales_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get sales dashboard data"""
+    
+    # Get all published materials
+    # Handle both enum and string status values
+    published_materials = db.query(Material).filter(
+        or_(
+            Material.status == MaterialStatus.PUBLISHED,
+            Material.status == "published"
+        )
+    ).all()
+    
+    # Calculate available materials by type
+    materials_by_type = {}
+    for material in published_materials:
+        material_type = material.material_type or "Other"
+        if material_type not in materials_by_type:
+            materials_by_type[material_type] = 0
+        materials_by_type[material_type] += 1
+    
+    # Get popular materials (top 10 by usage_count)
+    popular_materials = db.query(Material).filter(
+        or_(
+            Material.status == MaterialStatus.PUBLISHED,
+            Material.status == "published"
+        ),
+        Material.usage_count > 0
+    ).order_by(desc(Material.usage_count)).limit(10).all()
+    
+    popular_materials_list = [
+        {
+            "id": m.id,
+            "name": m.name,
+            "material_type": m.material_type,
+            "usage_count": m.usage_count or 0
+        }
+        for m in popular_materials
+    ]
+    
+    # Get recently viewed materials (last 10 views by current user)
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    recent_views = db.query(MaterialUsage).filter(
+        and_(
+            MaterialUsage.user_id == current_user.id,
+            MaterialUsage.action == "view",
+            MaterialUsage.used_at >= thirty_days_ago
+        )
+    ).order_by(desc(MaterialUsage.used_at)).limit(10).all()
+    
+    # Get unique materials from recent views
+    viewed_material_ids = list(set([v.material_id for v in recent_views]))
+    recently_viewed_materials = db.query(Material).filter(
+        Material.id.in_(viewed_material_ids),
+        or_(
+            Material.status == MaterialStatus.PUBLISHED,
+            Material.status == "published"
+        )
+    ).all() if viewed_material_ids else []
+    
+    # Create a map of material_id -> last viewed timestamp
+    material_view_times = {}
+    for view in recent_views:
+        if view.material_id not in material_view_times:
+            material_view_times[view.material_id] = view.used_at
+    
+    recently_viewed_list = [
+        {
+            "id": m.id,
+            "name": m.name,
+            "material_type": m.material_type,
+            "viewed_at": material_view_times.get(m.id, m.updated_at).isoformat() if material_view_times.get(m.id) or m.updated_at else None
+        }
+        for m in recently_viewed_materials
+    ]
+    # Sort by viewed_at (most recent first)
+    recently_viewed_list.sort(key=lambda x: x["viewed_at"] or "", reverse=True)
+    
+    return {
+        "available_materials": {
+            "total": len(published_materials),
+            "by_type": materials_by_type
+        },
+        "popular_materials": popular_materials_list,
+        "recently_viewed": recently_viewed_list
     }

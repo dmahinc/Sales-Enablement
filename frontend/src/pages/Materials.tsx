@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon } from 'lucide-react'
+import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Clock, Calendar } from 'lucide-react'
 import Modal from '../components/Modal'
 import MaterialForm from '../components/MaterialForm'
 import FileUploadModal from '../components/FileUploadModal'
@@ -71,10 +71,602 @@ const UNIVERSES = [
   { id: 'Hosting & Collaboration', name: 'Hosting & Collaboration', icon: Users, color: 'text-emerald-500', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
 ]
 
+// Helper function to get color classes for material type
+function getMaterialTypeColors(materialType: string | null | undefined): { bg: string; icon: string; border: string } {
+  if (!materialType) return { bg: 'bg-slate-50', icon: 'text-slate-500', border: 'border-slate-200' }
+  
+  const type = materialType.toLowerCase().trim()
+  
+  switch (type) {
+    case 'product_brief':
+      return { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-200' }
+    case 'sales_deck':
+    case 'product_sales_deck':
+      return { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-200' }
+    case 'sales_enablement_deck':
+    case 'product_sales_enablement_deck':
+      return { bg: 'bg-green-50', icon: 'text-green-600', border: 'border-green-200' }
+    case 'datasheet':
+    case 'product_datasheet':
+      return { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'border-orange-200' }
+    default:
+      return { bg: 'bg-slate-50', icon: 'text-slate-500', border: 'border-slate-200' }
+  }
+}
+
+// Helper function to calculate freshness
+function getFreshnessInfo(lastUpdated?: string): { label: string; color: string; days: number | null } {
+  if (!lastUpdated) {
+    return { label: 'No date', color: 'text-slate-400', days: null }
+  }
+  
+  const days = Math.floor((new Date().getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24))
+  
+  if (days <= 30) {
+    return { label: 'Fresh', color: 'text-green-600', days }
+  } else if (days <= 90) {
+    return { label: 'Recent', color: 'text-blue-600', days }
+  } else if (days <= 180) {
+    return { label: 'Aging', color: 'text-yellow-600', days }
+  } else if (days <= 365) {
+    return { label: 'Stale', color: 'text-orange-600', days }
+  } else {
+    return { label: 'Very Stale', color: 'text-red-600', days }
+  }
+}
+
+// Browse view material card component with gallery view
+interface BrowseMaterialCardProps {
+  material: any
+  onDownload: (material: any) => void
+  onShare: (material: any) => void
+  onEdit?: (material: any) => void
+  onDelete?: (id: number) => void
+  onPreview: (material: any) => void
+  canEditDelete?: boolean
+}
+
+function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, onPreview, canEditDelete = false }: BrowseMaterialCardProps) {
+  const colors = getMaterialTypeColors(material.material_type)
+  const MaterialIcon = getMaterialTypeIcon(material.material_type)
+  const freshness = getFreshnessInfo(material.last_updated)
+  
+  return (
+    <div 
+      className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-xl hover:border-primary-300 transition-all duration-200 cursor-pointer"
+      onClick={() => onPreview(material)}
+    >
+      {/* Thumbnail/Icon Section */}
+      <div className={`${colors.bg} ${colors.border} border-b-2 h-48 flex items-center justify-center relative overflow-hidden`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+        <MaterialIcon className={`w-16 h-16 ${colors.icon} relative z-10 transition-transform group-hover:scale-110`} />
+        
+        {/* Status Badge */}
+        {material.status && (
+          <div className="absolute top-3 right-3">
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+              material.status === 'published' ? 'bg-green-100 text-green-700' :
+              material.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+              material.status === 'review' ? 'bg-blue-100 text-blue-700' :
+              'bg-slate-100 text-slate-700'
+            }`}>
+              {material.status}
+            </span>
+          </div>
+        )}
+        
+        {/* Freshness Badge */}
+        {freshness.days !== null && (
+          <div className="absolute top-3 left-3">
+            <div className={`flex items-center space-x-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium ${freshness.color}`}>
+              <Clock className="w-3 h-3" />
+              <span>{freshness.label}</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+            <Eye className="w-4 h-4 text-slate-700" />
+            <span className="text-sm font-medium text-slate-700">Preview</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Content Section */}
+      <div className="p-4">
+        <h3 className="font-semibold text-slate-900 mb-1 line-clamp-2 group-hover:text-primary-600 transition-colors">
+          {material.name}
+        </h3>
+        
+        <div className="flex items-center justify-between mb-2">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded ${colors.bg} ${colors.icon}`}>
+            {material.material_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </span>
+          {material.usage_count !== undefined && material.usage_count > 0 && (
+            <span className="text-xs text-slate-500 flex items-center space-x-1">
+              <Eye className="w-3 h-3" />
+              <span>{material.usage_count}</span>
+            </span>
+          )}
+        </div>
+        
+        {material.description && (
+          <p className="text-sm text-slate-600 line-clamp-2 mb-3">
+            {material.description}
+          </p>
+        )}
+        
+        {/* Metadata */}
+        <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+          {material.universe_name && (
+            <span className="truncate">{material.universe_name}</span>
+          )}
+          {material.product_name && (
+            <span className="truncate ml-2">{material.product_name}</span>
+          )}
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+          {material.status === 'published' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onShare(material)
+              }}
+              className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+              title="Share"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          )}
+          {material.file_path && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDownload(material)
+              }}
+              className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+              title="Download"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+          )}
+          {canEditDelete && onEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(material)
+              }}
+              className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+              title="Edit"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+          )}
+          {canEditDelete && onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (window.confirm('Are you sure you want to delete this material?')) {
+                  onDelete(material.id)
+                }
+              }}
+              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface MaterialPreviewModalProps {
+  material: any
+  isOpen: boolean
+  onClose: () => void
+  onDownload: (material: any) => void
+  onShare: (material: any) => void
+  onEdit: (material: any) => void
+  onDelete: (id: number) => void
+  canEditDelete?: boolean
+}
+
+function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, onEdit, onDelete, canEditDelete = false }: MaterialPreviewModalProps) {
+  const [executiveSummary, setExecutiveSummary] = useState<string | null>(null)
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [progressStep, setProgressStep] = useState<string>('')
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const colors = getMaterialTypeColors(material.material_type)
+  const MaterialIcon = getMaterialTypeIcon(material.material_type)
+  const freshness = getFreshnessInfo(material.last_updated)
+  
+  // Reset summary state when modal closes or material changes
+  useEffect(() => {
+    if (!isOpen) {
+      // Abort any ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+        progressIntervalRef.current = null
+      }
+      setExecutiveSummary(null)
+      setSummaryError(null)
+      setProgressStep('')
+      setIsLoadingSummary(false)
+    }
+  }, [isOpen, material.id])
+  
+  // Fetch executive summary when modal opens and material has a file
+  useEffect(() => {
+    // Only fetch if modal is open, material has file, and we haven't loaded yet
+    if (isOpen && material.file_path && !executiveSummary && !isLoadingSummary && !summaryError) {
+      setIsLoadingSummary(true)
+      setSummaryError(null)
+      setProgressStep('Initializing...')
+      
+      // Create AbortController for timeout
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+      
+      const timeoutId = setTimeout(() => {
+        controller.abort()
+        setProgressStep('')
+        setSummaryError('Request timed out after 35 seconds. Check backend logs: docker logs -f sales-enablement-backend')
+        setIsLoadingSummary(false)
+        timeoutRef.current = null
+      }, 35000) // 35 second timeout
+      timeoutRef.current = timeoutId
+      
+      // Progress simulation based on time
+      const progressInterval = setInterval(() => {
+        setProgressStep(prev => {
+          if (prev === 'Initializing...') return 'Extracting text from document...'
+          if (prev === 'Extracting text from document...') return 'Sending to AI service...'
+          if (prev === 'Sending to AI service...') return 'Generating summary...'
+          return 'Processing...'
+        })
+      }, 8000) // Update every 8 seconds
+      progressIntervalRef.current = progressInterval
+      
+      api.get(`/materials/${material.id}/executive-summary`, {
+        signal: controller.signal,
+        timeout: 35000
+      })
+        .then(response => {
+          // Only process if controller hasn't been aborted
+          if (!controller.signal.aborted) {
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current)
+              timeoutRef.current = null
+            }
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current)
+              progressIntervalRef.current = null
+            }
+            setProgressStep('')
+            setExecutiveSummary(response.data.summary)
+            setIsLoadingSummary(false)
+            abortControllerRef.current = null
+          }
+        })
+        .catch(error => {
+          // Don't show error if request was aborted (component unmounted or modal closed)
+          if (error.name === 'AbortError' || controller.signal.aborted) {
+            return
+          }
+          
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+            timeoutRef.current = null
+          }
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current)
+            progressIntervalRef.current = null
+          }
+          setProgressStep('')
+          console.error('Error fetching executive summary:', error)
+          
+          let errorMessage = 'Failed to generate executive summary'
+          if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
+            errorMessage = 'Request timed out after 35 seconds. Check backend logs: docker logs -f sales-enablement-backend'
+          } else if (error.response?.status === 503) {
+            errorMessage = 'AI service is temporarily unavailable. Check backend logs for details.'
+          } else if (error.response?.status === 500) {
+            errorMessage = `Server error: ${error.response?.data?.detail || 'Check backend logs'}`
+          } else if (error.response?.data?.detail) {
+            errorMessage = error.response.data.detail
+          }
+          
+          setSummaryError(errorMessage)
+          setIsLoadingSummary(false)
+          abortControllerRef.current = null
+        })
+      
+      // Cleanup function - only abort if component unmounts or modal closes
+      return () => {
+        // Don't abort here - let the request complete unless modal is closing
+        // The cleanup in the isOpen effect will handle aborting
+      }
+    }
+  }, [isOpen, material.id, material.file_path])
+  
+  if (!isOpen) return null
+  
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        {/* Backdrop */}
+        <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose}></div>
+        
+        {/* Modal */}
+        <div 
+          className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className={`${colors.bg} px-6 py-4 border-b ${colors.border}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-4 flex-1">
+                <div className={`p-3 rounded-lg bg-white ${colors.border} border-2`}>
+                  <MaterialIcon className={`w-8 h-8 ${colors.icon}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-bold text-slate-900 mb-1">{material.name}</h2>
+                  <div className="flex items-center space-x-3 flex-wrap">
+                    <span className={`text-sm font-medium px-2 py-1 rounded ${colors.bg} ${colors.icon}`}>
+                      {material.material_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                    {material.status && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        material.status === 'published' ? 'bg-green-100 text-green-700' :
+                        material.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
+                        {material.status}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="ml-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Content */}
+          <div className="px-6 py-4">
+            {/* Description */}
+            {material.description && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Description</h3>
+                <p className="text-sm text-slate-600">{material.description}</p>
+              </div>
+            )}
+            
+            {/* Metadata Grid */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {material.universe_name && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Universe</h4>
+                  <p className="text-sm text-slate-900">{material.universe_name}</p>
+                </div>
+              )}
+              {material.product_name && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Product</h4>
+                  <p className="text-sm text-slate-900">{material.product_name}</p>
+                </div>
+              )}
+              {material.last_updated && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Last Updated</h4>
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <p className="text-sm text-slate-900">
+                      {new Date(material.last_updated).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {freshness.days !== null && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Freshness</h4>
+                  <div className="flex items-center space-x-2">
+                    <Clock className={`w-4 h-4 ${freshness.color}`} />
+                    <p className={`text-sm font-medium ${freshness.color}`}>
+                      {freshness.label} ({freshness.days} days)
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Tags */}
+            {material.tags && material.tags.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Tags</h4>
+                <div className="flex flex-wrap gap-2">
+                  {material.tags.map((tag: string, index: number) => (
+                    <span key={index} className="text-xs px-2 py-1 bg-slate-100 text-slate-700 rounded">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Executive Summary */}
+            {material.file_path && (
+              <div className="mb-4 pt-4 border-t border-slate-200">
+                <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center">
+                  <span>Executive Summary</span>
+                  {isLoadingSummary && (
+                    <span className="ml-2 text-xs text-slate-400">(Generating...)</span>
+                  )}
+                </h3>
+                {isLoadingSummary && (
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2 text-sm text-slate-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-500 border-t-transparent"></div>
+                      <span className="font-medium">Analyzing document with AI...</span>
+                    </div>
+                    {progressStep && (
+                      <div className="ml-6 text-xs text-slate-500">
+                        <span className="inline-block w-2 h-2 bg-primary-500 rounded-full mr-2 animate-pulse"></span>
+                        {progressStep}
+                      </div>
+                    )}
+                    <div className="ml-6 space-y-1">
+                      <p className="text-xs text-slate-400">This may take 20-30 seconds. Please wait...</p>
+                      <p className="text-xs text-slate-400 font-mono">
+                        Monitor progress: <code className="bg-slate-100 px-1 rounded">docker logs -f sales-enablement-backend</code>
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {summaryError && (
+                  <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="font-medium mb-1">Unable to generate summary</p>
+                    <p className="text-xs">{summaryError}</p>
+                  </div>
+                )}
+                {executiveSummary && !isLoadingSummary && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <div className="text-sm text-slate-700 leading-relaxed">
+                      {executiveSummary.split('\n').map((line, index) => {
+                        // Convert markdown headers to styled divs
+                        if (line.trim().startsWith('## ')) {
+                          return (
+                            <h2 key={index} className="text-base font-semibold text-slate-900 mt-4 mb-2 pb-1 border-b border-slate-300">
+                              {line.substring(3).trim()}
+                            </h2>
+                          )
+                        }
+                        if (line.trim().startsWith('### ')) {
+                          return (
+                            <h3 key={index} className="text-sm font-semibold text-slate-800 mt-3 mb-1">
+                              {line.substring(4).trim()}
+                            </h3>
+                          )
+                        }
+                        // Convert bullet points
+                        if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+                          return (
+                            <div key={index} className="ml-4 mb-1 flex items-start">
+                              <span className="text-slate-500 mr-2">•</span>
+                              <span>{line.trim().substring(2)}</span>
+                            </div>
+                          )
+                        }
+                        // Regular paragraphs
+                        if (line.trim()) {
+                          return (
+                            <p key={index} className="mb-3 text-slate-700">
+                              {line.trim()}
+                            </p>
+                          )
+                        }
+                        return null
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Footer Actions */}
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              Close
+            </button>
+            {canEditDelete && (
+              <button
+                onClick={() => {
+                  onEdit(material)
+                  onClose()
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Edit</span>
+              </button>
+            )}
+            {material.status === 'published' && (
+              <button
+                onClick={() => {
+                  onShare(material)
+                  onClose()
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share</span>
+              </button>
+            )}
+            {material.file_path && (
+              <button
+                onClick={() => {
+                  onDownload(material)
+                  onClose()
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
+            )}
+            {canEditDelete && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete this material?')) {
+                    onDelete(material.id)
+                    onClose()
+                  }
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Materials() {
   const { user } = useAuth()
   const isDirector = user?.role === 'director' || user?.is_superuser
   const isPMM = user?.role === 'pmm'
+  const isSales = user?.role === 'sales'
+  const canEditDelete = isDirector || isPMM || user?.is_superuser
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
@@ -82,6 +674,7 @@ export default function Materials() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [sharingMaterial, setSharingMaterial] = useState<any>(null)
   const [editingMaterial, setEditingMaterial] = useState<any>(null)
+  const [previewMaterial, setPreviewMaterial] = useState<any>(null)
   const [selectedUniverses, setSelectedUniverses] = useState<string[]>([]) // Empty array means "all"
   const [filterTypes, setFilterTypes] = useState<string[]>([]) // Empty array means "all"
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]) // Empty array means "all"
@@ -106,15 +699,38 @@ export default function Materials() {
 
 
   // Fetch product hierarchy for filters
-  const { data: universes = [] } = useQuery({
+  const { data: universes = [], isLoading: universesLoading, error: universesError } = useQuery({
     queryKey: ['products', 'universes'],
     queryFn: () => api.get('/products/universes').then(res => res.data),
+    retry: 1,
   })
   
+  // Fallback: if universes API fails or returns empty, use hardcoded universes from materials
+  const effectiveUniverses = useMemo(() => {
+    if (universes && universes.length > 0) {
+      return universes
+    }
+    // Fallback: extract universes from materials
+    if (materials && materials.length > 0) {
+      const universeNames = [...new Set(materials.map((m: any) => m.universe_name).filter(Boolean))]
+      return universeNames.map((name, index) => ({
+        id: index + 1000, // Use high IDs to avoid conflicts
+        name: name,
+        display_name: name,
+      }))
+    }
+    // Final fallback: use hardcoded UNIVERSES constant
+    return UNIVERSES.filter(u => u.id !== 'all').map((u, index) => ({
+      id: index + 2000,
+      name: u.name,
+      display_name: u.name,
+    }))
+  }, [universes, materials])
+  
   // Get universe IDs from selected universe names
-  const selectedUniverseIds = selectedUniverses.length > 0 && universes.length > 0
+  const selectedUniverseIds = selectedUniverses.length > 0 && effectiveUniverses.length > 0
     ? selectedUniverses
-        .map(name => universes.find((u: any) => u.name === name)?.id)
+        .map(name => effectiveUniverses.find((u: any) => u.name === name)?.id)
         .filter((id): id is number => id !== undefined)
     : []
 
@@ -339,9 +955,9 @@ export default function Materials() {
 
     // Filter by hierarchy selection
     if (browseSelectedUniverseId) {
-      const universe = universes.find((u: any) => u.id === browseSelectedUniverseId)
+      const universe = effectiveUniverses.find((u: any) => u.id === browseSelectedUniverseId)
       if (universe) {
-        filtered = filtered.filter((m: any) => m.universe_name === universe.name)
+        filtered = filtered.filter((m: any) => m.universe_name === universe.name || m.universe_name === universe.display_name)
       }
     }
     if (browseSelectedCategoryId) {
@@ -383,7 +999,7 @@ export default function Materials() {
     })
 
     return filtered
-  }, [materials, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, searchQuery, universes, allCategories, allProducts, showArchivedByUniverse])
+  }, [materials, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, searchQuery, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse])
 
   // Browse view materials grouped by universe
   const browseMaterialsByUniverse = useMemo(() => {
@@ -398,6 +1014,38 @@ export default function Materials() {
     return grouped
   }, [browseFilteredMaterials])
 
+  // Universe display order (matching menu order)
+  const universeDisplayOrder = [
+    'Public Cloud',
+    'Private Cloud',
+    'Bare Metal',
+    'Hosting & Collaboration'
+  ]
+
+  // Get sorted universe entries for display
+  const sortedBrowseMaterialsByUniverse = useMemo(() => {
+    const entries = Object.entries(browseMaterialsByUniverse)
+    const ordered: Array<[string, any[]]> = []
+    const unordered: Array<[string, any[]]> = []
+    
+    // First, add universes in the specified order
+    universeDisplayOrder.forEach(universeName => {
+      const entry = entries.find(([name]) => name === universeName)
+      if (entry) {
+        ordered.push(entry)
+      }
+    })
+    
+    // Then, add any remaining universes (like 'Uncategorized')
+    entries.forEach(entry => {
+      if (!universeDisplayOrder.includes(entry[0])) {
+        unordered.push(entry)
+      }
+    })
+    
+    return [...ordered, ...unordered]
+  }, [browseMaterialsByUniverse])
+
   // Browse view breadcrumbs
   const browseBreadcrumbs = useMemo(() => {
     const crumbs: Array<{ label: string; onClick?: () => void }> = [
@@ -408,7 +1056,7 @@ export default function Materials() {
       }}
     ]
     if (browseSelectedUniverseId) {
-      const universe = universes.find((u: any) => u.id === browseSelectedUniverseId)
+      const universe = effectiveUniverses.find((u: any) => u.id === browseSelectedUniverseId)
       if (universe) {
         crumbs.push({
           label: universe.display_name,
@@ -435,7 +1083,7 @@ export default function Materials() {
       }
     }
     return crumbs
-  }, [browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, universes, allCategories, allProducts])
+  }, [browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, effectiveUniverses, allCategories, allProducts])
 
   const handleDownload = async (material: any) => {
     try {
@@ -520,6 +1168,13 @@ export default function Materials() {
             )}
           </div>
           <div className="flex items-center space-x-1">
+            <button
+              onClick={() => setPreviewMaterial(material)}
+              className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center justify-center border border-transparent hover:border-blue-200"
+              title="Preview"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
             {material.status === 'published' && (
               <button
                 onClick={() => {
@@ -541,20 +1196,24 @@ export default function Materials() {
                 <Download className="h-4 w-4" />
               </button>
             )}
-            <button
-              onClick={() => setEditingMaterial(material)}
-              className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
-              title="Edit"
-            >
-              <Edit className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => handleDelete(material.id)}
-              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-              title="Delete"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            {canEditDelete && (
+              <>
+                <button
+                  onClick={() => setEditingMaterial(material)}
+                  className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+                  title="Edit"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(material.id)}
+                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                  title="Delete"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -628,9 +1287,12 @@ export default function Materials() {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left Sidebar - Hierarchical Navigation */}
-          <div className="w-80 border-r border-slate-200 bg-slate-50 overflow-y-auto flex-shrink-0">
-            <div className="p-4">
-              <h2 className="text-sm font-semibold text-slate-700 mb-3">Browse by Hierarchy</h2>
+          <div className="w-80 border-r border-slate-200 bg-white overflow-y-auto flex-shrink-0 shadow-sm">
+            <div className="p-4 sticky top-0 bg-white border-b border-slate-200 z-10">
+              <h2 className="text-base font-semibold text-slate-900 mb-1">Product Hierarchy</h2>
+              <p className="text-xs text-slate-500">Browse materials by universe, category, and product</p>
+            </div>
+            <div className="p-4 pt-2">
               
               {/* All Materials */}
               <button
@@ -649,8 +1311,28 @@ export default function Materials() {
                 <span>All Materials</span>
               </button>
 
+              {/* Loading State */}
+              {universesLoading && (
+                <div className="px-3 py-2 text-sm text-slate-500">
+                  Loading hierarchy...
+                </div>
+              )}
+              
+              {/* Error State */}
+              {universesError && !universesLoading && (
+                <div className="px-3 py-2 text-xs text-amber-600 bg-amber-50 rounded-lg mb-2">
+                  Could not load hierarchy from API. Using materials data.
+                </div>
+              )}
+              
               {/* Universes */}
-              {universes.map((universe: any) => {
+              {effectiveUniverses.length === 0 && !universesLoading && (
+                <div className="px-3 py-2 text-sm text-slate-500">
+                  No universes found. Create materials to see hierarchy.
+                </div>
+              )}
+              
+              {effectiveUniverses.map((universe: any) => {
                 const universeCategories = allCategories.filter((c: any) => c.universe_id === universe.id)
                 const isExpanded = expandedUniverses.has(universe.id)
                 const isSelected = browseSelectedUniverseId === universe.id && !browseSelectedCategoryId && !browseSelectedProductId
@@ -823,10 +1505,10 @@ export default function Materials() {
               <>
                 {/* Show grouped by universe if no specific selection */}
                 {!browseSelectedUniverseId && !browseSelectedCategoryId && !browseSelectedProductId && !searchQuery ? (
-                  Object.entries(browseMaterialsByUniverse).map(([universeName, universeMaterials]) => (
+                  sortedBrowseMaterialsByUniverse.map(([universeName, universeMaterials]) => (
                     <div key={universeName} className="mb-8">
                       <h2 className="text-xl font-semibold text-slate-900 mb-4">{universeName}</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {universeMaterials.map((material: any) => (
                           <BrowseMaterialCard 
                             key={material.id} 
@@ -836,15 +1518,17 @@ export default function Materials() {
                               setSharingMaterial(material)
                               setIsShareModalOpen(true)
                             }}
-                            onEdit={(material) => setEditingMaterial(material)}
-                            onDelete={(id) => handleDelete(id)}
+                            onEdit={canEditDelete ? (material) => setEditingMaterial(material) : undefined}
+                            onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
+                            onPreview={(material) => setPreviewMaterial(material)}
+                            canEditDelete={canEditDelete}
                           />
                         ))}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {browseFilteredMaterials.map((material: any) => (
                       <BrowseMaterialCard 
                         key={material.id} 
@@ -854,8 +1538,10 @@ export default function Materials() {
                           setSharingMaterial(material)
                           setIsShareModalOpen(true)
                         }}
-                        onEdit={(material) => setEditingMaterial(material)}
-                        onDelete={(id) => handleDelete(id)}
+                        onEdit={canEditDelete ? (material) => setEditingMaterial(material) : undefined}
+                        onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
+                        onPreview={(material) => setPreviewMaterial(material)}
+                        canEditDelete={canEditDelete}
                       />
                     ))}
                   </div>
@@ -863,7 +1549,7 @@ export default function Materials() {
               </>
             )}
           </div>
-        </div>
+          </div>
         </div>
 
         {/* Modals */}
@@ -908,6 +1594,32 @@ export default function Materials() {
             }}
           />
         )}
+
+        {/* Preview Modal */}
+        {previewMaterial && (
+          <MaterialPreviewModal
+            material={previewMaterial}
+            isOpen={!!previewMaterial}
+            onClose={() => setPreviewMaterial(null)}
+            onDownload={handleDownload}
+            onShare={(material) => {
+              setSharingMaterial(material)
+              setIsShareModalOpen(true)
+              setPreviewMaterial(null)
+            }}
+            onEdit={(material) => {
+              setEditingMaterial(material)
+              setPreviewMaterial(null)
+            }}
+            onDelete={(id) => {
+              if (window.confirm('Are you sure you want to delete this material?')) {
+                handleDelete(id)
+                setPreviewMaterial(null)
+              }
+            }}
+            canEditDelete={canEditDelete}
+          />
+        )}
       </div>
     )
   }
@@ -915,7 +1627,7 @@ export default function Materials() {
   // Render list view (default)
   return (
     <div className="space-y-6">
-          {/* Header */}
+      {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <div>
               <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
@@ -1327,104 +2039,32 @@ export default function Materials() {
             }}
           />
         )}
-    </div>
-  )
-}
 
-// Browse view material card component with edit/delete
-interface BrowseMaterialCardProps {
-  material: any
-  onDownload: (material: any) => void
-  onShare: (material: any) => void
-  onEdit: (material: any) => void
-  onDelete: (id: number) => void
-}
-
-function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete }: BrowseMaterialCardProps) {
-  return (
-    <div className="card-ovh p-4 hover:shadow-md transition-all group">
-      <div className="flex items-start space-x-3">
-        <div className={`${getMaterialTypeBgColor(material.material_type)} p-2 rounded-lg flex-shrink-0`} title={`Type: ${material.material_type || 'null'}`}>
-          {(() => {
-            const MaterialIcon = getMaterialTypeIcon(material.material_type)
-            return <MaterialIcon className="h-5 w-5 text-primary-500" />
-          })()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600 truncate mb-1">
-            {material.name}
-          </h3>
-          <p className="text-xs text-slate-500 mb-2">
-            {material.material_type?.replace(/_/g, ' ')}
-          </p>
-          {material.description && (
-            <p className="text-sm text-slate-600 line-clamp-2 mb-2">{material.description}</p>
-          )}
-          <div className="flex items-center justify-between mt-2">
-            {material.universe_name && (
-              <span className="text-xs text-slate-400">{material.universe_name}</span>
-            )}
-            {material.status && (
-              <span className={`text-xs px-2 py-0.5 rounded ${
-                material.status === 'published' ? 'bg-green-50 text-green-700' :
-                material.status === 'draft' ? 'bg-yellow-50 text-yellow-700' :
-                'bg-slate-50 text-slate-700'
-              }`}>
-                {material.status}
-              </span>
-            )}
-          </div>
-          {/* Action buttons */}
-          <div className="flex items-center justify-end space-x-2 mt-3 pt-3 border-t border-slate-100">
-            {material.status === 'published' && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onShare(material)
-                }}
-                className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
-                title="Share"
-              >
-                <Share2 className="h-4 w-4" />
-              </button>
-            )}
-            {material.file_path && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDownload(material)
-                }}
-                className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
-                title="Download"
-              >
-                <Download className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit(material)
-              }}
-              className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
-              title="Edit"
-            >
-              <Edit className="h-4 w-4" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                if (window.confirm('Are you sure you want to delete this material?')) {
-                  onDelete(material.id)
-                }
-              }}
-              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-              title="Delete"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+        {/* Preview Modal */}
+        {previewMaterial && (
+          <MaterialPreviewModal
+            material={previewMaterial}
+            isOpen={!!previewMaterial}
+            onClose={() => setPreviewMaterial(null)}
+            onDownload={handleDownload}
+            onShare={(material) => {
+              setSharingMaterial(material)
+              setIsShareModalOpen(true)
+              setPreviewMaterial(null)
+            }}
+            onEdit={(material) => {
+              setEditingMaterial(material)
+              setPreviewMaterial(null)
+            }}
+            onDelete={(id) => {
+              if (window.confirm('Are you sure you want to delete this material?')) {
+                handleDelete(id)
+                setPreviewMaterial(null)
+              }
+            }}
+            canEditDelete={canEditDelete}
+          />
+        )}
       </div>
-    </div>
-  )
-}
+    )
+  }

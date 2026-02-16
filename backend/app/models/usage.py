@@ -22,7 +22,7 @@ class MaterialUsage(BaseModel):
     
     # Material reference
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=False, index=True)
-    material = relationship("Material", back_populates="usage_events")
+    # material = relationship("Material", back_populates="usage_events")  # Commented out - Material model doesn't have this relationship
     
     # User who performed the action
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)

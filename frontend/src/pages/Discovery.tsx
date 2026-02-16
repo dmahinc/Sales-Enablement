@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon } from 'lucide-react'
+import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
 
 interface Material {
@@ -15,6 +15,8 @@ interface Material {
   status?: string
   file_path?: string
   file_name?: string
+  last_updated?: string
+  usage_count?: number
 }
 
 interface Universe {
@@ -47,6 +49,8 @@ export default function Discovery() {
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [sharingMaterial, setSharingMaterial] = useState<Material | null>(null)
+  const [previewMaterial, setPreviewMaterial] = useState<Material | null>(null)
+  const [viewMode, setViewMode] = useState<'gallery' | 'list'>('gallery')
 
   // Fetch data
   const { data: materials = [], isLoading: materialsLoading } = useQuery<Material[]>({
@@ -406,22 +410,50 @@ export default function Discovery() {
         {/* Top Bar with Breadcrumbs and Search */}
         <div className="border-b border-slate-200 bg-white p-4">
           {/* Breadcrumbs */}
-          <div className="flex items-center space-x-2 mb-4">
-            {breadcrumbs.map((crumb, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                {index > 0 && <ChevronRight className="w-4 h-4 text-slate-400" />}
-                {crumb.onClick ? (
-                  <button
-                    onClick={crumb.onClick}
-                    className="text-sm text-primary-600 hover:text-primary-700"
-                  >
-                    {crumb.label}
-                  </button>
-                ) : (
-                  <span className="text-sm text-slate-600 font-medium">{crumb.label}</span>
-                )}
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              {breadcrumbs.map((crumb, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  {index > 0 && <ChevronRight className="w-4 h-4 text-slate-400" />}
+                  {crumb.onClick ? (
+                    <button
+                      onClick={crumb.onClick}
+                      className="text-sm text-primary-600 hover:text-primary-700"
+                    >
+                      {crumb.label}
+                    </button>
+                  ) : (
+                    <span className="text-sm text-slate-600 font-medium">{crumb.label}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-2 bg-slate-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('gallery')}
+                className={`p-2 rounded transition-colors ${
+                  viewMode === 'gallery'
+                    ? 'bg-white text-primary-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Gallery View"
+              >
+                <Grid3x3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white text-primary-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="List View"
+              >
+                <ListIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Search Bar */}
@@ -462,35 +494,69 @@ export default function Discovery() {
                 Object.entries(materialsByUniverse).map(([universeName, universeMaterials]) => (
                   <div key={universeName} className="mb-8">
                     <h2 className="text-xl font-semibold text-slate-900 mb-4">{universeName}</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {universeMaterials.map(material => (
-                        <MaterialCard 
-                          key={material.id} 
-                          material={material}
-                          onDownload={handleDownload}
-                          onShare={(material) => {
-                            setSharingMaterial(material)
-                            setIsShareModalOpen(true)
-                          }}
-                        />
-                      ))}
-                    </div>
+                    {viewMode === 'gallery' ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {universeMaterials.map(material => (
+                          <MaterialGalleryCard 
+                            key={material.id} 
+                            material={material}
+                            onDownload={handleDownload}
+                            onShare={(material) => {
+                              setSharingMaterial(material)
+                              setIsShareModalOpen(true)
+                            }}
+                            onPreview={(material) => setPreviewMaterial(material)}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {universeMaterials.map(material => (
+                          <MaterialCard 
+                            key={material.id} 
+                            material={material}
+                            onDownload={handleDownload}
+                            onShare={(material) => {
+                              setSharingMaterial(material)
+                              setIsShareModalOpen(true)
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {filteredMaterials.map(material => (
-                    <MaterialCard 
-                      key={material.id} 
-                      material={material}
-                      onDownload={handleDownload}
-                      onShare={(material) => {
-                        setSharingMaterial(material)
-                        setIsShareModalOpen(true)
-                      }}
-                    />
-                  ))}
-                </div>
+                viewMode === 'gallery' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filteredMaterials.map(material => (
+                      <MaterialGalleryCard 
+                        key={material.id} 
+                        material={material}
+                        onDownload={handleDownload}
+                        onShare={(material) => {
+                          setSharingMaterial(material)
+                          setIsShareModalOpen(true)
+                        }}
+                        onPreview={(material) => setPreviewMaterial(material)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredMaterials.map(material => (
+                      <MaterialCard 
+                        key={material.id} 
+                        material={material}
+                        onDownload={handleDownload}
+                        onShare={(material) => {
+                          setSharingMaterial(material)
+                          setIsShareModalOpen(true)
+                        }}
+                      />
+                    ))}
+                  </div>
+                )
               )}
             </>
           )}
@@ -506,6 +572,21 @@ export default function Discovery() {
           onClose={() => {
             setIsShareModalOpen(false)
             setSharingMaterial(null)
+          }}
+        />
+      )}
+
+      {/* Preview Modal */}
+      {previewMaterial && (
+        <MaterialPreviewModal
+          material={previewMaterial}
+          isOpen={!!previewMaterial}
+          onClose={() => setPreviewMaterial(null)}
+          onDownload={handleDownload}
+          onShare={(material) => {
+            setSharingMaterial(material)
+            setIsShareModalOpen(true)
+            setPreviewMaterial(null)
           }}
         />
       )}
@@ -601,6 +682,327 @@ function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
                 title="Download"
               >
                 <Download className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Helper function to get color classes for material type
+function getMaterialTypeColors(materialType: string | null | undefined): { bg: string; icon: string; border: string } {
+  if (!materialType) return { bg: 'bg-slate-50', icon: 'text-slate-500', border: 'border-slate-200' }
+  
+  const type = materialType.toLowerCase().trim()
+  
+  switch (type) {
+    case 'product_brief':
+      return { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-200' }
+    case 'sales_deck':
+    case 'product_sales_deck':
+      return { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-200' }
+    case 'sales_enablement_deck':
+    case 'product_sales_enablement_deck':
+      return { bg: 'bg-green-50', icon: 'text-green-600', border: 'border-green-200' }
+    case 'datasheet':
+    case 'product_datasheet':
+      return { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'border-orange-200' }
+    default:
+      return { bg: 'bg-slate-50', icon: 'text-slate-500', border: 'border-slate-200' }
+  }
+}
+
+// Helper function to calculate freshness
+function getFreshnessInfo(lastUpdated?: string): { label: string; color: string; days: number | null } {
+  if (!lastUpdated) {
+    return { label: 'No date', color: 'text-slate-400', days: null }
+  }
+  
+  const days = Math.floor((new Date().getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24))
+  
+  if (days <= 30) {
+    return { label: 'Fresh', color: 'text-green-600', days }
+  } else if (days <= 90) {
+    return { label: 'Recent', color: 'text-blue-600', days }
+  } else if (days <= 180) {
+    return { label: 'Aging', color: 'text-yellow-600', days }
+  } else if (days <= 365) {
+    return { label: 'Stale', color: 'text-orange-600', days }
+  } else {
+    return { label: 'Very Stale', color: 'text-red-600', days }
+  }
+}
+
+interface MaterialGalleryCardProps {
+  material: Material
+  onDownload: (material: Material) => void
+  onShare: (material: Material) => void
+  onPreview: (material: Material) => void
+}
+
+function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: MaterialGalleryCardProps) {
+  const colors = getMaterialTypeColors(material.material_type)
+  const MaterialIcon = getMaterialTypeIcon(material.material_type)
+  const freshness = getFreshnessInfo(material.last_updated)
+  
+  return (
+    <div 
+      className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-xl hover:border-primary-300 transition-all duration-200 cursor-pointer"
+      onClick={() => onPreview(material)}
+    >
+      {/* Thumbnail/Icon Section */}
+      <div className={`${colors.bg} ${colors.border} border-b-2 h-48 flex items-center justify-center relative overflow-hidden`}>
+        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+        <MaterialIcon className={`w-16 h-16 ${colors.icon} relative z-10 transition-transform group-hover:scale-110`} />
+        
+        {/* Status Badge */}
+        {material.status && (
+          <div className="absolute top-3 right-3">
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+              material.status === 'published' ? 'bg-green-100 text-green-700' :
+              material.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+              material.status === 'review' ? 'bg-blue-100 text-blue-700' :
+              'bg-slate-100 text-slate-700'
+            }`}>
+              {material.status}
+            </span>
+          </div>
+        )}
+        
+        {/* Freshness Badge */}
+        {freshness.days !== null && (
+          <div className="absolute top-3 left-3">
+            <div className={`flex items-center space-x-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium ${freshness.color}`}>
+              <Clock className="w-3 h-3" />
+              <span>{freshness.label}</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+            <Eye className="w-4 h-4 text-slate-700" />
+            <span className="text-sm font-medium text-slate-700">Preview</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Content Section */}
+      <div className="p-4">
+        <h3 className="font-semibold text-slate-900 mb-1 line-clamp-2 group-hover:text-primary-600 transition-colors">
+          {material.name}
+        </h3>
+        
+        <div className="flex items-center justify-between mb-2">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded ${colors.bg} ${colors.icon}`}>
+            {material.material_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </span>
+          {material.usage_count !== undefined && material.usage_count > 0 && (
+            <span className="text-xs text-slate-500 flex items-center space-x-1">
+              <Eye className="w-3 h-3" />
+              <span>{material.usage_count}</span>
+            </span>
+          )}
+        </div>
+        
+        {material.description && (
+          <p className="text-sm text-slate-600 line-clamp-2 mb-3">
+            {material.description}
+          </p>
+        )}
+        
+        {/* Metadata */}
+        <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
+          {material.universe_name && (
+            <span className="truncate">{material.universe_name}</span>
+          )}
+          {material.product_name && (
+            <span className="truncate ml-2">{material.product_name}</span>
+          )}
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+          {material.status === 'published' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onShare(material)
+              }}
+              className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+              title="Share"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          )}
+          {material.file_path && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDownload(material)
+              }}
+              className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+              title="Download"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface MaterialPreviewModalProps {
+  material: Material
+  isOpen: boolean
+  onClose: () => void
+  onDownload: (material: Material) => void
+  onShare: (material: Material) => void
+}
+
+function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare }: MaterialPreviewModalProps) {
+  if (!isOpen) return null
+  
+  const colors = getMaterialTypeColors(material.material_type)
+  const MaterialIcon = getMaterialTypeIcon(material.material_type)
+  const freshness = getFreshnessInfo(material.last_updated)
+  
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        {/* Backdrop */}
+        <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose}></div>
+        
+        {/* Modal */}
+        <div 
+          className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className={`${colors.bg} px-6 py-4 border-b ${colors.border}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-4 flex-1">
+                <div className={`p-3 rounded-lg bg-white ${colors.border} border-2`}>
+                  <MaterialIcon className={`w-8 h-8 ${colors.icon}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-bold text-slate-900 mb-1">{material.name}</h2>
+                  <div className="flex items-center space-x-3 flex-wrap">
+                    <span className={`text-sm font-medium px-2 py-1 rounded ${colors.bg} ${colors.icon}`}>
+                      {material.material_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                    {material.status && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        material.status === 'published' ? 'bg-green-100 text-green-700' :
+                        material.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
+                        {material.status}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="ml-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Content */}
+          <div className="px-6 py-4">
+            {/* Description */}
+            {material.description && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Description</h3>
+                <p className="text-sm text-slate-600">{material.description}</p>
+              </div>
+            )}
+            
+            {/* Metadata Grid */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {material.universe_name && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Universe</h4>
+                  <p className="text-sm text-slate-900">{material.universe_name}</p>
+                </div>
+              )}
+              {material.product_name && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Product</h4>
+                  <p className="text-sm text-slate-900">{material.product_name}</p>
+                </div>
+              )}
+              {material.last_updated && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Last Updated</h4>
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <p className="text-sm text-slate-900">
+                      {new Date(material.last_updated).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {freshness.days !== null && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Freshness</h4>
+                  <div className="flex items-center space-x-2">
+                    <Clock className={`w-4 h-4 ${freshness.color}`} />
+                    <p className={`text-sm font-medium ${freshness.color}`}>
+                      {freshness.label} ({freshness.days} days)
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Tags */}
+            {material.tags && material.tags.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Tags</h4>
+                <div className="flex flex-wrap gap-2">
+                  {material.tags.map((tag, index) => (
+                    <span key={index} className="text-xs px-2 py-1 bg-slate-100 text-slate-700 rounded">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Footer Actions */}
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              Close
+            </button>
+            {material.status === 'published' && (
+              <button
+                onClick={() => onShare(material)}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Share</span>
+              </button>
+            )}
+            {material.file_path && (
+              <button
+                onClick={() => onDownload(material)}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
               </button>
             )}
           </div>

@@ -74,12 +74,17 @@ class Material(BaseModel):
     use_cases = Column(Text)  # JSON array of use cases
     pain_points = Column(Text)  # JSON array of pain points
     
+    # AI-generated executive summary
+    executive_summary = Column(Text, nullable=True)  # AI-generated structured summary
+    executive_summary_generated_at = Column(DateTime, nullable=True)  # When summary was generated
+    
     # Relationships (using string references to avoid circular imports)
     # Note: ContentBlockUsage relationship removed temporarily to fix import issues
     # content_blocks = relationship("ContentBlockUsage", back_populates="material")
-    health_history = relationship("MaterialHealthHistory", back_populates="material", lazy="dynamic")
-    usage_events = relationship("MaterialUsage", back_populates="material", lazy="dynamic")
-    track_materials = relationship("TrackMaterial", back_populates="material", lazy="dynamic")
+    # MaterialHealthHistory relationship - conditionally defined
+    # health_history = relationship("MaterialHealthHistory", back_populates="material", lazy="dynamic")
+    # usage_events = relationship("MaterialUsage", back_populates="material", lazy="dynamic")
+    # track_materials = relationship("TrackMaterial", back_populates="material", lazy="dynamic")
     shared_links = relationship("SharedLink", back_populates="material", lazy="dynamic")
     personas = relationship("Persona", secondary=material_persona, back_populates="material_references", lazy="dynamic")
     segments = relationship("Segment", secondary=material_segment, back_populates="material_references", lazy="dynamic")

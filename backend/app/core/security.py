@@ -10,7 +10,11 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.core.config import settings
 # Import AICorrection first to ensure it's registered before User tries to set up relationship
-from app.models.ai_correction import AICorrection  # noqa: F401
+# AICorrection model may not exist in all deployments
+try:
+    from app.models.ai_correction import AICorrection  # noqa: F401
+except ImportError:
+    pass
 from app.models.user import User
 from app.core.database import get_db
 
@@ -63,7 +67,11 @@ async def get_current_user(
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-    except JWTError:
+    except JWTError as e:
+        # Log the error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"JWT decode error: {str(e)}, token preview: {token[:50] if token else 'None'}...")
         raise credentials_exception
     
     user = db.query(User).filter(User.email == email).first()

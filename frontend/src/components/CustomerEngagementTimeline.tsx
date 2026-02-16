@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Share2, Eye, Download, Clock, FileText, User, Filter, X } from 'lucide-react'
+import { Share2, Eye, Download, Clock, User, Filter, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 interface TimelineEvent {
@@ -24,6 +24,12 @@ interface CustomerStats {
   customer_name?: string | null
 }
 
+interface GroupedEvents {
+  dateLabel: string
+  dateKey: string
+  events: TimelineEvent[]
+}
+
 export default function CustomerEngagementTimeline({ 
   limit = 20,
   startDate,
@@ -36,26 +42,12 @@ export default function CustomerEngagementTimeline({
   const [customerFilter, setCustomerFilter] = useState<string>('')
   const [materialFilter, setMaterialFilter] = useState<number | null>(null)
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('') // 'shared', 'viewed', 'downloaded', or '' for all
-  const [windowWidth, setWindowWidth] = useState<number>(1200)
-
-  // Handle window resize
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    // Set initial width
-    setWindowWidth(window.innerWidth)
-    
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth)
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   // Fetch available customers for filter
-  const { data: customerStats } = useQuery<CustomerStats[]>({
+  const { data: customerStats, isLoading: isLoadingCustomers, error: customerError } = useQuery<CustomerStats[]>({
     queryKey: ['shared-links-customer-stats'],
-    queryFn: () => api.get('/shared-links/stats/customers?limit=100').then(res => res.data),
+    queryFn: () => api.get('/shared-links/stats/customers?limit=100').then(res => res.data || []),
+    retry: 1,
   })
 
   // Fetch available materials for filter
@@ -78,28 +70,71 @@ export default function CustomerEngagementTimeline({
     },
   })
 
-  // Calculate events per row based on container width (estimate ~280px per event card)
-  // MUST be called before any conditional returns
-  const eventsPerRow = useMemo(() => {
-    // Account for padding/margins: subtract ~80px for container padding
-    const availableWidth = windowWidth - 80
-    return Math.max(2, Math.floor(availableWidth / 280)) // ~280px per card, minimum 2 per row
-  }, [windowWidth])
-  
-  // Organize events into rows with snake pattern (alternating directions)
-  // MUST be called before any conditional returns
-  const eventRows = useMemo(() => {
+  // Helper function to format date header (must be defined before useMemo)
+  const formatDateHeader = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const eventDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    
+    if (eventDate.getTime() === today.getTime()) {
+      return 'Today'
+    }
+    
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    if (eventDate.getTime() === yesterday.getTime()) {
+      return 'Yesterday'
+    }
+    
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    })
+  }
+
+  // Group events by date
+  const groupedEvents = useMemo<GroupedEvents[]>(() => {
     if (!events || events.length === 0) {
       return []
     }
+
+    // Group events by date
+    const groups = new Map<string, TimelineEvent[]>()
     
-    const rows: TimelineEvent[][] = []
-    for (let i = 0; i < events.length; i += eventsPerRow) {
-      const row = events.slice(i, i + eventsPerRow)
-      rows.push(row)
-    }
-    return rows
-  }, [events, eventsPerRow])
+    events.forEach(event => {
+      const date = new Date(event.timestamp)
+      const dateKey = date.toDateString() // e.g., "Mon Jan 15 2024"
+      
+      if (!groups.has(dateKey)) {
+        groups.set(dateKey, [])
+      }
+      groups.get(dateKey)!.push(event)
+    })
+
+    // Convert to array and sort by date (newest first)
+    const grouped: GroupedEvents[] = Array.from(groups.entries())
+      .map(([dateKey, events]) => {
+        // Sort events within group by timestamp (newest first)
+        const sortedEvents = events.sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+        
+        return {
+          dateKey,
+          dateLabel: formatDateHeader(sortedEvents[0].timestamp),
+          events: sortedEvents
+        }
+      })
+      .sort((a, b) => {
+        // Sort groups by date (newest first)
+        return new Date(b.dateKey).getTime() - new Date(a.dateKey).getTime()
+      })
+
+    return grouped
+  }, [events])
 
   const hasActiveFilters = customerFilter || materialFilter || eventTypeFilter
 
@@ -138,13 +173,22 @@ export default function CustomerEngagementTimeline({
             value={customerFilter}
             onChange={(e) => setCustomerFilter(e.target.value)}
             className="w-full text-sm border border-slate-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            disabled={isLoadingCustomers}
           >
             <option value="">All customers</option>
-            {customerStats?.map((customer) => (
-              <option key={customer.customer_email} value={customer.customer_email}>
-                {customer.customer_name || customer.customer_email}
-              </option>
-            ))}
+            {isLoadingCustomers ? (
+              <option disabled>Loading customers...</option>
+            ) : customerError ? (
+              <option disabled>Error loading customers</option>
+            ) : customerStats && customerStats.length > 0 ? (
+              customerStats.map((customer) => (
+                <option key={customer.customer_email} value={customer.customer_email}>
+                  {customer.customer_name || customer.customer_email}
+                </option>
+              ))
+            ) : (
+              <option disabled>No customers found</option>
+            )}
           </select>
         </div>
 
@@ -283,30 +327,6 @@ export default function CustomerEngagementTimeline({
     })
   }
 
-  const formatDateHeader = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const eventDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-    
-    if (eventDate.getTime() === today.getTime()) {
-      return 'Today'
-    }
-    
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    if (eventDate.getTime() === yesterday.getTime()) {
-      return 'Yesterday'
-    }
-    
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-    })
-  }
-
   return (
     <div className="space-y-4">
       {/* Filters - always visible */}
@@ -326,93 +346,83 @@ export default function CustomerEngagementTimeline({
           </p>
         </div>
       ) : (
-        <div className="relative">
-          {/* Snake layout: Multiple vertical timelines arranged horizontally */}
-          {eventRows.length > 0 ? (
-            <div className="flex flex-row gap-8 flex-wrap">
-              {eventRows.map((row, rowIndex) => {
-                const isEvenRow = rowIndex % 2 === 0
-                // For snake pattern: even rows go left-to-right, odd rows go right-to-left
-                const rowEvents = isEvenRow ? row : [...row].reverse()
-                
-                return (
-                  <div 
-                    key={rowIndex} 
-                    className={`flex-1 min-w-[300px] max-w-[400px] ${isEvenRow ? '' : 'order-last'}`}
-                    style={isEvenRow ? {} : { order: eventRows.length - rowIndex }}
-                  >
-                    {/* Vertical timeline for this column */}
-                    <div className="relative">
-                      {/* Date header for this column */}
-                      {rowEvents.length > 0 && (
-                        <div className="sticky top-0 bg-white z-10 py-2 mb-4">
-                          <h3 className="text-sm font-semibold text-slate-700">
-                            {formatDateHeader(rowEvents[0].timestamp)}
-                          </h3>
+        <div className="space-y-6">
+          {/* Grouped Timeline: Date blocks */}
+          {groupedEvents.map((group, groupIndex) => (
+            <div 
+              key={group.dateKey} 
+              className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden"
+            >
+              {/* Date Header */}
+              <div className="bg-slate-50 px-6 py-3 border-b border-slate-200">
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-4 h-4 text-slate-500" />
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {group.dateLabel}
+                  </h3>
+                  <span className="text-xs text-slate-500">
+                    ({group.events.length} {group.events.length === 1 ? 'event' : 'events'})
+                  </span>
+                </div>
+              </div>
+
+              {/* Events List */}
+              <div className="divide-y divide-slate-100">
+                {group.events.map((event, eventIndex) => {
+                  const Icon = getEventIcon(event.event_type)
+                  const colorClass = getEventColor(event.event_type)
+                  const isLast = eventIndex === group.events.length - 1
+
+                  return (
+                    <div 
+                      key={`${event.shared_link_id}-${event.event_type}-${event.timestamp}`}
+                      className="px-6 py-4 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-start space-x-4">
+                        {/* Icon */}
+                        <div className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-lg ${colorClass} shadow-sm`}>
+                          <Icon className="w-5 h-5" />
                         </div>
-                      )}
 
-                      {/* Vertical line */}
-                      <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200"></div>
-
-                      {/* Events */}
-                      <div className="space-y-4">
-                        {rowEvents.map((event, eventIndex) => {
-                          const Icon = getEventIcon(event.event_type)
-                          const colorClass = getEventColor(event.event_type)
-                          const isLast = eventIndex === rowEvents.length - 1
-
-                          return (
-                            <div key={`${event.shared_link_id}-${event.event_type}-${event.timestamp}`} className="relative flex items-start">
-                              {/* Icon circle */}
-                              <div className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full ${colorClass} shadow-sm`}>
-                                <Icon className="w-4 h-4" />
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className={`text-xs font-semibold px-2 py-1 rounded ${colorClass}`}>
+                                  {getEventLabel(event.event_type)}
+                                </span>
+                                <span className="text-xs text-slate-400 flex items-center">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {formatTimestamp(event.timestamp)}
+                                </span>
                               </div>
-
-                              {/* Content */}
-                              <div className="ml-4 flex-1 min-w-0 pb-4">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center space-x-2 mb-1">
-                                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${colorClass}`}>
-                                        {getEventLabel(event.event_type)}
-                                      </span>
-                                      <span className="text-xs text-slate-400">{formatTimestamp(event.timestamp)}</span>
-                                    </div>
-                                    
-                                    <Link
-                                      to={`/materials`}
-                                      className="text-sm font-medium text-slate-900 hover:text-primary-600 truncate block"
-                                    >
-                                      {event.material_name}
-                                    </Link>
-                                    
-                                    {event.customer_email && (
-                                      <div className="flex items-center space-x-1 mt-1 text-xs text-slate-500">
-                                        <User className="w-3 h-3" />
-                                        <span className="truncate">
-                                          {event.customer_name || event.customer_email}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
+                              
+                              <Link
+                                to={`/materials`}
+                                className="text-sm font-medium text-slate-900 hover:text-primary-600 block truncate"
+                              >
+                                {event.material_name}
+                              </Link>
                             </div>
-                          )
-                        })}
+                          </div>
+                          
+                          {event.customer_email && (
+                            <div className="flex items-center space-x-1 mt-2 text-xs text-slate-600">
+                              <User className="w-3.5 h-3.5" />
+                              <span className="truncate">
+                                {event.customer_name || event.customer_email}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
-          ) : (
-            <div className="text-center py-12">
-              <Share2 className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-              <h3 className="text-sm font-medium text-slate-900 mb-2">No events to display</h3>
-            </div>
-          )}
+          ))}
         </div>
       )}
     </div>

@@ -27,4 +27,7 @@ class User(BaseModel):
     
     # Relationships (using string references to avoid circular imports)
     materials = relationship("Material", back_populates="owner", lazy="dynamic")
-    ai_corrections = relationship("AICorrection", back_populates="user", lazy="dynamic")
+    # AICorrection relationship - conditionally defined
+    # Note: This will fail if AICorrection model doesn't exist and is accessed
+    # The relationship is defined but won't be used if the model doesn't exist
+    # ai_corrections = relationship("AICorrection", back_populates="user", lazy="dynamic")

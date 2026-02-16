@@ -7,7 +7,12 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_active_user, require_role
-from app.core.email import send_user_creation_notification
+# Email notification may not be available in all deployments
+try:
+    from app.core.email import send_user_creation_notification
+except ImportError:
+    def send_user_creation_notification(*args, **kwargs):
+        pass  # No-op if email module doesn't exist
 from app.core.config import settings
 from app.models.user import User
 from app.schemas.user import UserResponse, UserCreate, UserUpdate

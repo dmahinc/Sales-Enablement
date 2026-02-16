@@ -37,6 +37,25 @@ class SharedLinkResponse(BaseModel):
         from_attributes = True
 
 
+class SharedLinkPublicResponse(BaseModel):
+    """Schema for public shared link response (no sensitive data)"""
+    id: int
+    unique_token: str
+    material_id: int
+    material_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_name: Optional[str] = None
+    expires_at: datetime
+    is_active: bool
+    access_count: int
+    download_count: int
+    created_at: datetime
+    share_url: str
+    
+    class Config:
+        from_attributes = True
+
+
 class SharedLinkUpdate(BaseModel):
     """Schema for updating a shared link"""
     customer_email: Optional[EmailStr] = None
