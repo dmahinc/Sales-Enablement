@@ -82,12 +82,25 @@ export default function ShareView() {
       
       // Get filename from Content-Disposition header or use material name
       const contentDisposition = response.headers.get('content-disposition')
-      let filename = sharedLink.material_name || `document-${sharedLink.material_id}`
+      let filename = sharedLink.file_name || sharedLink.material_name || `document-${sharedLink.material_id}`
       
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1].replace(/['"]/g, '')
+        // Try RFC 5987 encoded filename first (filename*=UTF-8''...)
+        const rfc5987Match = contentDisposition.match(/filename\*=UTF-8''(.+)/i)
+        if (rfc5987Match) {
+          filename = decodeURIComponent(rfc5987Match[1])
+        } else {
+          // Try standard filename="..." or filename=...
+          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].replace(/['"]/g, '')
+            // Decode URL-encoded characters
+            try {
+              filename = decodeURIComponent(filename)
+            } catch (e) {
+              // If decoding fails, use as-is
+            }
+          }
         }
       }
       

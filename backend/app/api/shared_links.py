@@ -2,7 +2,7 @@
 Shared Links API endpoints - Public and authenticated endpoints for sharing materials
 """
 import secrets
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.responses import FileResponse
 from typing import List, Optional
 from sqlalchemy.orm import Session
@@ -73,9 +73,10 @@ async def create_shared_link(
     db.commit()
     db.refresh(shared_link)
     
-    # Build share URL
-    base_url = str(request.base_url).rstrip('/')
-    share_url = f"{base_url}/share/{token}"
+    # Build share URL - use PLATFORM_URL from settings (frontend URL) instead of backend URL
+    from app.core.config import settings
+    platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+    share_url = f"{platform_url.rstrip('/')}/share/{token}"
     
     # Return response with share URL
     return {
@@ -91,7 +92,10 @@ async def create_shared_link(
         "is_active": shared_link.is_active,
         "access_count": shared_link.access_count,
         "last_accessed_at": shared_link.last_accessed_at,
+        "download_count": shared_link.download_count,
+        "last_downloaded_at": shared_link.last_downloaded_at,
         "created_at": shared_link.created_at,
+        "updated_at": shared_link.updated_at,
         "share_url": share_url
     }
 
@@ -150,7 +154,14 @@ async def get_shared_link_by_token(
     
     db.commit()
     
+    # Build share URL for response
+    from app.core.config import settings
+    platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+    share_url = f"{platform_url.rstrip('/')}/share/{shared_link.unique_token}"
+    
     return {
+        "id": shared_link.id,
+        "unique_token": shared_link.unique_token,
         "material_id": material.id,
         "material_name": material.name,
         "material_type": material.material_type,
@@ -159,7 +170,11 @@ async def get_shared_link_by_token(
         "file_format": material.file_format,
         "file_size": material.file_size,
         "expires_at": shared_link.expires_at,
-        "is_valid": True
+        "is_active": shared_link.is_active,
+        "access_count": shared_link.access_count,
+        "download_count": shared_link.download_count,
+        "created_at": shared_link.created_at,
+        "share_url": share_url
     }
 
 
@@ -248,9 +263,12 @@ async def download_shared_material(
     }
     media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
     
+    # Ensure filename is properly formatted (FastAPI FileResponse handles encoding)
+    filename = material.file_name or f"material_{material.id}.{file_format}"
+    
     return FileResponse(
         path=str(file_path),
-        filename=material.file_name,
+        filename=filename,
         media_type=media_type
     )
 
@@ -559,8 +577,10 @@ async def update_shared_link(
     db.refresh(shared_link)
     
     material = db.query(Material).filter(Material.id == shared_link.material_id).first()
-    base_url = str(request.base_url).rstrip('/')
-    share_url = f"{base_url}/share/{shared_link.unique_token}"
+    # Build share URL - use PLATFORM_URL from settings (frontend URL) instead of backend URL
+    from app.core.config import settings
+    platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+    share_url = f"{platform_url.rstrip('/')}/share/{shared_link.unique_token}"
     
     return {
         "id": shared_link.id,
@@ -578,6 +598,97 @@ async def update_shared_link(
         "created_at": shared_link.created_at,
         "share_url": share_url
     }
+
+
+@router.post("/{link_id}/send-email", status_code=status.HTTP_200_OK)
+async def send_shared_link_email(
+    link_id: int,
+    customer_email: Optional[str] = Query(None, description="Email address to send to (optional, uses link's email if not provided)"),
+    request: Request = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Send email notification for a shared link"""
+    shared_link = db.query(SharedLink).filter(SharedLink.id == link_id).first()
+    
+    if not shared_link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shared link not found"
+        )
+    
+    # Only creator can send email
+    if shared_link.shared_by_user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only send emails for your own shared links"
+        )
+    
+    # Use provided email or the one from the link
+    email_to_send = customer_email or shared_link.customer_email
+    
+    if not email_to_send:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No email address provided"
+        )
+    
+    # Get material
+    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+    
+    # Build share URL - use PLATFORM_URL from settings (frontend URL) instead of backend URL
+    from app.core.config import settings
+    platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+    share_url = f"{platform_url.rstrip('/')}/share/{shared_link.unique_token}"
+    
+    # Calculate days until expiration
+    expires_in_days = (shared_link.expires_at - datetime.utcnow()).days
+    
+    # Send email
+    try:
+        from app.core.email import send_share_link_notification
+        from app.core.config import settings
+        
+        shared_by_name = current_user.full_name or current_user.email
+        platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+        
+        email_sent = send_share_link_notification(
+            customer_email=email_to_send,
+            customer_name=shared_link.customer_name or "",
+            material_name=material.name,
+            share_url=share_url,
+            shared_by_name=shared_by_name,
+            platform_url=platform_url
+        )
+        
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send email. Please check SMTP configuration."
+            )
+        
+        return {"message": "Email sent successfully", "email": email_to_send}
+        
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service not available"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error sending email: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send email: {str(e)}"
+        )
 
 
 @router.delete("/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
