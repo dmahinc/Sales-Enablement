@@ -3,8 +3,17 @@ Sales Enablement Application - Main FastAPI Application
 """
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.core.config import settings
+from app.core.exceptions import (
+    AppException,
+    app_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
+    general_exception_handler
+)
 
 # Import models early to ensure SQLAlchemy relationships are configured correctly
 # This must happen before any routes that use models are imported
@@ -19,10 +28,88 @@ except ImportError:
 
 app = FastAPI(
     title="Products & Solutions Enablement API",
-    description="API for managing products and solutions enablement materials, tracks, and content",
+    description="""
+    API for managing products and solutions enablement materials, tracks, and content.
+    
+    ## Features
+    
+    * **Materials Management**: Upload, organize, and manage sales enablement materials
+    * **Product Hierarchy**: Organize materials by universe, category, and product
+    * **User Management**: Role-based access control (Admin, PMM, Sales, Director)
+    * **Sharing**: Share materials with customers via secure links
+    * **Analytics**: Track material usage and engagement metrics
+    * **AI Integration**: Generate executive summaries using OVHcloud AI
+    
+    ## Authentication
+    
+    The API uses JWT-based authentication with a custom challenge-response mechanism.
+    Most endpoints require authentication except for public shared link endpoints.
+    
+    ## Error Responses
+    
+    All errors follow a standardized format:
+    ```json
+    {
+        "success": false,
+        "error": "ErrorType",
+        "message": "Human-readable error message",
+        "status_code": 400,
+        "details": [],
+        "timestamp": "2026-02-16T22:00:00Z",
+        "path": "/api/endpoint"
+    }
+    ```
+    """,
     version="1.0.0",
+    contact={
+        "name": "OVHcloud Products & Solutions Enablement",
+        "email": "support@ovhcloud.com"
+    },
+    license_info={
+        "name": "Proprietary",
+    },
+    tags_metadata=[
+        {
+            "name": "auth",
+            "description": "Authentication endpoints for user login and token management",
+        },
+        {
+            "name": "materials",
+            "description": "Operations related to sales enablement materials (CRUD, upload, download)",
+        },
+        {
+            "name": "shared-links",
+            "description": "Public and authenticated endpoints for sharing materials with customers",
+        },
+        {
+            "name": "users",
+            "description": "User management endpoints (admin only)",
+        },
+        {
+            "name": "products",
+            "description": "Product hierarchy management (universes, categories, products)",
+        },
+        {
+            "name": "analytics",
+            "description": "Usage analytics and statistics",
+        },
+        {
+            "name": "tracks",
+            "description": "Learning track management",
+        },
+        {
+            "name": "health",
+            "description": "Health check and system status endpoints",
+        },
+    ],
     redirect_slashes=False  # Disable automatic trailing slash redirects
 )
+
+# Register exception handlers for standardized error responses
+app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 # CORS middleware for frontend integration - must be added before routes
 # Ensure CORS_ORIGINS is a list
@@ -64,16 +151,40 @@ async def security_middleware(request, call_next):
     response = await call_next(request)
     return response
 
-@app.get("/")
+@app.get(
+    "/",
+    tags=["health"],
+    summary="API Root",
+    description="Get API information and status",
+    response_description="API metadata"
+)
 async def root():
+    """
+    Root endpoint that returns basic API information.
+    
+    Returns:
+        dict: API name, version, and status
+    """
     return {
         "message": "Products & Solutions Enablement API",
         "version": "1.0.0",
         "status": "running"
     }
 
-@app.get("/health")
+@app.get(
+    "/health",
+    tags=["health"],
+    summary="Health Check",
+    description="Check if the API is running and healthy",
+    response_description="Health status"
+)
 async def health_check():
+    """
+    Health check endpoint for monitoring and load balancers.
+    
+    Returns:
+        dict: Health status indicator
+    """
     return {"status": "healthy"}
 
 # Import routers

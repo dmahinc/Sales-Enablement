@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Upload, X, CheckCircle, AlertCircle, Loader2, Sparkles, Check, FolderPlus, Plus } from 'lucide-react'
+import { Upload, X, CheckCircle, AlertCircle, Loader2, Sparkles, Check, FolderPlus, Plus, FileText } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import ProductHierarchySelector from './ProductHierarchySelector'
 
@@ -17,6 +17,7 @@ interface FileSuggestion {
   reasoning: string
   material_type?: string | null
   audience?: string | null
+  other_type_description?: string | null
 }
 
 interface BatchUploadModalProps {
@@ -32,7 +33,9 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
   const [files, setFiles] = useState<File[]>([])
   const [suggestions, setSuggestions] = useState<FileSuggestion[]>([])
   const [analyzing, setAnalyzing] = useState(false)
+  const [analyzingProgress, setAnalyzingProgress] = useState({ current: 0, total: 0 })
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<Record<string, { progress: number; status: 'uploading' | 'success' | 'error'; error?: string }>>({})
   const [autoApplyThreshold, setAutoApplyThreshold] = useState(0.9)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editFormData, setEditFormData] = useState<FileSuggestion | null>(null)
@@ -288,24 +291,108 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
 
   const analyzeMutation = useMutation({
     mutationFn: async (filesToAnalyze: File[]) => {
-      const formData = new FormData()
-      filesToAnalyze.forEach(file => formData.append('files', file))
+      // Process files sequentially to avoid 413 Payload Too Large errors
+      const results: FileSuggestion[] = []
+      const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB per file for analysis (more conservative than upload limit)
       
-      const response = await api.post('/materials/batch/analyze', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      })
-      return response.data
+      // Update progress
+      setAnalyzingProgress({ current: 0, total: filesToAnalyze.length })
+      
+      // Always process files individually to avoid 413 errors
+      // The batch endpoint may not exist or may have size limits
+      for (let i = 0; i < filesToAnalyze.length; i++) {
+        const file = filesToAnalyze[i]
+        setAnalyzingProgress({ current: i + 1, total: filesToAnalyze.length })
+        
+        // Check file size before attempting analysis
+        if (file.size > MAX_FILE_SIZE) {
+          console.warn(`File ${file.name} is too large (${(file.size / 1024 / 1024).toFixed(2)}MB) for analysis`)
+          results.push({
+            filename: file.name,
+            confidence: 0,
+            reasoning: `File too large to analyze (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size for analysis is ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB.`,
+          })
+          continue
+        }
+        
+        try {
+          const singleFormData = new FormData()
+          singleFormData.append('files', file)
+          
+          const response = await api.post('/materials/batch/analyze', singleFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+            timeout: 120000, // 2 minutes per file
+            // Add maxContentLength and maxBodyLength to handle large files
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
+          })
+          
+          // Handle both single result and array of results
+          let singleResult: any = null
+          if (Array.isArray(response.data)) {
+            singleResult = response.data.length > 0 ? response.data[0] : null
+          } else {
+            singleResult = response.data
+          }
+          
+          if (singleResult && singleResult.filename) {
+            results.push(singleResult)
+          } else {
+            // Add placeholder if no result
+            results.push({
+              filename: file.name,
+              confidence: 0,
+              reasoning: 'No analysis result returned',
+            })
+          }
+        } catch (singleError: any) {
+          console.error(`Failed to analyze file ${file.name}:`, singleError)
+          // Add a placeholder result so the file still appears in the list
+          let errorMsg = 'Unknown error'
+          if (singleError.response?.status === 413) {
+            errorMsg = `File too large to analyze (${(file.size / 1024 / 1024).toFixed(2)}MB). Please try a smaller file.`
+          } else if (singleError.response?.status === 404) {
+            errorMsg = 'Analysis endpoint not found. The batch analyze feature may not be available.'
+          } else {
+            errorMsg = singleError.response?.data?.detail || singleError.message || 'Unknown error'
+          }
+          
+          results.push({
+            filename: file.name,
+            confidence: 0,
+            reasoning: `Failed to analyze: ${errorMsg}`,
+          })
+        }
+      }
+      
+      setAnalyzingProgress({ current: filesToAnalyze.length, total: filesToAnalyze.length })
+      
+      // Always return results, even if some failed
+      // This prevents the onError handler from being called
+      return results
     },
     onSuccess: (data) => {
       setSuggestions(data)
       setAnalyzing(false)
+      setAnalyzingProgress({ current: 0, total: 0 })
     },
     onError: (error: any) => {
       console.error('Analysis error:', error)
-      alert(`Failed to analyze files: ${error.response?.data?.detail || error.message}`)
+      // Only show error if we have no results at all
+      // Individual file errors are already handled in the mutationFn
+      if (suggestions.length === 0) {
+        const errorMessage = error.response?.status === 413 
+          ? 'Files are too large to analyze. Please try smaller files or fewer files at once.'
+          : error.response?.data?.detail || error.message || 'Failed to analyze files'
+        alert(`Failed to analyze files: ${errorMessage}`)
+      } else {
+        // Some files were analyzed successfully, just show a warning
+        console.warn('Some files failed to analyze, but partial results are available')
+      }
       setAnalyzing(false)
+      setAnalyzingProgress({ current: 0, total: 0 })
     },
   })
 
@@ -315,8 +402,41 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       return
     }
     
+    // Warn user if analyzing many files
+    if (files.length > 10) {
+      const proceed = confirm(`You are about to analyze ${files.length} files. This may take a while. Continue?`)
+      if (!proceed) {
+        return
+      }
+    }
+    
     setAnalyzing(true)
     analyzeMutation.mutate(files)
+  }
+
+  const handleSkipAI = () => {
+    if (files.length === 0) {
+      alert('Please select files first')
+      return
+    }
+    
+    // Create empty suggestions for all files
+    const emptySuggestions: FileSuggestion[] = files.map(file => ({
+      filename: file.name,
+      universe_id: null,
+      category_id: null,
+      product_id: null,
+      universe_name: null,
+      category_name: null,
+      product_name: null,
+      confidence: 0, // Manual entry - confidence is 0
+      reasoning: 'Manually filled',
+      material_type: 'product_brief', // Default value
+      audience: 'internal', // Default value
+      other_type_description: null,
+    }))
+    
+    setSuggestions(emptySuggestions)
   }
 
   const handleEdit = (index: number) => {
@@ -410,27 +530,159 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
 
   const uploadMutation = useMutation({
     mutationFn: async (data: { files: File[], suggestions: FileSuggestion[] }) => {
-      const formData = new FormData()
-      data.files.forEach(file => formData.append('files', file))
-      formData.append('suggestions_json', JSON.stringify(data.suggestions))
-      formData.append('auto_apply_threshold', autoApplyThreshold.toString())
+      // Upload files individually with progress tracking
+      const results = {
+        success_count: 0,
+        failure_count: 0,
+        successes: [] as any[],
+        failures: [] as any[]
+      }
       
-      const response = await api.post('/materials/batch/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      // Initialize progress for all files
+      const initialProgress: Record<string, { progress: number; status: 'uploading' | 'success' | 'error'; error?: string }> = {}
+      data.files.forEach(file => {
+        initialProgress[file.name] = { progress: 0, status: 'uploading' }
       })
-      return response.data
+      setUploadProgress(initialProgress)
+      
+      // Upload each file individually using the single upload endpoint for progress tracking
+      for (let i = 0; i < data.files.length; i++) {
+        const file = data.files[i]
+        const suggestion = data.suggestions[i]
+        
+        try {
+          // Validate suggestion has required fields
+          if (!suggestion.universe_id || !suggestion.category_id || !suggestion.product_id || !suggestion.material_type || !suggestion.audience) {
+            results.failure_count += 1
+            results.failures.push({ filename: file.name, error: 'Missing required fields' })
+            setUploadProgress(prev => ({
+              ...prev,
+              [file.name]: { progress: 0, status: 'error', error: 'Missing required fields' }
+            }))
+            continue
+          }
+          
+          // Create FormData for single file upload endpoint
+          const singleFormData = new FormData()
+          singleFormData.append('file', file)
+          singleFormData.append('material_type', suggestion.material_type)
+          singleFormData.append('audience', suggestion.audience)
+          singleFormData.append('universe_id', suggestion.universe_id.toString())
+          singleFormData.append('category_id', suggestion.category_id.toString())
+          singleFormData.append('product_id', suggestion.product_id.toString())
+          
+          if (suggestion.product_name) {
+            singleFormData.append('product_name', suggestion.product_name)
+          }
+          if (suggestion.universe_name) {
+            singleFormData.append('universe_name', suggestion.universe_name)
+          }
+          if (suggestion.other_type_description) {
+            singleFormData.append('other_type_description', suggestion.other_type_description)
+          }
+          if (suggestion.freshness_date) {
+            singleFormData.append('freshness_date', suggestion.freshness_date)
+          }
+          
+          // Use XMLHttpRequest for progress tracking (no timeout)
+          const response = await new Promise<any>((resolve, reject) => {
+            const xhr = new XMLHttpRequest()
+            
+            // Track upload progress
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100)
+                setUploadProgress(prev => ({
+                  ...prev,
+                  [file.name]: { progress: percentComplete, status: 'uploading' }
+                }))
+              }
+            })
+            
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  const responseData = JSON.parse(xhr.responseText)
+                  resolve(responseData)
+                } catch (e) {
+                  resolve({ id: 0, name: file.name })
+                }
+              } else {
+                try {
+                  const errorData = JSON.parse(xhr.responseText)
+                  const errorMsg = errorData.detail?.message || errorData.detail || `Upload failed with status ${xhr.status}`
+                  reject(new Error(errorMsg))
+                } catch (e) {
+                  reject(new Error(`Upload failed with status ${xhr.status}`))
+                }
+              }
+            })
+            
+            xhr.addEventListener('error', () => {
+              reject(new Error('Network error during upload'))
+            })
+            
+            xhr.addEventListener('abort', () => {
+              reject(new Error('Upload aborted'))
+            })
+            
+            // Get auth token
+            const token = localStorage.getItem('token')
+            const apiUrl = import.meta.env.VITE_API_URL || '/api'
+            
+            xhr.open('POST', `${apiUrl}/materials/upload`)
+            if (token) {
+              xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+            }
+            // No timeout - let it upload as long as needed
+            xhr.timeout = 0
+            xhr.send(singleFormData)
+          })
+          
+          // Success
+          results.success_count += 1
+          results.successes.push({ filename: file.name, material_id: response.id })
+          setUploadProgress(prev => ({
+            ...prev,
+            [file.name]: { progress: 100, status: 'success' }
+          }))
+        } catch (error: any) {
+          results.failure_count += 1
+          const errorMsg = error.message || 'Upload failed'
+          results.failures.push({ filename: file.name, error: errorMsg })
+          setUploadProgress(prev => ({
+            ...prev,
+            [file.name]: { progress: 0, status: 'error', error: errorMsg }
+          }))
+        }
+      }
+      
+      return results
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['materials'] })
-      alert(`Upload complete! ${data.success_count} succeeded, ${data.failure_count} failed.`)
-      handleClose()
+      
+      let message = `Upload complete! ${data.success_count} succeeded, ${data.failure_count} failed.`
+      
+      // Show detailed error messages if there are failures
+      if (data.failure_count > 0 && data.failures && data.failures.length > 0) {
+        const errorMessages = data.failures.map((f: any) => `${f.filename}: ${f.error || 'Unknown error'}`).join('\n')
+        message += `\n\nFailures:\n${errorMessages}`
+      }
+      
+      alert(message)
+      
+      // Only close if all uploads succeeded
+      if (data.failure_count === 0) {
+        handleClose()
+      } else {
+        setUploading(false)
+      }
     },
     onError: (error: any) => {
       console.error('Upload error:', error)
-      alert(`Upload failed: ${error.response?.data?.detail || error.message}`)
       setUploading(false)
+      alert(`Upload failed: ${error.response?.data?.detail || error.message}`)
     },
   })
 
@@ -451,7 +703,8 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       return
     }
     
-    // Filter to only upload files that have required fields and meet threshold
+    // Filter to only upload files that have required fields
+    // For manual entries (confidence = 0), skip threshold check
     const filesToUpload: File[] = []
     const suggestionsToUpload: FileSuggestion[] = []
     
@@ -460,19 +713,48 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       if (suggestion && 
           suggestion.universe_id && 
           suggestion.category_id && 
-          suggestion.product_id && 
-          suggestion.confidence >= autoApplyThreshold) {
-        filesToUpload.push(file)
-        suggestionsToUpload.push(suggestion)
+          suggestion.product_id &&
+          suggestion.material_type &&
+          suggestion.audience) {
+        // Check threshold only for AI-suggested files (confidence > 0)
+        // Manual entries (confidence = 0) are always included if they have required fields
+        const isManualEntry = suggestion.confidence === 0
+        const meetsThreshold = isManualEntry || suggestion.confidence >= autoApplyThreshold
+        
+        if (meetsThreshold) {
+          filesToUpload.push(file)
+          suggestionsToUpload.push(suggestion)
+        }
       }
     })
     
     if (filesToUpload.length === 0) {
-      alert('No files ready to upload. Please ensure all files have universe, category, and product selected, and meet the confidence threshold.')
+      const missingFields = files.map((file, index) => {
+        const suggestion = suggestions[index]
+        if (!suggestion) return file.name
+        const missing: string[] = []
+        if (!suggestion.universe_id) missing.push('universe')
+        if (!suggestion.category_id) missing.push('category')
+        if (!suggestion.product_id) missing.push('product')
+        if (!suggestion.material_type) missing.push('material type')
+        if (!suggestion.audience) missing.push('audience')
+        if (missing.length > 0) {
+          return `${file.name} (missing: ${missing.join(', ')})`
+        }
+        return null
+      }).filter(Boolean)
+      
+      if (missingFields.length > 0) {
+        alert(`Please complete all required fields for all files:\n\n${missingFields.slice(0, 5).join('\n')}${missingFields.length > 5 ? `\n... and ${missingFields.length - 5} more` : ''}`)
+      } else {
+        alert('No files ready to upload. Please ensure all files have universe, category, product, material type, and audience selected.')
+      }
       return
     }
     
     setUploading(true)
+    // Reset progress state
+    setUploadProgress({})
     uploadMutation.mutate({ files: filesToUpload, suggestions: suggestionsToUpload })
   }
 
@@ -481,6 +763,7 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
     setSuggestions([])
     setAnalyzing(false)
     setUploading(false)
+    setUploadProgress({})
     setEditingIndex(null)
     setEditFormData(null)
     setShowCategoryForm(false)
@@ -528,7 +811,7 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6" style={{ position: 'relative' }}>
           {/* File Selection */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -558,25 +841,58 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
             
             {files.length > 0 && (
               <div className="mt-4 space-y-2">
-                {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg">
-                    <span className="text-sm text-slate-700">{file.name}</span>
-                    <button
-                      onClick={() => removeFile(index)}
-                      className="text-red-500 hover:text-red-700"
-                      disabled={analyzing || uploading}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+                {files.map((file, index) => {
+                  const fileProgress = uploadProgress[file.name]
+                  const isUploading = fileProgress?.status === 'uploading'
+                  const isSuccess = fileProgress?.status === 'success'
+                  const isError = fileProgress?.status === 'error'
+                  
+                  return (
+                    <div key={index} className="bg-slate-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="text-sm text-slate-700 truncate flex-1">{file.name}</span>
+                          {isUploading && (
+                            <span className="text-xs text-slate-500">{fileProgress.progress}%</span>
+                          )}
+                          {isSuccess && (
+                            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          )}
+                          {isError && (
+                            <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                          )}
+                        </div>
+                        {!uploading && (
+                          <button
+                            onClick={() => removeFile(index)}
+                            className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
+                            disabled={analyzing || uploading}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                      {isUploading && (
+                        <div className="w-full bg-slate-200 rounded-full h-2">
+                          <div
+                            className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${fileProgress.progress}%` }}
+                          />
+                        </div>
+                      )}
+                      {isError && fileProgress.error && (
+                        <p className="text-xs text-red-600 mt-1">{fileProgress.error}</p>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {/* Analyze Button */}
+          {/* Analyze Button or Skip AI Option */}
           {files.length > 0 && suggestions.length === 0 && (
-            <div className="mb-6">
+            <div className="mb-6 flex items-center gap-3">
               <button
                 onClick={handleAnalyze}
                 disabled={analyzing}
@@ -585,7 +901,11 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                 {analyzing ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    Analyzing files...
+                    {analyzingProgress.total > 0 ? (
+                      <span>Analyzing files... ({analyzingProgress.current}/{analyzingProgress.total})</span>
+                    ) : (
+                      <span>Analyzing files...</span>
+                    )}
                   </>
                 ) : (
                   <>
@@ -594,6 +914,15 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                   </>
                 )}
               </button>
+              <span className="text-slate-500">or</span>
+              <button
+                onClick={handleSkipAI}
+                disabled={analyzing}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 flex items-center gap-2"
+              >
+                <FileText className="h-5 w-5" />
+                Skip AI - Fill Manually
+              </button>
             </div>
           )}
 
@@ -601,25 +930,29 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
           {suggestions.length > 0 && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900">AI Suggestions</h3>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {suggestions.some(s => s.confidence === 0) ? 'Manual Entry' : 'AI Suggestions'}
+                </h3>
                 <div className="flex items-center gap-4">
-                  <label className="text-sm text-slate-700">
-                    Auto-apply threshold:
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={autoApplyThreshold}
-                      onChange={(e) => setAutoApplyThreshold(parseFloat(e.target.value))}
-                      className="ml-2 w-20 px-2 py-1 border border-slate-300 rounded"
-                      disabled={uploading}
-                    />
-                  </label>
+                  {!suggestions.some(s => s.confidence === 0) && (
+                    <label className="text-sm text-slate-700">
+                      Auto-apply threshold:
+                      <input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={autoApplyThreshold}
+                        onChange={(e) => setAutoApplyThreshold(parseFloat(e.target.value))}
+                        className="ml-2 w-20 px-2 py-1 border border-slate-300 rounded"
+                        disabled={uploading}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto" style={{ position: 'relative' }}>
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-slate-100">
@@ -635,10 +968,14 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                   </thead>
                   <tbody>
                     {suggestions.map((suggestion, index) => {
+                      const isManualEntry = suggestion.confidence === 0
                       const hasRequiredFields = suggestion.universe_id && 
                                                 suggestion.category_id && 
-                                                suggestion.product_id
-                      const meetsThreshold = suggestion.confidence >= autoApplyThreshold
+                                                suggestion.product_id &&
+                                                suggestion.material_type &&
+                                                suggestion.audience
+                      // For manual entries, skip threshold check
+                      const meetsThreshold = isManualEntry || suggestion.confidence >= autoApplyThreshold
                       const isReady = hasRequiredFields && meetsThreshold
                       const canAutoApply = isReady
                       
@@ -1006,7 +1343,12 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                                   } else if (newMaterialType === 'datasheet' || newMaterialType === 'sales_deck') {
                                     newAudience = 'customer_facing'
                                   }
-                                  setEditFormData({ ...editFormData, material_type: newMaterialType, audience: newAudience })
+                                  setEditFormData({ 
+                                    ...editFormData, 
+                                    material_type: newMaterialType, 
+                                    audience: newAudience,
+                                    other_type_description: newMaterialType === 'other' ? editFormData.other_type_description || '' : ''
+                                  })
                                 }}
                                 className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
                               >
@@ -1016,6 +1358,18 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                                 <option value="datasheet">Datasheet</option>
                                 <option value="other">Other</option>
                               </select>
+                              {editFormData.material_type === 'other' && (
+                                <div className="mt-2">
+                                  <input
+                                    type="text"
+                                    value={editFormData.other_type_description || ''}
+                                    onChange={(e) => setEditFormData({ ...editFormData, other_type_description: e.target.value })}
+                                    placeholder="Describe the material type (required)"
+                                    className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                    required
+                                  />
+                                </div>
+                              )}
                             </td>
                             <td className="border border-slate-300 px-4 py-2 text-sm">
                               <select
@@ -1029,7 +1383,9 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                             </td>
                             <td className="border border-slate-300 px-4 py-2 text-sm">
                               <span className={`px-2 py-1 rounded text-xs font-medium ${getConfidenceColor(suggestion.confidence)}`}>
-                                {getConfidenceLabel(suggestion.confidence)} ({(suggestion.confidence * 100).toFixed(0)}%)
+                                {suggestion.confidence === 0 
+                                  ? 'Manual' 
+                                  : `${getConfidenceLabel(suggestion.confidence)} (${(suggestion.confidence * 100).toFixed(0)}%)`}
                               </span>
                             </td>
                             <td className="border border-slate-300 px-4 py-2 text-sm">
@@ -1078,7 +1434,9 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                           </td>
                           <td className="border border-slate-300 px-4 py-2 text-sm">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${getConfidenceColor(suggestion.confidence)}`}>
-                              {getConfidenceLabel(suggestion.confidence)} ({(suggestion.confidence * 100).toFixed(0)}%)
+                              {suggestion.confidence === 0 
+                                ? 'Manual' 
+                                : `${getConfidenceLabel(suggestion.confidence)} (${(suggestion.confidence * 100).toFixed(0)}%)`}
                             </span>
                           </td>
                           <td className="border border-slate-300 px-4 py-2 text-sm">

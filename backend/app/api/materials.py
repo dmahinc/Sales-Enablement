@@ -24,20 +24,44 @@ from app.services.storage import storage_service
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
-def _check_existing_material(
+def _check_existing_material_by_name(
+    db: Session,
+    product_name: str,
+    material_name: str,
+    exclude_material_id: Optional[int] = None
+) -> Optional[Material]:
+    """
+    Check if a material with the exact same name already exists for the given product.
+    Returns the existing material if found, None otherwise.
+    This is used to BLOCK uploads (exact duplicate).
+    """
+    query = db.query(Material).filter(
+        Material.product_name.ilike(f"%{product_name}%"),
+        Material.name == material_name,  # Exact name match
+        Material.status != "ARCHIVED"  # Don't consider archived materials
+    )
+    
+    if exclude_material_id:
+        query = query.filter(Material.id != exclude_material_id)
+    
+    return query.first()
+
+
+def _check_existing_material_by_type(
     db: Session,
     product_name: str,
     material_type: str,
     exclude_material_id: Optional[int] = None
-) -> Optional[Material]:
+) -> List[Material]:
     """
-    Check if a material of the same type already exists for the given product.
+    Check if materials of the same type already exist for the given product.
     Excludes 'other' type from duplicate checking.
-    Returns the existing material if found, None otherwise.
+    Returns a list of existing materials (can be multiple versions).
+    This is used to WARN users (same type, different name).
     """
     # Don't check for duplicates if material_type is 'other'
     if material_type.lower() == 'other' or material_type.upper() == 'OTHER':
-        return None
+        return []
     
     # Normalize material type for comparison
     # Map database enum values to frontend values
@@ -55,7 +79,7 @@ def _check_existing_material(
     if material_type.upper() in db_to_frontend_mapping:
         normalized_type = db_to_frontend_mapping[material_type.upper()].lower()
     
-    # Query for existing materials with same product_name and material_type
+    # Query for existing materials with same product_name
     query = db.query(Material).filter(
         Material.product_name.ilike(f"%{product_name}%"),
         Material.status != "ARCHIVED"  # Don't consider archived materials
@@ -66,7 +90,8 @@ def _check_existing_material(
     
     existing_materials = query.all()
     
-    # Check each existing material to see if it matches the type
+    # Filter materials that match the type
+    matching_materials = []
     for existing in existing_materials:
         if not existing.material_type:
             continue
@@ -76,11 +101,26 @@ def _check_existing_material(
         if existing.material_type.upper() in db_to_frontend_mapping:
             existing_type_normalized = db_to_frontend_mapping[existing.material_type.upper()].lower()
         
-        # If types match, return the existing material
+        # If types match, add to list
         if existing_type_normalized == normalized_type:
-            return existing
+            matching_materials.append(existing)
     
-    return None
+    return matching_materials
+
+
+def _check_existing_material(
+    db: Session,
+    product_name: str,
+    material_type: str,
+    exclude_material_id: Optional[int] = None
+) -> Optional[Material]:
+    """
+    Legacy function for backward compatibility.
+    Check if a material of the same type already exists for the given product.
+    Returns the first existing material if found, None otherwise.
+    """
+    existing_materials = _check_existing_material_by_type(db, product_name, material_type, exclude_material_id)
+    return existing_materials[0] if existing_materials else None
 
 @router.get("", response_model=List[MaterialResponse])
 async def list_materials(
@@ -130,37 +170,99 @@ async def get_material(
 async def check_duplicate_material(
     product_name: str,
     material_type: str,
+    material_name: Optional[str] = None,
     material_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Check if a material of the same type already exists for the given product.
-    Returns information about existing material if found.
+    Check for duplicate materials.
+    - Returns blocking=True if exact name match found (should block upload)
+    - Returns warning=True if same type but different name (should warn but allow)
     """
-    existing = _check_existing_material(db, product_name, material_type, material_id)
+    result = {
+        "blocking": False,
+        "warning": False,
+        "existing_material": None,
+        "existing_materials": []
+    }
     
-    if existing:
-        return {
-            "exists": True,
-            "material": {
-                "id": existing.id,
-                "name": existing.name,
-                "material_type": existing.material_type,
-                "created_at": existing.created_at.isoformat() if existing.created_at else None,
-                "updated_at": existing.updated_at.isoformat() if existing.updated_at else None,
+    # Check for exact name match (blocking)
+    if material_name:
+        existing_by_name = _check_existing_material_by_name(db, product_name, material_name, material_id)
+        if existing_by_name:
+            result["blocking"] = True
+            result["existing_material"] = {
+                "id": existing_by_name.id,
+                "name": existing_by_name.name,
+                "material_type": existing_by_name.material_type,
+                "created_at": existing_by_name.created_at.isoformat() if existing_by_name.created_at else None,
+                "updated_at": existing_by_name.updated_at.isoformat() if existing_by_name.updated_at else None,
             }
-        }
-    return {"exists": False}
+            return result
+    
+    # Check for same type (warning)
+    existing_by_type = _check_existing_material_by_type(db, product_name, material_type, material_id)
+    if existing_by_type:
+        result["warning"] = True
+        result["existing_materials"] = [
+            {
+                "id": m.id,
+                "name": m.name,
+                "material_type": m.material_type,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+                "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+            }
+            for m in existing_by_type
+        ]
+    
+    # Backward compatibility: set "exists" field
+    result["exists"] = result["blocking"] or result["warning"]
+    if result["exists"] and not result["existing_material"] and result["existing_materials"]:
+        result["existing_material"] = result["existing_materials"][0]
+    
+    return result
 
-@router.post("", response_model=MaterialResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=MaterialResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Material",
+    description="Create a new material with metadata. File upload is handled separately via the upload endpoint.",
+    responses={
+        201: {"description": "Material created successfully"},
+        400: {"description": "Invalid input data or validation error"},
+        401: {"description": "Authentication required"},
+        409: {"description": "Material with same name already exists"}
+    }
+)
 async def create_material(
     material_data: MaterialCreate,
     replace_existing: str = "false",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Create a new material (metadata only, file upload separate)"""
+    """
+    Create a new material with metadata.
+    
+    Creates a material record in the database. This endpoint only handles metadata;
+    file upload must be done separately using the `/api/materials/upload` endpoint.
+    
+    **Requirements:**
+    - User must be authenticated
+    - Material name must be unique (unless `replace_existing=true`)
+    
+    **Parameters:**
+    - `material_data`: Material metadata (name, description, type, product hierarchy, etc.)
+    - `replace_existing`: If "true", replaces existing material with same name
+    
+    **Product Hierarchy:**
+    - Can optionally associate material with universe, category, and product
+    - All hierarchy IDs must exist and be valid
+    
+    **Returns:**
+    - Created material object with assigned ID
+    """
     try:
         from app.models.product import Universe, Category, Product
         
@@ -239,31 +341,38 @@ async def create_material(
         material_dict['universe_name'] = final_universe_name
         
         # Check for existing material of the same type (unless replacing)
-        # Handle both bool and string "true"/"false" for replace_existing
-        replace_existing_bool = replace_existing if isinstance(replace_existing, bool) else replace_existing.lower() == "true"
-        if not replace_existing_bool:
-            existing = _check_existing_material(db, final_product_name, material_dict.get('material_type'))
-            if existing:
+        # Check for exact name match (BLOCK - exact duplicate)
+        material_name = material_dict.get('name', '')
+        if material_name:
+            existing_by_name = _check_existing_material_by_name(db, final_product_name, material_name)
+            if existing_by_name:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail={
-                        "message": f"A {material_dict.get('material_type', 'material')} already exists for this product",
+                        "message": f"A material with the name '{material_name}' already exists for this product",
+                        "blocking": True,
                         "existing_material": {
-                            "id": existing.id,
-                            "name": existing.name,
-                            "material_type": existing.material_type,
-                            "created_at": existing.created_at.isoformat() if existing.created_at else None,
+                            "id": existing_by_name.id,
+                            "name": existing_by_name.name,
+                            "material_type": existing_by_name.material_type,
+                            "created_at": existing_by_name.created_at.isoformat() if existing_by_name.created_at else None,
                         }
                     }
                 )
-        else:
+        
+        # Check for same type (warn but allow - multiple versions allowed)
+        material_type = material_dict.get('material_type')
+        existing_by_type = _check_existing_material_by_type(db, final_product_name, material_type) if material_type else []
+        
+        # Handle both bool and string "true"/"false" for replace_existing
+        replace_existing_bool = replace_existing if isinstance(replace_existing, bool) else replace_existing.lower() == "true"
+        if replace_existing_bool and existing_by_type:
             # Archive existing materials of the same type
-            existing = _check_existing_material(db, final_product_name, material_dict.get('material_type'))
-            if existing:
+            for existing in existing_by_type:
                 existing.status = MaterialStatus.ARCHIVED
                 existing.updated_at = datetime.utcnow()
                 db.add(existing)
-                db.commit()  # Commit the archive before creating new material
+            db.commit()  # Commit the archive before creating new material
         
         # Remove IDs as they're not stored in Material model (for now)
         material_dict.pop('universe_id', None)
@@ -274,6 +383,24 @@ async def create_material(
         db.add(material)
         db.commit()
         db.refresh(material)
+        
+        # Return material with warning if same type exists (but different name)
+        if existing_by_type:
+            warning_message = f"A {material_type} already exists for this product ({', '.join([m.name for m in existing_by_type])}). You can upload multiple versions as long as the filename is different."
+            from app.schemas.material import MaterialResponse
+            material_dict_response = MaterialResponse.model_validate(material).model_dump()
+            material_dict_response["warning"] = warning_message
+            material_dict_response["existing_materials"] = [
+                {
+                    "id": m.id,
+                    "name": m.name,
+                    "material_type": m.material_type,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in existing_by_type
+            ]
+            return material_dict_response
+        
         return material
     except HTTPException:
         raise
@@ -537,12 +664,13 @@ async def upload_material_file(
         file_content = await file.read()
         file_size = len(file_content)
         
-        # Validate file size (50MB limit)
-        max_size = 50 * 1024 * 1024  # 50MB
-        if file_size > max_size:
+        # Validate file size (60GB limit)
+        from app.core.constants import MAX_FILE_SIZE
+        if file_size > MAX_FILE_SIZE:
+            max_size_gb = MAX_FILE_SIZE / (1024 * 1024 * 1024)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File size exceeds maximum allowed size of 50MB"
+                detail=f"File size exceeds maximum allowed size of {max_size_gb:.0f}GB"
             )
         
         # Validate file type
@@ -590,40 +718,50 @@ async def upload_material_file(
                 )
             final_other_type_description = other_type_description
         
-        # Check for existing material of the same type (unless replacing)
-        # Handle both bool and string "true"/"false" for replace_existing
+        # Check for existing materials
+        # 1. Check for exact name match (BLOCK - exact duplicate)
+        # 2. Check for same type (WARN - but allow multiple versions)
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"[UPLOAD] replace_existing parameter received: {replace_existing} (type: {type(replace_existing)})")
-        replace_existing_bool = replace_existing if isinstance(replace_existing, bool) else str(replace_existing).lower() in ("true", "1", "yes")
-        logger.info(f"[UPLOAD] replace_existing_bool: {replace_existing_bool}")
-        if not replace_existing_bool:
-            existing = _check_existing_material(db, final_product_name, material_type)
-            if existing:
-                logger.info(f"[UPLOAD] Duplicate found, returning 409")
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail={
-                        "message": f"A {material_type} already exists for this product",
-                        "existing_material": {
-                            "id": existing.id,
-                            "name": existing.name,
-                            "material_type": existing.material_type,
-                            "created_at": existing.created_at.isoformat() if existing.created_at else None,
-                        }
+        
+        # Check for exact name match (this should block)
+        existing_by_name = _check_existing_material_by_name(db, final_product_name, file.filename)
+        if existing_by_name:
+            logger.info(f"[UPLOAD] Exact duplicate name found: {file.filename}")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": f"A material with the name '{file.filename}' already exists for this product",
+                    "blocking": True,
+                    "existing_material": {
+                        "id": existing_by_name.id,
+                        "name": existing_by_name.name,
+                        "material_type": existing_by_name.material_type,
+                        "created_at": existing_by_name.created_at.isoformat() if existing_by_name.created_at else None,
                     }
-                )
-        else:
+                }
+            )
+        
+        # Check for same type (warn but allow)
+        existing_by_type = _check_existing_material_by_type(db, final_product_name, material_type)
+        warning_message = None
+        if existing_by_type:
+            logger.info(f"[UPLOAD] Found {len(existing_by_type)} existing material(s) of type {material_type}")
+            existing_names = [m.name for m in existing_by_type]
+            warning_message = f"A {material_type} already exists for this product ({', '.join(existing_names)}). You can upload multiple versions as long as the filename is different."
+        
+        # Handle replace_existing flag (for backward compatibility)
+        replace_existing_bool = replace_existing if isinstance(replace_existing, bool) else str(replace_existing).lower() in ("true", "1", "yes")
+        if replace_existing_bool and existing_by_type:
             # Archive existing materials of the same type
-            logger.info(f"[UPLOAD] Replacing existing material - archiving old one")
-            existing = _check_existing_material(db, final_product_name, material_type)
-            if existing:
-                logger.info(f"[UPLOAD] Found existing material to archive: {existing.id}")
+            logger.info(f"[UPLOAD] Replacing existing material - archiving old ones")
+            for existing in existing_by_type:
+                logger.info(f"[UPLOAD] Archiving existing material: {existing.id}")
                 existing.status = MaterialStatus.ARCHIVED
                 existing.updated_at = datetime.utcnow()
                 db.add(existing)
-                db.commit()  # Commit the archive before creating new material
-                logger.info(f"[UPLOAD] Archived existing material: {existing.id}")
+            db.commit()  # Commit the archive before creating new material
+            logger.info(f"[UPLOAD] Archived {len(existing_by_type)} existing material(s)")
         
         # Get folder path
         folder_path = storage_service.get_folder_path(
@@ -671,6 +809,26 @@ async def upload_material_file(
         db.add(material)
         db.commit()
         db.refresh(material)
+        
+        # Return material with warning if applicable
+        response_data = material
+        if warning_message:
+            # Add warning to response (FastAPI will serialize this properly)
+            # We'll return a dict with the material and warning
+            from app.schemas.material import MaterialResponse
+            material_dict = MaterialResponse.model_validate(material).model_dump()
+            material_dict["warning"] = warning_message
+            material_dict["existing_materials"] = [
+                {
+                    "id": m.id,
+                    "name": m.name,
+                    "material_type": m.material_type,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in existing_by_type
+            ]
+            return material_dict
+        
         return material
         
     except HTTPException:
@@ -891,4 +1049,283 @@ async def get_executive_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate executive summary: {str(e)}"
+        )
+
+
+@router.post("/batch/upload", status_code=status.HTTP_200_OK)
+async def batch_upload_materials(
+    files: List[UploadFile] = File(...),
+    suggestions_json: str = Form(...),
+    auto_apply_threshold: Optional[float] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Batch upload multiple materials with their metadata.
+    
+    Accepts multiple files and a JSON string containing suggestions/metadata for each file.
+    Processes each file individually and returns a summary of successes and failures.
+    """
+    import json
+    
+    try:
+        # Parse suggestions JSON
+        try:
+            suggestions = json.loads(suggestions_json)
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid suggestions_json format: {str(e)}"
+            )
+        
+        # Validate that we have matching files and suggestions
+        if len(files) != len(suggestions):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Mismatch: {len(files)} files but {len(suggestions)} suggestions"
+            )
+        
+        results = {
+            "success_count": 0,
+            "failure_count": 0,
+            "successes": [],
+            "failures": []
+        }
+        
+        # Process each file individually
+        for i, (file, suggestion) in enumerate(zip(files, suggestions)):
+            try:
+                # Validate suggestion has required fields
+                required_fields = ['universe_id', 'category_id', 'product_id', 'material_type', 'audience']
+                missing_fields = [field for field in required_fields if suggestion.get(field) is None or suggestion.get(field) == '']
+                
+                if missing_fields:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"Missing required fields: {', '.join(missing_fields)}"
+                    })
+                    continue
+                
+                # Create FormData-like structure for single file upload
+                # We'll call the existing upload logic by creating a new request context
+                # For now, let's replicate the upload logic here
+                from app.models.product import Universe, Category, Product
+                
+                # Validate universe, category, product exist
+                universe = db.query(Universe).filter(Universe.id == suggestion['universe_id']).first()
+                if not universe:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"Universe with id {suggestion['universe_id']} not found"
+                    })
+                    continue
+                
+                category = db.query(Category).filter(Category.id == suggestion['category_id']).first()
+                if not category:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"Category with id {suggestion['category_id']} not found"
+                    })
+                    continue
+                
+                product = db.query(Product).filter(Product.id == suggestion['product_id']).first()
+                if not product:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"Product with id {suggestion['product_id']} not found"
+                    })
+                    continue
+                
+                # Validate category belongs to universe
+                if category.universe_id != universe.id:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"Category {category.id} does not belong to universe {universe.id}"
+                    })
+                    continue
+                
+                # Validate product belongs to category
+                if product.category_id != category.id:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"Product {product.id} does not belong to category {category.id}"
+                    })
+                    continue
+                
+                # Read file content
+                file_content = await file.read()
+                file_size = len(file_content)
+                
+                # Validate file size (60GB limit)
+                from app.core.constants import MAX_FILE_SIZE
+                if file_size > MAX_FILE_SIZE:
+                    max_size_gb = MAX_FILE_SIZE / (1024 * 1024 * 1024)
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"File size exceeds maximum allowed size of {max_size_gb:.0f}GB"
+                    })
+                    continue
+                
+                # Validate file type
+                allowed_extensions = ['.pdf', '.pptx', '.ppt', '.docx', '.doc']
+                file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+                if file_ext not in allowed_extensions:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}"
+                    })
+                    continue
+                
+                # Map frontend values to database enum names
+                material_type_mapping = {
+                    'product_brief': 'PRODUCT_BRIEF',
+                    'sales_enablement_deck': 'PRODUCT_SALES_ENABLEMENT_DECK',
+                    'product_portfolio': 'PRODUCT_PORTFOLIO_PRESENTATION',
+                    'sales_deck': 'PRODUCT_SALES_DECK',
+                    'datasheet': 'PRODUCT_DATASHEET',
+                    'product_catalog': 'PRODUCT_CATALOG',
+                    'other': 'other',
+                }
+                
+                audience_mapping = {
+                    'internal': 'INTERNAL',
+                    'customer_facing': 'CUSTOMER_FACING',
+                    'shared_asset': 'BOTH',
+                }
+                
+                material_type = suggestion.get('material_type', 'product_brief')
+                audience = suggestion.get('audience', 'internal')
+                
+                db_material_type = material_type_mapping.get(material_type)
+                db_audience = audience_mapping.get(audience)
+                
+                if not db_material_type or not db_audience:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"Invalid material_type '{material_type}' or audience '{audience}'"
+                    })
+                    continue
+                
+                # Get other_type_description if material_type is "other"
+                final_other_type_description = None
+                if material_type == 'other':
+                    final_other_type_description = suggestion.get('other_type_description')
+                    if not final_other_type_description:
+                        results["failure_count"] += 1
+                        results["failures"].append({
+                            "filename": file.filename,
+                            "error": "other_type_description is required when material_type is 'other'"
+                        })
+                        continue
+                
+                # Get product and universe names
+                final_product_name = suggestion.get('product_name') or product.display_name or product.name
+                final_universe_name = suggestion.get('universe_name') or universe.name or universe.display_name
+                
+                # Check for existing materials
+                existing_by_name = _check_existing_material_by_name(db, final_product_name, file.filename)
+                if existing_by_name:
+                    results["failure_count"] += 1
+                    results["failures"].append({
+                        "filename": file.filename,
+                        "error": f"A material with the name '{file.filename}' already exists for this product",
+                        "blocking": True,
+                        "existing_material_id": existing_by_name.id
+                    })
+                    continue
+                
+                # Get folder path
+                folder_path = storage_service.get_folder_path(
+                    material_type=material_type,
+                    audience=audience,
+                    product_name=final_product_name,
+                    universe_name=final_universe_name
+                )
+                
+                # Save file
+                relative_path = storage_service.save_file(
+                    file_content=file_content,
+                    file_name=file.filename,
+                    folder_path=folder_path
+                )
+                
+                # Parse freshness_date if provided
+                freshness_date = suggestion.get('freshness_date')
+                last_updated_date = datetime.utcnow()
+                if freshness_date:
+                    try:
+                        last_updated_date = datetime.strptime(freshness_date, "%Y-%m-%d")
+                        last_updated_date = last_updated_date.replace(hour=23, minute=59, second=59)
+                    except ValueError:
+                        pass
+                
+                # Create material record
+                material = Material(
+                    name=file.filename,
+                    material_type=db_material_type,
+                    other_type_description=final_other_type_description,
+                    audience=db_audience,
+                    product_name=final_product_name,
+                    universe_name=final_universe_name,
+                    file_path=relative_path,
+                    file_name=file.filename,
+                    file_format=file.filename.split('.')[-1] if '.' in file.filename else None,
+                    file_size=file_size,
+                    owner_id=current_user.id,
+                    status="DRAFT",
+                    last_updated=last_updated_date
+                )
+                db.add(material)
+                db.commit()
+                db.refresh(material)
+                
+                results["success_count"] += 1
+                results["successes"].append({
+                    "filename": file.filename,
+                    "material_id": material.id,
+                    "material_name": material.name
+                })
+                
+            except HTTPException:
+                # Re-raise HTTP exceptions
+                raise
+            except HTTPException as he:
+                # Re-raise HTTP exceptions to be handled by outer try/except
+                db.rollback()
+                logger.error(f"HTTPException uploading file {file.filename}: {he.detail}")
+                results["failure_count"] += 1
+                error_detail = he.detail
+                if isinstance(error_detail, dict):
+                    error_detail = error_detail.get('message', str(error_detail))
+                results["failures"].append({
+                    "filename": file.filename,
+                    "error": str(error_detail)
+                })
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Error uploading file {file.filename}: {str(e)}", exc_info=True)
+                results["failure_count"] += 1
+                results["failures"].append({
+                    "filename": file.filename,
+                    "error": f"Failed to upload: {str(e)}"
+                })
+        
+        return results
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in batch upload: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process batch upload: {str(e)}"
         )

@@ -27,14 +27,46 @@ def generate_unique_token() -> str:
     return secrets.token_urlsafe(48)  # 64 characters when base64 encoded
 
 
-@router.post("", response_model=SharedLinkResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=SharedLinkResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Shared Link",
+    description="Create a new shareable link for a published material",
+    responses={
+        201: {"description": "Shared link created successfully"},
+        400: {"description": "Material is not published or invalid request"},
+        404: {"description": "Material not found"},
+        401: {"description": "Authentication required"}
+    }
+)
 async def create_shared_link(
     link_data: SharedLinkCreate,
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Create a new shared link for a material (requires authentication)"""
+    """
+    Create a new shared link for a material.
+    
+    This endpoint generates a unique token and creates a shareable link that can be
+    sent to customers. The link allows them to view and download the material without
+    requiring authentication.
+    
+    **Requirements:**
+    - User must be authenticated
+    - Material must exist and be published
+    - Material must have a file attached
+    
+    **Parameters:**
+    - `material_id`: ID of the material to share
+    - `customer_email`: (Optional) Email address of the customer
+    - `customer_name`: (Optional) Name of the customer
+    - `expires_in_days`: Number of days until link expires (1-365, default: 90)
+    
+    **Returns:**
+    - Shared link object with unique token and share URL
+    """
     # Verify material exists and is published
     material = db.query(Material).filter(Material.id == link_data.material_id).first()
     if not material:
@@ -100,15 +132,44 @@ async def create_shared_link(
     }
 
 
-@router.get("/token/{token}", response_model=SharedLinkPublicResponse)
+@router.get(
+    "/token/{token}",
+    response_model=SharedLinkPublicResponse,
+    summary="Get Shared Link by Token",
+    description="Retrieve shared link information using the token (PUBLIC endpoint)",
+    responses={
+        200: {"description": "Shared link information retrieved successfully"},
+        404: {"description": "Link not found, expired, or deactivated"}
+    }
+)
 async def get_shared_link_by_token(
     token: str,
     request: Request,
     db: Session = Depends(get_db)
 ):
     """
-    Get shared link information by token (PUBLIC - no authentication required)
-    This is the endpoint that validates shared links for external customers
+    Get shared link information by token.
+    
+    **PUBLIC ENDPOINT** - No authentication required. This endpoint is used by
+    external customers to access shared materials.
+    
+    **Parameters:**
+    - `token`: Unique token from the shareable link
+    
+    **Validation:**
+    - Link must exist
+    - Link must be active (`is_active = True`)
+    - Link must not be expired (`expires_at > now`)
+    - Material must exist
+    
+    **Tracking:**
+    - Increments `access_count` on each access
+    - Records `last_accessed_at` timestamp
+    - Creates a MaterialUsage VIEW event for analytics
+    
+    **Returns:**
+    - Shared link information including material details
+    - Does not include sensitive information (user IDs, etc.)
     """
     shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
     
@@ -178,14 +239,44 @@ async def get_shared_link_by_token(
     }
 
 
-@router.get("/token/{token}/download")
+@router.get(
+    "/token/{token}/download",
+    summary="Download Material via Shared Link",
+    description="Download the material file using a shared link token (PUBLIC endpoint)",
+    responses={
+        200: {"description": "File download"},
+        404: {"description": "Link not found, expired, or file not available"}
+    }
+)
 async def download_shared_material(
     token: str,
     request: Request,
     db: Session = Depends(get_db)
 ):
     """
-    Download material file via shared link (PUBLIC - no authentication required)
+    Download material file via shared link.
+    
+    **PUBLIC ENDPOINT** - No authentication required. This endpoint allows
+    external customers to download materials shared with them.
+    
+    **Parameters:**
+    - `token`: Unique token from the shareable link
+    
+    **Validation:**
+    - Link must exist and be valid (active and not expired)
+    - Material must exist
+    - Material must have a file attached
+    
+    **Tracking:**
+    - Increments `download_count` on each download
+    - Records `last_downloaded_at` timestamp
+    - Increments `access_count`
+    - Creates a MaterialUsage DOWNLOAD event for analytics
+    - Updates material `usage_count`
+    
+    **Returns:**
+    - File download with appropriate Content-Type header
+    - Filename in Content-Disposition header
     """
     shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
     
@@ -600,7 +691,20 @@ async def update_shared_link(
     }
 
 
-@router.post("/{link_id}/send-email", status_code=status.HTTP_200_OK)
+@router.post(
+    "/{link_id}/send-email",
+    status_code=status.HTTP_200_OK,
+    summary="Send Email Notification",
+    description="Send an email notification with the shared link to a customer",
+    responses={
+        200: {"description": "Email sent successfully"},
+        400: {"description": "No email address provided"},
+        403: {"description": "You can only send emails for your own shared links"},
+        404: {"description": "Shared link or material not found"},
+        500: {"description": "Failed to send email (check SMTP configuration)"},
+        503: {"description": "Email service not available"}
+    }
+)
 async def send_shared_link_email(
     link_id: int,
     customer_email: Optional[str] = Query(None, description="Email address to send to (optional, uses link's email if not provided)"),
@@ -608,7 +712,31 @@ async def send_shared_link_email(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Send email notification for a shared link"""
+    """
+    Send email notification for a shared link.
+    
+    Sends an email to the customer with the shareable link and material information.
+    The email includes a formatted HTML template with the material name, share URL,
+    and expiration information.
+    
+    **Requirements:**
+    - User must be authenticated
+    - User must be the creator of the shared link
+    - SMTP must be configured and enabled in settings
+    - Email address must be provided (either as parameter or in the link)
+    
+    **Parameters:**
+    - `link_id`: ID of the shared link
+    - `customer_email`: (Optional) Email address to send to. If not provided, uses the email from the link.
+    
+    **Email Configuration:**
+    - Requires `SMTP_ENABLED=true` in backend `.env`
+    - Requires valid SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASSWORD)
+    - Email is sent asynchronously and does not block the response
+    
+    **Returns:**
+    - Success message with the email address used
+    """
     shared_link = db.query(SharedLink).filter(SharedLink.id == link_id).first()
     
     if not shared_link:

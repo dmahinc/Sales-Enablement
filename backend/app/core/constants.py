@@ -2,7 +2,7 @@
 Application constants
 """
 # File upload limits
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB in bytes
+MAX_FILE_SIZE = 60 * 1024 * 1024 * 1024  # 60GB in bytes
 ALLOWED_FILE_EXTENSIONS = ['.pdf', '.pptx', '.ppt', '.docx', '.doc']
 ALLOWED_MIME_TYPES = [
     'application/pdf',

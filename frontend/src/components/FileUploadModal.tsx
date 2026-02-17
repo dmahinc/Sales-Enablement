@@ -215,7 +215,10 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   }
 
   const [showReplaceDialog, setShowReplaceDialog] = useState(false)
+  const [showWarningDialog, setShowWarningDialog] = useState(false)
   const [existingMaterial, setExistingMaterial] = useState<any>(null)
+  const [existingMaterials, setExistingMaterials] = useState<any[]>([])
+  const [warningMessage, setWarningMessage] = useState<string>('')
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null)
   const [isReplacing, setIsReplacing] = useState(false)
   // Use refs to track state in async callbacks
@@ -223,8 +226,14 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   const showReplaceDialogRef = useRef(false)
 
   const checkDuplicateMutation = useMutation({
-    mutationFn: async (data: { product_name: string, material_type: string }) => {
-      return api.get(`/materials/check-duplicate?product_name=${encodeURIComponent(data.product_name)}&material_type=${encodeURIComponent(data.material_type)}`).then(res => res.data)
+    mutationFn: async (data: { product_name: string, material_type: string, material_name?: string }) => {
+      const params = new URLSearchParams()
+      params.append('product_name', data.product_name)
+      params.append('material_type', data.material_type)
+      if (data.material_name) {
+        params.append('material_name', data.material_name)
+      }
+      return api.get(`/materials/check-duplicate?${params.toString()}`).then(res => res.data)
     },
   })
 
@@ -237,7 +246,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       })
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['materials'] })
       // Reset all states
       setIsReplacing(false)
@@ -245,8 +254,17 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       setUploading(false)
       setShowReplaceDialog(false)
       showReplaceDialogRef.current = false
+      setShowWarningDialog(false)
       setExistingMaterial(null)
+      setExistingMaterials([])
+      setWarningMessage('')
       setPendingFormData(null)
+      
+      // Show warning message if backend returned one
+      if (data?.warning) {
+        alert(`Upload successful!\n\nNote: ${data.warning}`)
+      }
+      
       // Close the entire modal
       handleClose()
     },
@@ -276,37 +294,40 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
           showReplaceDialogRef.current = true
           return
         }
-        // Not replacing - show replace dialog
+        // Not replacing - check if blocking (exact name match) or just warning
         const detail = error.response?.data?.detail
-        if (detail && typeof detail === 'object' && detail.existing_material) {
-          setExistingMaterial(detail.existing_material)
-          setUploading(false)
-          setIsReplacing(false)
-          isReplacingRef.current = false
-          // Rebuild FormData from current form state since duplicate check might have failed
-          const formDataToStore = new FormData()
-          if (file) {
-            formDataToStore.append('file', file)
-            formDataToStore.append('material_type', formData.material_type)
-            if (formData.material_type === 'other' && formData.other_type_description) {
-              formDataToStore.append('other_type_description', formData.other_type_description)
+        if (detail && typeof detail === 'object') {
+          // Blocking error (exact name match) - show replace dialog
+          if (detail.blocking && detail.existing_material) {
+            setExistingMaterial(detail.existing_material)
+            setUploading(false)
+            setIsReplacing(false)
+            isReplacingRef.current = false
+            // Rebuild FormData from current form state since duplicate check might have failed
+            const formDataToStore = new FormData()
+            if (file) {
+              formDataToStore.append('file', file)
+              formDataToStore.append('material_type', formData.material_type)
+              if (formData.material_type === 'other' && formData.other_type_description) {
+                formDataToStore.append('other_type_description', formData.other_type_description)
+              }
+              formDataToStore.append('audience', formData.audience)
+              formDataToStore.append('freshness_date', formData.freshness_date)
+              formDataToStore.append('universe_id', formData.universe_id!.toString())
+              formDataToStore.append('category_id', formData.category_id!.toString())
+              formDataToStore.append('product_id', formData.product_id!.toString())
+              if (formData.product_name) {
+                formDataToStore.append('product_name', formData.product_name)
+              }
+              if (formData.universe_name) {
+                formDataToStore.append('universe_name', formData.universe_name)
+              }
+              setPendingFormData(formDataToStore)
             }
-            formDataToStore.append('audience', formData.audience)
-            formDataToStore.append('freshness_date', formData.freshness_date)
-            formDataToStore.append('universe_id', formData.universe_id!.toString())
-            formDataToStore.append('category_id', formData.category_id!.toString())
-            formDataToStore.append('product_id', formData.product_id!.toString())
-            if (formData.product_name) {
-              formDataToStore.append('product_name', formData.product_name)
-            }
-            if (formData.universe_name) {
-              formDataToStore.append('universe_name', formData.universe_name)
-            }
-            setPendingFormData(formDataToStore)
+            setShowReplaceDialog(true)
+            showReplaceDialogRef.current = true
+            return
           }
-          setShowReplaceDialog(true)
-          showReplaceDialogRef.current = true
-          return
         }
       }
       // For any other error, show error
@@ -397,7 +418,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     }
 
     // Check for duplicates first (skip for 'other' type)
-    if (formData.material_type !== 'other') {
+    if (formData.material_type !== 'other' && file) {
       try {
         // Ensure uploading is false before checking
         setUploading(false)
@@ -405,17 +426,32 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         const productName = product.display_name || product.name
         const duplicateCheck = await checkDuplicateMutation.mutateAsync({ 
           product_name: productName, 
-          material_type: formData.material_type 
+          material_type: formData.material_type,
+          material_name: file.name
         })
-        if (duplicateCheck.exists) {
-          // Explicitly ensure uploading is false before showing dialog
+        
+        // Check for blocking (exact name match)
+        if (duplicateCheck.blocking) {
+          // Block upload - exact duplicate name
           setUploading(false)
-          setExistingMaterial(duplicateCheck.material)
+          setExistingMaterial(duplicateCheck.existing_material)
           setPendingFormData(formDataToSend)
           setShowReplaceDialog(true)
           showReplaceDialogRef.current = true
-          isReplacingRef.current = false // Not replacing yet, just showing dialog
-          // Don't set uploading=true here - wait for user confirmation
+          isReplacingRef.current = false
+          return
+        }
+        
+        // Check for warning (same type, different name)
+        if (duplicateCheck.warning) {
+          // Show warning but allow upload
+          setWarningMessage(
+            `A ${formData.material_type} already exists for this product (${duplicateCheck.existing_materials?.map((m: any) => m.name).join(', ') || ''}). You can upload multiple versions as long as the filename is different.`
+          )
+          setExistingMaterials(duplicateCheck.existing_materials || [])
+          setPendingFormData(formDataToSend)
+          setShowWarningDialog(true)
+          // Don't return - let user proceed after acknowledging warning
           return
         }
       } catch (error) {
@@ -439,7 +475,10 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       console.log('Missing file, closing dialog')
       setShowReplaceDialog(false)
       showReplaceDialogRef.current = false
+      setShowWarningDialog(false)
       setExistingMaterial(null)
+      setExistingMaterials([])
+      setWarningMessage('')
       setPendingFormData(null)
       setIsReplacing(false)
       isReplacingRef.current = false
@@ -515,9 +554,29 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     setUploading(false)
   }
 
+  const handleWarningConfirm = () => {
+    // User acknowledged warning, proceed with upload
+    setShowWarningDialog(false)
+    if (pendingFormData) {
+      setUploading(true)
+      uploadMutation.mutate(pendingFormData)
+    }
+  }
+
+  const handleWarningCancel = () => {
+    setShowWarningDialog(false)
+    setWarningMessage('')
+    setExistingMaterials([])
+    setPendingFormData(null)
+    setUploading(false)
+  }
+
   const handleClose = () => {
     setFile(null)
     setUploading(false)
+    setShowWarningDialog(false)
+    setWarningMessage('')
+    setExistingMaterials([])
     setIsReplacing(false)
     setShowReplaceDialog(false)
     setExistingMaterial(null)
@@ -1137,6 +1196,52 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                 ) : (
                   'Replace'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warning Dialog - Same type but different name */}
+      {showWarningDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <span className="text-amber-500">⚠</span>
+              Multiple Versions Warning
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">
+              {warningMessage}
+            </p>
+            {existingMaterials.length > 0 && (
+              <div className="bg-amber-50 rounded-lg p-4 mb-4">
+                <p className="text-xs font-medium text-amber-900 mb-2">Existing materials:</p>
+                <ul className="text-xs text-amber-800 space-y-1">
+                  {existingMaterials.map((m: any) => (
+                    <li key={m.id}>• {m.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="text-sm text-slate-600 mb-4">
+              You can proceed to upload this version. Both materials will be available.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleWarningCancel}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+                disabled={uploading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleWarningConfirm}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
+                disabled={uploading}
+              >
+                Continue Upload
               </button>
             </div>
           </div>

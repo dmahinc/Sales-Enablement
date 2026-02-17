@@ -67,13 +67,47 @@ async def get_user(
     return user
 
 
-@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create User",
+    description="Create a new user account (admin only)",
+    responses={
+        201: {"description": "User created successfully"},
+        400: {"description": "Invalid input data or email already exists"},
+        401: {"description": "Authentication required"},
+        403: {"description": "Admin access required"},
+        500: {"description": "Failed to create user"}
+    }
+)
 async def create_user(
     user_data: UserCreate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
+    """
+    Create a new user account.
+    
+    **Admin Only** - Only users with admin role can create new users.
+    
+    **Requirements:**
+    - User must be authenticated and have admin role
+    - Email must be unique
+    - Password must meet security requirements
+    
+    **Email Notification:**
+    - If SMTP is configured, sends welcome email with credentials
+    - Email sending happens asynchronously and does not block the response
+    - User creation succeeds even if email fails
+    
+    **Parameters:**
+    - `user_data`: User information including email, password, name, and role
+    
+    **Returns:**
+    - Created user object (password is hashed and not returned)
+    """
     """Create a new user (Admin only)"""
     try:
         # Check if user exists
