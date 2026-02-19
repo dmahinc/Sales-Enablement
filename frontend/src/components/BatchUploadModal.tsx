@@ -18,6 +18,7 @@ interface FileSuggestion {
   material_type?: string | null
   audience?: string | null
   other_type_description?: string | null
+  pmm_in_charge_id?: number | null
 }
 
 interface BatchUploadModalProps {
@@ -82,6 +83,13 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       return api.get(`/products/?${params.toString()}`).then(res => res.data)
     },
     enabled: !!editFormData?.universe_id,
+  })
+
+  // Fetch PMM users for PMM selection
+  const { data: pmmUsers = [] } = useQuery({
+    queryKey: ['users', 'pmms'],
+    queryFn: () => api.get('/users/pmms').then(res => res.data),
+    enabled: true, // Always fetch PMM users
   })
 
   // Create category mutation
@@ -434,6 +442,7 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       material_type: 'product_brief', // Default value
       audience: 'internal', // Default value
       other_type_description: null,
+      pmm_in_charge_id: isPMM && user?.id ? user.id : null,
     }))
     
     setSuggestions(emptySuggestions)
@@ -566,6 +575,9 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
           const singleFormData = new FormData()
           singleFormData.append('file', file)
           singleFormData.append('material_type', suggestion.material_type)
+          if (suggestion.pmm_in_charge_id) {
+            singleFormData.append('pmm_in_charge_id', suggestion.pmm_in_charge_id.toString())
+          }
           singleFormData.append('audience', suggestion.audience)
           singleFormData.append('universe_id', suggestion.universe_id.toString())
           singleFormData.append('category_id', suggestion.category_id.toString())
@@ -962,6 +974,9 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                       <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Product</th>
                       <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Type</th>
                       <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Audience</th>
+                      {(isDirector || isPMM) && (
+                        <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">PMM in Charge</th>
+                      )}
                       <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Confidence</th>
                       <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Actions</th>
                     </tr>
@@ -1381,6 +1396,22 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                                 <option value="customer_facing">Customer Facing</option>
                               </select>
                             </td>
+                            {(isDirector || isPMM) && (
+                              <td className="border border-slate-300 px-4 py-2 text-sm">
+                                <select
+                                  value={editFormData.pmm_in_charge_id || ''}
+                                  onChange={(e) => setEditFormData({ ...editFormData, pmm_in_charge_id: e.target.value ? parseInt(e.target.value) : null })}
+                                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                >
+                                  <option value="">Select PMM...</option>
+                                  {pmmUsers.map((pmm: any) => (
+                                    <option key={pmm.id} value={pmm.id}>
+                                      {pmm.full_name} ({pmm.email})
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            )}
                             <td className="border border-slate-300 px-4 py-2 text-sm">
                               <span className={`px-2 py-1 rounded text-xs font-medium ${getConfidenceColor(suggestion.confidence)}`}>
                                 {suggestion.confidence === 0 
@@ -1432,6 +1463,16 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                           <td className="border border-slate-300 px-4 py-2 text-sm">
                             {suggestion.audience || '-'}
                           </td>
+                          {(isDirector || isPMM) && (
+                            <td className="border border-slate-300 px-4 py-2 text-sm">
+                              {suggestion.pmm_in_charge_id 
+                                ? (() => {
+                                    const pmm = pmmUsers.find((u: any) => u.id === suggestion.pmm_in_charge_id)
+                                    return pmm ? `${pmm.full_name} (${pmm.email})` : '-'
+                                  })()
+                                : '-'}
+                            </td>
+                          )}
                           <td className="border border-slate-300 px-4 py-2 text-sm">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${getConfidenceColor(suggestion.confidence)}`}>
                               {suggestion.confidence === 0 

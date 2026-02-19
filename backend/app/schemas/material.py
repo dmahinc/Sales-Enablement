@@ -75,6 +75,7 @@ class MaterialBase(BaseModel):
     product_name: Optional[str] = Field(None, max_length=255)
     universe_name: Optional[str] = Field(None, max_length=100)
     status: Optional[str] = "draft"
+    pmm_in_charge_id: Optional[int] = Field(None, description="ID of the PMM in charge of this material")
     tags: Optional[List[str]] = []
     keywords: Optional[List[str]] = []
     use_cases: Optional[List[str]] = []
@@ -129,6 +130,7 @@ class MaterialUpdate(BaseModel):
     product_name: Optional[str] = Field(None, max_length=255)
     universe_name: Optional[str] = Field(None, max_length=100)
     status: Optional[str] = None
+    pmm_in_charge_id: Optional[int] = Field(None, description="ID of the PMM in charge of this material")
     tags: Optional[List[str]] = None
     keywords: Optional[List[str]] = None
     use_cases: Optional[List[str]] = None
@@ -173,6 +175,9 @@ class MaterialResponse(MaterialBase):
     completeness_score: int = Field(default=0)
     last_updated: Optional[datetime] = None
     owner_id: Optional[int] = None
+    pmm_in_charge_id: Optional[int] = None
+    pmm_in_charge_name: Optional[str] = None
+    pmm_in_charge_email: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

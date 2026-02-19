@@ -51,6 +51,17 @@ async def list_users(
     return users
 
 
+@router.get("/pmms", response_model=List[UserResponse])
+async def list_pmm_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """List all PMM users (accessible to all authenticated users)"""
+    pmm_users = db.query(User).filter(User.role == "pmm").order_by(User.full_name).all()
+    # Convert to response models to ensure proper serialization
+    return [UserResponse.model_validate(user) for user in pmm_users]
+
+
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: int,

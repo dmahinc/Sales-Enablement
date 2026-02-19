@@ -26,7 +26,8 @@ class User(BaseModel):
     role = Column(String(50), default="pmm")  # pmm, director, sales, admin
     
     # Relationships (using string references to avoid circular imports)
-    materials = relationship("Material", back_populates="owner", lazy="dynamic")
+    # Specify foreign_keys to avoid ambiguity since Material has both owner_id and pmm_in_charge_id
+    materials = relationship("Material", back_populates="owner", foreign_keys="Material.owner_id", lazy="dynamic")
     # AICorrection relationship - conditionally defined
     # Note: This will fail if AICorrection model doesn't exist and is accessed
     # The relationship is defined but won't be used if the model doesn't exist

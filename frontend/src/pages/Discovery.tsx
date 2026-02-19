@@ -239,22 +239,96 @@ export default function Discovery() {
     setSelectedProductId(productId)
   }
 
-  // Handle download
+  const [downloadingMaterial, setDownloadingMaterial] = useState<Material | null>(null)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+
+  // Handle download with progress tracking
   const handleDownload = async (material: Material) => {
-    try {
-      const response = await api.get(`/materials/${material.id}/download`, {
-        responseType: 'blob',
+    setDownloadingMaterial(material)
+    setDownloadProgress(0)
+
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      const token = localStorage.getItem('token')
+      const API_URL = import.meta.env.VITE_API_URL || '/api'
+      const url = `${API_URL}/materials/${material.id}/download`
+
+      xhr.open('GET', url, true)
+      xhr.responseType = 'blob'
+
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      }
+
+      // No timeout - let it download as long as needed
+      xhr.timeout = 0
+
+      // Track download progress
+      xhr.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = (event.loaded / event.total) * 100
+          setDownloadProgress(percentComplete)
+        }
       })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', material.file_name || `${material.name}.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-    } catch (error) {
-      alert('Failed to download file')
-    }
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const blob = xhr.response
+          const url = window.URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.setAttribute('download', material.file_name || `${material.name}.pdf`)
+          document.body.appendChild(link)
+          link.click()
+          link.remove()
+          window.URL.revokeObjectURL(url)
+          setDownloadingMaterial(null)
+          setDownloadProgress(0)
+          resolve()
+        } else {
+          try {
+            const errorBlob = xhr.response
+            errorBlob.text().then((text: string) => {
+              let errorMessage = 'Failed to download file'
+              try {
+                const errorData = JSON.parse(text)
+                errorMessage = errorData.detail || errorMessage
+              } catch {
+                errorMessage = text || errorMessage
+              }
+              setDownloadingMaterial(null)
+              setDownloadProgress(0)
+              alert(`Failed to download file: ${errorMessage}`)
+              reject(new Error(errorMessage))
+            })
+          } catch {
+            setDownloadingMaterial(null)
+            setDownloadProgress(0)
+            const errorMessage = `Failed to download file: HTTP ${xhr.status}`
+            alert(errorMessage)
+            reject(new Error(errorMessage))
+          }
+        }
+      }
+
+      xhr.onerror = () => {
+        setDownloadingMaterial(null)
+        setDownloadProgress(0)
+        const errorMessage = 'Network error while downloading file'
+        alert(errorMessage)
+        reject(new Error(errorMessage))
+      }
+
+      xhr.ontimeout = () => {
+        setDownloadingMaterial(null)
+        setDownloadProgress(0)
+        const errorMessage = 'Download timeout'
+        alert(errorMessage)
+        reject(new Error(errorMessage))
+      }
+
+      xhr.send()
+    })
   }
 
   if (materialsLoading) {
@@ -589,6 +663,23 @@ export default function Discovery() {
             setPreviewMaterial(null)
           }}
         />
+      )}
+
+      {/* Download Progress Modal */}
+      {downloadingMaterial && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Downloading Material</h3>
+            <p className="text-sm text-slate-600 mb-4 truncate">{downloadingMaterial.name || downloadingMaterial.file_name}</p>
+            <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
+              <div
+                className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${downloadProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-500 text-center">{downloadProgress.toFixed(0)}%</p>
+          </div>
+        </div>
       )}
     </div>
   )

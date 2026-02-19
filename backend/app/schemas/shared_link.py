@@ -103,6 +103,9 @@ class TimelineEvent(BaseModel):
     timestamp: datetime
     material_id: int
     material_name: str
+    product_name: Optional[str] = None
+    material_type: Optional[str] = None
+    other_type_description: Optional[str] = None
     customer_email: Optional[str] = None
     customer_name: Optional[str] = None
     shared_link_id: int

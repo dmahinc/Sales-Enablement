@@ -59,7 +59,11 @@ class Material(BaseModel):
     
     # Ownership
     owner_id = Column(Integer, ForeignKey("users.id"))
-    owner = relationship("User", back_populates="materials")
+    owner = relationship("User", back_populates="materials", foreign_keys=[owner_id])
+    
+    # PMM in charge
+    pmm_in_charge_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    pmm_in_charge = relationship("User", foreign_keys=[pmm_in_charge_id])
     
     # Health Metrics
     last_updated = Column(DateTime)

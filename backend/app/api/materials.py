@@ -149,7 +149,19 @@ async def list_materials(
         query = query.filter(Material.status == status)
     
     materials = query.offset(skip).limit(limit).all()
-    return materials
+    
+    # Add PMM information to each material
+    result = []
+    for material in materials:
+        material_dict = MaterialResponse.model_validate(material).model_dump()
+        if material.pmm_in_charge_id:
+            pmm_user = db.query(User).filter(User.id == material.pmm_in_charge_id).first()
+            if pmm_user:
+                material_dict['pmm_in_charge_name'] = pmm_user.full_name
+                material_dict['pmm_in_charge_email'] = pmm_user.email
+        result.append(material_dict)
+    
+    return result
 
 @router.get("/{material_id}", response_model=MaterialResponse)
 async def get_material(
@@ -164,7 +176,16 @@ async def get_material(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Material not found"
         )
-    return material
+    
+    # Add PMM information
+    material_dict = MaterialResponse.model_validate(material).model_dump()
+    if material.pmm_in_charge_id:
+        pmm_user = db.query(User).filter(User.id == material.pmm_in_charge_id).first()
+        if pmm_user:
+            material_dict['pmm_in_charge_name'] = pmm_user.full_name
+            material_dict['pmm_in_charge_email'] = pmm_user.email
+    
+    return material_dict
 
 @router.get("/check-duplicate")
 async def check_duplicate_material(
@@ -334,6 +355,13 @@ async def create_material(
         material_dict['pain_points'] = str(material_dict.get('pain_points', [])) if material_dict.get('pain_points') else None
         material_dict['owner_id'] = current_user.id
         
+        # Set PMM in charge: if current user is PMM, use them; otherwise use provided pmm_in_charge_id or leave null
+        if current_user.role == "pmm":
+            material_dict['pmm_in_charge_id'] = current_user.id
+        elif 'pmm_in_charge_id' not in material_dict or not material_dict.get('pmm_in_charge_id'):
+            # If not PMM and no PMM specified, leave null (can be set later)
+            material_dict['pmm_in_charge_id'] = None
+        
         # Set names from product/universe if not provided
         final_product_name = material_dict.get('product_name') or (product.display_name or product.name)
         final_universe_name = material_dict.get('universe_name') or universe.name
@@ -457,6 +485,18 @@ async def update_material(
                 if universe:
                     update_data['universe_name'] = universe.name
         
+        # Validate PMM in charge if provided
+        if 'pmm_in_charge_id' in update_data and update_data['pmm_in_charge_id']:
+            pmm_user = db.query(User).filter(
+                User.id == update_data['pmm_in_charge_id'],
+                User.role == 'pmm'
+            ).first()
+            if not pmm_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User with id {update_data['pmm_in_charge_id']} is not a PMM"
+                )
+        
         # Remove IDs as they're not stored in Material model
         update_data.pop('universe_id', None)
         update_data.pop('category_id', None)
@@ -534,7 +574,16 @@ async def update_material(
         material.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(material)
-        return material
+        
+        # Add PMM information to response
+        material_dict = MaterialResponse.model_validate(material).model_dump()
+        if material.pmm_in_charge_id:
+            pmm_user = db.query(User).filter(User.id == material.pmm_in_charge_id).first()
+            if pmm_user:
+                material_dict['pmm_in_charge_name'] = pmm_user.full_name
+                material_dict['pmm_in_charge_email'] = pmm_user.email
+        
+        return material_dict
     except Exception as e:
         db.rollback()
         raise HTTPException(
@@ -587,6 +636,7 @@ async def upload_material_file(
     universe_name: Optional[str] = Form(None),
     other_type_description: Optional[str] = Form(None),
     freshness_date: Optional[str] = Form(None),
+    pmm_in_charge_id: Optional[int] = Form(None),
     replace_existing: str = Form("false"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -790,6 +840,20 @@ async def upload_material_file(
                 # If parsing fails, use current date
                 pass
         
+        # Determine PMM in charge: use provided pmm_in_charge_id, or if current user is PMM, use them; otherwise leave null
+        final_pmm_in_charge_id = None
+        if pmm_in_charge_id:
+            # Validate that the user is a PMM
+            pmm_user = db.query(User).filter(User.id == pmm_in_charge_id, User.role == 'pmm').first()
+            if not pmm_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User with id {pmm_in_charge_id} is not a PMM"
+                )
+            final_pmm_in_charge_id = pmm_in_charge_id
+        elif current_user.role == "pmm":
+            final_pmm_in_charge_id = current_user.id
+        
         # Create material record (columns are String type, not enum, so no casting needed)
         material = Material(
             name=file.filename,
@@ -803,6 +867,7 @@ async def upload_material_file(
             file_format=file.filename.split('.')[-1] if '.' in file.filename else None,
             file_size=file_size,
             owner_id=current_user.id,
+            pmm_in_charge_id=final_pmm_in_charge_id,
             status="DRAFT",
             last_updated=last_updated_date
         )
@@ -810,13 +875,25 @@ async def upload_material_file(
         db.commit()
         db.refresh(material)
         
-        # Return material with warning if applicable
-        response_data = material
+        # Convert to response model to ensure proper serialization
+        from app.schemas.material import MaterialResponse
+        material_dict = MaterialResponse.model_validate(material).model_dump(mode='json')
+        
+        # Add PMM information if available
+        if material.pmm_in_charge_id:
+            pmm_user = db.query(User).filter(User.id == material.pmm_in_charge_id).first()
+            if pmm_user:
+                material_dict['pmm_in_charge_name'] = pmm_user.full_name
+                material_dict['pmm_in_charge_email'] = pmm_user.email
+        
+        # Ensure datetime fields are ISO strings (model_dump(mode='json') should handle this, but double-check)
+        for date_field in ['created_at', 'updated_at', 'last_updated']:
+            if date_field in material_dict and material_dict[date_field]:
+                if isinstance(material_dict[date_field], datetime):
+                    material_dict[date_field] = material_dict[date_field].isoformat() + 'Z'
+        
+        # Add warning if applicable
         if warning_message:
-            # Add warning to response (FastAPI will serialize this properly)
-            # We'll return a dict with the material and warning
-            from app.schemas.material import MaterialResponse
-            material_dict = MaterialResponse.model_validate(material).model_dump()
             material_dict["warning"] = warning_message
             material_dict["existing_materials"] = [
                 {
@@ -827,14 +904,16 @@ async def upload_material_file(
                 }
                 for m in existing_by_type
             ]
-            return material_dict
         
-        return material
+        return material_dict
         
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        import traceback
+        logger.error(f"Error uploading file {file.filename if 'file' in locals() else 'unknown'}: {str(e)}", exc_info=True)
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload file: {str(e)}"
@@ -1268,6 +1347,17 @@ async def batch_upload_materials(
                     except ValueError:
                         pass
                 
+                # Determine PMM in charge: use provided pmm_in_charge_id, or if current user is PMM, use them; otherwise leave null
+                final_pmm_in_charge_id = None
+                pmm_in_charge_id_from_suggestion = suggestion.get('pmm_in_charge_id')
+                if pmm_in_charge_id_from_suggestion:
+                    # Validate that the user is a PMM
+                    pmm_user = db.query(User).filter(User.id == pmm_in_charge_id_from_suggestion, User.role == 'pmm').first()
+                    if pmm_user:
+                        final_pmm_in_charge_id = pmm_in_charge_id_from_suggestion
+                elif current_user.role == "pmm":
+                    final_pmm_in_charge_id = current_user.id
+                
                 # Create material record
                 material = Material(
                     name=file.filename,
@@ -1281,6 +1371,7 @@ async def batch_upload_materials(
                     file_format=file.filename.split('.')[-1] if '.' in file.filename else None,
                     file_size=file_size,
                     owner_id=current_user.id,
+                    pmm_in_charge_id=final_pmm_in_charge_id,
                     status="DRAFT",
                     last_updated=last_updated_date
                 )

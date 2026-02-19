@@ -4,11 +4,35 @@ import { api } from '../services/api'
 import { Share2, Eye, Download, Clock, User, Filter, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+// Helper function to format material type display (handles 'Other' case)
+function formatMaterialType(material: { material_type?: string | null; other_type_description?: string | null }): string {
+  if (!material.material_type) {
+    return 'Unknown'
+  }
+  
+  const type = material.material_type.toLowerCase().trim()
+  if (type === 'other' && material.other_type_description) {
+    return material.other_type_description
+  }
+  
+  return material.material_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+// Helper function to format material title as <Product Name> • <Material Type>
+function formatMaterialTitle(material: { product_name?: string | null; material_type?: string | null; other_type_description?: string | null }): string {
+  const productName = material.product_name || 'Unknown Product'
+  const materialType = formatMaterialType(material)
+  return `${productName} • ${materialType}`
+}
+
 interface TimelineEvent {
   event_type: 'shared' | 'viewed' | 'downloaded'
   timestamp: string
   material_id: number
   material_name: string
+  product_name?: string | null
+  material_type?: string | null
+  other_type_description?: string | null
   customer_email?: string | null
   customer_name?: string | null
   shared_link_id: number
@@ -386,7 +410,7 @@ export default function CustomerEngagementTimeline({
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-start justify-between gap-4 mb-2">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center space-x-2 mb-1">
                                 <span className={`text-xs font-semibold px-2 py-1 rounded ${colorClass}`}>
@@ -404,17 +428,33 @@ export default function CustomerEngagementTimeline({
                               >
                                 {event.material_name}
                               </Link>
+                              
+                              {event.product_name && event.material_type && (
+                                <div className="text-xs text-slate-500 mt-1">
+                                  {(() => {
+                                    try {
+                                      return formatMaterialTitle(event)
+                                    } catch (e) {
+                                      console.error('Error formatting material title:', e)
+                                      return `${event.product_name || 'Unknown'} • ${event.material_type || 'Unknown'}`
+                                    }
+                                  })()}
+                                </div>
+                              )}
                             </div>
+                            
+                            {/* Right side: Customer info */}
+                            {event.customer_email && (
+                              <div className="flex-shrink-0 text-right">
+                                <div className="flex items-center justify-end space-x-1 text-xs text-slate-600">
+                                  <User className="w-3.5 h-3.5" />
+                                  <span className="truncate max-w-[150px]">
+                                    {event.customer_name || event.customer_email}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          
-                          {event.customer_email && (
-                            <div className="flex items-center space-x-1 mt-2 text-xs text-slate-600">
-                              <User className="w-3.5 h-3.5" />
-                              <span className="truncate">
-                                {event.customer_name || event.customer_email}
-                              </span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>

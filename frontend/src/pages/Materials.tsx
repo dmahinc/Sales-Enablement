@@ -115,6 +115,27 @@ function getFreshnessInfo(lastUpdated?: string): { label: string; color: string;
   }
 }
 
+// Helper function to format material type display (handles 'Other' case)
+function formatMaterialType(material: any): string {
+  if (!material.material_type) {
+    return 'Unknown'
+  }
+  
+  const type = material.material_type.toLowerCase().trim()
+  if (type === 'other' && material.other_type_description) {
+    return material.other_type_description
+  }
+  
+  return material.material_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+// Helper function to format material title as <Product Name> • <Material Type>
+function formatMaterialTitle(material: any): string {
+  const productName = material.product_name || 'Unknown Product'
+  const materialType = formatMaterialType(material)
+  return `${productName} • ${materialType}`
+}
+
 // Browse view material card component with gallery view
 interface BrowseMaterialCardProps {
   material: any
@@ -141,16 +162,11 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
         <MaterialIcon className={`w-16 h-16 ${colors.icon} relative z-10 transition-transform group-hover:scale-110`} />
         
-        {/* Status Badge */}
-        {material.status && (
+        {/* Document Type Badge (replacing status) */}
+        {material.material_type && (
           <div className="absolute top-3 right-3">
-            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-              material.status === 'published' ? 'bg-green-100 text-green-700' :
-              material.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
-              material.status === 'review' ? 'bg-blue-100 text-blue-700' :
-              'bg-slate-100 text-slate-700'
-            }`}>
-              {material.status}
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${colors.bg} ${colors.icon}`}>
+              {formatMaterialType(material)}
             </span>
           </div>
         )}
@@ -177,13 +193,19 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
       {/* Content Section */}
       <div className="p-4">
         <h3 className="font-semibold text-slate-900 mb-1 line-clamp-2 group-hover:text-primary-600 transition-colors">
-          {material.name}
+          {formatMaterialTitle(material)}
         </h3>
         
         <div className="flex items-center justify-between mb-2">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded ${colors.bg} ${colors.icon}`}>
-            {material.material_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-          </span>
+          {material.pmm_in_charge_name ? (
+            <span className="text-xs text-slate-600 font-medium">
+              PMM: {material.pmm_in_charge_name}
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400 italic">
+              No PMM assigned
+            </span>
+          )}
           {material.usage_count !== undefined && material.usage_count > 0 && (
             <span className="text-xs text-slate-500 flex items-center space-x-1">
               <Eye className="w-3 h-3" />
@@ -200,12 +222,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
         
         {/* Metadata */}
         <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
-          {material.universe_name && (
-            <span className="truncate">{material.universe_name}</span>
-          )}
-          {material.product_name && (
-            <span className="truncate ml-2">{material.product_name}</span>
-          )}
+          <span className="truncate">{material.file_name || material.name}</span>
         </div>
         
         {/* Action Buttons */}
@@ -428,10 +445,10 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                   <MaterialIcon className={`w-8 h-8 ${colors.icon}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-bold text-slate-900 mb-1">{material.name}</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-1">{formatMaterialTitle(material)}</h2>
                   <div className="flex items-center space-x-3 flex-wrap">
                     <span className={`text-sm font-medium px-2 py-1 rounded ${colors.bg} ${colors.icon}`}>
-                      {material.material_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {formatMaterialType(material)}
                     </span>
                     {material.status && (
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
@@ -472,12 +489,10 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                   <p className="text-sm text-slate-900">{material.universe_name}</p>
                 </div>
               )}
-              {material.product_name && (
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Product</h4>
-                  <p className="text-sm text-slate-900">{material.product_name}</p>
-                </div>
-              )}
+              <div>
+                <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">File Name</h4>
+                <p className="text-sm text-slate-900">{material.file_name || material.name}</p>
+              </div>
               {material.last_updated && (
                 <div>
                   <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Last Updated</h4>
@@ -691,6 +706,8 @@ export default function Materials() {
   const [browseSelectedProductId, setBrowseSelectedProductId] = useState<number | null>(null)
   const [expandedUniverses, setExpandedUniverses] = useState<Set<number>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
+  const [downloadingMaterial, setDownloadingMaterial] = useState<any>(null)
+  const [downloadProgress, setDownloadProgress] = useState(0)
 
   const { data: materials, isLoading } = useQuery({
     queryKey: ['materials'],
@@ -1086,20 +1103,91 @@ export default function Materials() {
   }, [browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, effectiveUniverses, allCategories, allProducts])
 
   const handleDownload = async (material: any) => {
-    try {
-      const response = await api.get(`/materials/${material.id}/download`, {
-        responseType: 'blob',
+    setDownloadingMaterial(material)
+    setDownloadProgress(0)
+
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      const token = localStorage.getItem('token')
+      const API_URL = import.meta.env.VITE_API_URL || '/api'
+      const url = `${API_URL}/materials/${material.id}/download`
+
+      xhr.open('GET', url, true)
+      xhr.responseType = 'blob'
+
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      }
+
+      // No timeout - let it download as long as needed
+      xhr.timeout = 0
+
+      // Track download progress
+      xhr.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = (event.loaded / event.total) * 100
+          setDownloadProgress(percentComplete)
+        }
       })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', material.file_name || `${material.name}.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-    } catch (error) {
-      alert('Failed to download file')
-    }
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const blob = xhr.response
+          const url = window.URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.setAttribute('download', material.file_name || `${material.name}.pdf`)
+          document.body.appendChild(link)
+          link.click()
+          link.remove()
+          window.URL.revokeObjectURL(url)
+          setDownloadingMaterial(null)
+          setDownloadProgress(0)
+          resolve()
+        } else {
+          try {
+            const errorBlob = xhr.response
+            errorBlob.text().then((text: string) => {
+              let errorMessage = 'Failed to download file'
+              try {
+                const errorData = JSON.parse(text)
+                errorMessage = errorData.detail || errorMessage
+              } catch {
+                errorMessage = text || errorMessage
+              }
+              setDownloadingMaterial(null)
+              setDownloadProgress(0)
+              alert(`Failed to download file: ${errorMessage}`)
+              reject(new Error(errorMessage))
+            })
+          } catch {
+            setDownloadingMaterial(null)
+            setDownloadProgress(0)
+            const errorMessage = `Failed to download file: HTTP ${xhr.status}`
+            alert(errorMessage)
+            reject(new Error(errorMessage))
+          }
+        }
+      }
+
+      xhr.onerror = () => {
+        setDownloadingMaterial(null)
+        setDownloadProgress(0)
+        const errorMessage = 'Network error while downloading file'
+        alert(errorMessage)
+        reject(new Error(errorMessage))
+      }
+
+      xhr.ontimeout = () => {
+        setDownloadingMaterial(null)
+        setDownloadProgress(0)
+        const errorMessage = 'Download timeout'
+        alert(errorMessage)
+        reject(new Error(errorMessage))
+      }
+
+      xhr.send()
+    })
   }
 
   // Render material row component
@@ -1127,21 +1215,21 @@ export default function Materials() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
-              <p className="text-sm font-medium text-slate-900 truncate">{material.name}</p>
+              <p className="text-sm font-medium text-slate-900 truncate">{formatMaterialTitle(material)}</p>
             </div>
             <p className="text-xs text-slate-500">
               <span className="inline-flex items-center">
-                {material.material_type?.replace(/_/g, ' ')} 
-                {material.product_name && (
-                  <>
-                    <span className="mx-2">•</span> 
-                    <span>{material.product_name}</span>
-                  </>
-                )}
+                {material.file_name || material.name}
                 {material.last_updated && (
                   <>
                     <span className="mx-2">•</span>
                     <span>Last update: {new Date(material.last_updated).toLocaleDateString()}</span>
+                  </>
+                )}
+                {material.pmm_in_charge_name && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span>PMM: {material.pmm_in_charge_name}</span>
                   </>
                 )}
               </span>
@@ -1620,6 +1708,23 @@ export default function Materials() {
             canEditDelete={canEditDelete}
           />
         )}
+
+        {/* Download Progress Modal */}
+        {downloadingMaterial && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Downloading Material</h3>
+              <p className="text-sm text-slate-600 mb-4 truncate">{downloadingMaterial.name || downloadingMaterial.file_name}</p>
+              <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
+                <div
+                  className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${downloadProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-500 text-center">{downloadProgress.toFixed(0)}%</p>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -2064,6 +2169,23 @@ export default function Materials() {
             }}
             canEditDelete={canEditDelete}
           />
+        )}
+
+        {/* Download Progress Modal */}
+        {downloadingMaterial && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Downloading Material</h3>
+              <p className="text-sm text-slate-600 mb-4 truncate">{downloadingMaterial.name || downloadingMaterial.file_name}</p>
+              <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
+                <div
+                  className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${downloadProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-500 text-center">{downloadProgress.toFixed(0)}%</p>
+            </div>
+          </div>
         )}
       </div>
     )

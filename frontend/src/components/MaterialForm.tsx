@@ -41,6 +41,7 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
     keywords: '',
     use_cases: '',
     pain_points: '',
+    pmm_in_charge_id: null as number | null,
   })
   const [showCategoryForm, setShowCategoryForm] = useState(false)
   const [categoryFormData, setCategoryFormData] = useState({
@@ -67,6 +68,20 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
     enabled: !!formData.product_id,
   })
 
+  // Fetch PMM users for PMM selection (always fetch when editing, or if user is director/PMM)
+  const { data: pmmUsers = [] } = useQuery({
+    queryKey: ['users', 'pmms'],
+    queryFn: () => api.get('/users/pmms').then(res => res.data),
+    enabled: true, // Always fetch PMM users
+  })
+
+  // Set default PMM to current user if they're a PMM
+  useEffect(() => {
+    if (isPMM && user?.id && !formData.pmm_in_charge_id && !material) {
+      setFormData(prev => ({ ...prev, pmm_in_charge_id: user.id }))
+    }
+  }, [isPMM, user?.id, material])
+
   // Fetch universe/category/product IDs from names when editing existing material
   useEffect(() => {
     if (material) {
@@ -86,6 +101,7 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
         pain_points: Array.isArray(material.pain_points) ? material.pain_points.join(', ') : (material.pain_points || ''),
         product_name: material.product_name || '',
         universe_name: material.universe_name || '',
+        pmm_in_charge_id: material.pmm_in_charge_id || null,
       }))
 
       // Look up universe/category/product IDs if universe_name exists
@@ -430,6 +446,7 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
       name: formData.name,
       material_type: formData.material_type,
       audience: formData.audience,
+      pmm_in_charge_id: formData.pmm_in_charge_id || null,
       universe_id: formData.universe_id,
       category_id: formData.category_id,
       product_id: formData.product_id,
@@ -902,6 +919,28 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
             <option value="archived">Archived</option>
           </select>
         </div>
+
+        {/* PMM in Charge field - always show when editing, or when creating if user is director/PMM */}
+        {(material || isDirector || isPMM) && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">PMM in Charge</label>
+            <select
+              value={formData.pmm_in_charge_id || ''}
+              onChange={(e) => setFormData({ ...formData, pmm_in_charge_id: e.target.value ? parseInt(e.target.value) : null })}
+              className="input-ovh"
+            >
+              <option value="">Select PMM...</option>
+              {pmmUsers.map((pmm: any) => (
+                <option key={pmm.id} value={pmm.id}>
+                  {pmm.full_name} ({pmm.email})
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              Product Marketing Manager responsible for this material
+            </p>
+          </div>
+        )}
 
         {material && canEditFreshness && (
           <div>

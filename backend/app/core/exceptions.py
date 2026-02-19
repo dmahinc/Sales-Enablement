@@ -92,22 +92,28 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
             details=exc.details,
             timestamp=datetime.utcnow(),
             path=str(request.url.path)
-        ).model_dump(exclude_none=True)
+        ).model_dump(mode='json', exclude_none=True)
     )
 
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Handle HTTP exceptions with standardized format"""
+    error_response = ErrorResponse(
+        success=False,
+        error=exc.__class__.__name__,
+        message=str(exc.detail) if exc.detail else "An error occurred",
+        status_code=exc.status_code,
+        timestamp=datetime.utcnow(),
+        path=str(request.url.path)
+    )
+    # Convert to dict and ensure datetime is serialized as ISO string
+    response_dict = error_response.model_dump(mode='json', exclude_none=True)
+    if 'timestamp' in response_dict and response_dict['timestamp']:
+        if isinstance(response_dict['timestamp'], datetime):
+            response_dict['timestamp'] = response_dict['timestamp'].isoformat() + 'Z'
     return JSONResponse(
         status_code=exc.status_code,
-        content=ErrorResponse(
-            success=False,
-            error=exc.__class__.__name__,
-            message=str(exc.detail) if exc.detail else "An error occurred",
-            status_code=exc.status_code,
-            timestamp=datetime.utcnow(),
-            path=str(request.url.path)
-        ).model_dump(exclude_none=True)
+        content=response_dict
     )
 
 
@@ -124,17 +130,23 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             )
         )
     
+    error_response = ErrorResponse(
+        success=False,
+        error="ValidationError",
+        message="Request validation failed",
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        details=details,
+        timestamp=datetime.utcnow(),
+        path=str(request.url.path)
+    )
+    # Convert to dict and ensure datetime is serialized as ISO string
+    response_dict = error_response.model_dump(mode='json', exclude_none=True)
+    if 'timestamp' in response_dict and response_dict['timestamp']:
+        if isinstance(response_dict['timestamp'], datetime):
+            response_dict['timestamp'] = response_dict['timestamp'].isoformat() + 'Z'
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=ErrorResponse(
-            success=False,
-            error="ValidationError",
-            message="Request validation failed",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            details=details,
-            timestamp=datetime.utcnow(),
-            path=str(request.url.path)
-        ).model_dump(exclude_none=True)
+        content=response_dict
     )
 
 
@@ -144,14 +156,20 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     logger = logging.getLogger(__name__)
     logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
     
+    error_response = ErrorResponse(
+        success=False,
+        error="InternalServerError",
+        message="An unexpected error occurred",
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        timestamp=datetime.utcnow(),
+        path=str(request.url.path)
+    )
+    # Convert to dict and ensure datetime is serialized as ISO string
+    response_dict = error_response.model_dump(mode='json', exclude_none=True)
+    if 'timestamp' in response_dict and response_dict['timestamp']:
+        if isinstance(response_dict['timestamp'], datetime):
+            response_dict['timestamp'] = response_dict['timestamp'].isoformat() + 'Z'
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content=ErrorResponse(
-            success=False,
-            error="InternalServerError",
-            message="An unexpected error occurred",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            timestamp=datetime.utcnow(),
-            path=str(request.url.path)
-        ).model_dump(exclude_none=True)
+        content=response_dict
     )
