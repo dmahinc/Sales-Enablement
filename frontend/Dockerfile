@@ -24,9 +24,9 @@ FROM nginx:alpine
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration (will be overridden by volume mount if nginx-https.conf exists)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy HTTPS nginx configuration
+COPY nginx-https.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 80 443
 
 CMD ["nginx", "-g", "daemon off;"]

@@ -16,6 +16,8 @@ import Users from './pages/Users'
 import ShareHistory from './pages/ShareHistory'
 import ShareView from './pages/ShareView'
 import Login from './pages/Login'
+import ProductReleases from './pages/ProductReleases'
+import MarketingUpdates from './pages/MarketingUpdates'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 const queryClient = new QueryClient()
@@ -103,6 +105,8 @@ function AppRoutes() {
         <Route path="tracks/:id" element={<TrackDetail />} />
         <Route path="users" element={<Users />} />
         <Route path="discovery" element={<Discovery />} />
+        <Route path="product-releases" element={<ProductReleases />} />
+        <Route path="marketing-updates" element={<MarketingUpdates />} />
       </Route>
     </Routes>
   )

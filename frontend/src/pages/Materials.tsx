@@ -994,6 +994,53 @@ export default function Materials() {
       }
     }
 
+    // Apply the same filters as list view
+    // Universe filter - if any universes are selected, filter by them
+    if (selectedUniverses.length > 0) {
+      filtered = filtered.filter((m: any) => {
+        if (!m.universe_name || !selectedUniverses.includes(m.universe_name)) return false
+        return true
+      })
+    }
+
+    // Material Type filter - if any types are selected, filter by them
+    if (filterTypes.length > 0) {
+      filtered = filtered.filter((m: any) => {
+        if (!m.material_type || !filterTypes.includes(m.material_type)) return false
+        return true
+      })
+    }
+
+    // Status filter - if any statuses are selected, filter by them
+    if (filterStatuses.length > 0) {
+      filtered = filtered.filter((m: any) => {
+        if (!m.status || !filterStatuses.includes(m.status)) return false
+        return true
+      })
+    }
+
+    // Product filter - if any products are selected, filter by them
+    if (filterProductIds.length > 0) {
+      const matchingProducts = allProducts.filter((p: any) => filterProductIds.includes(p.id))
+      const productNames = matchingProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
+      filtered = filtered.filter((m: any) => {
+        if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
+        return true
+      })
+    }
+
+    // Category filter - if any categories are selected, filter by products in those categories
+    if (filterCategoryIds.length > 0) {
+      const categoryProducts = allProducts.filter((p: any) => 
+        p.category_id && filterCategoryIds.includes(p.category_id)
+      )
+      const productNames = categoryProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
+      filtered = filtered.filter((m: any) => {
+        if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
+        return true
+      })
+    }
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim()
@@ -1016,7 +1063,7 @@ export default function Materials() {
     })
 
     return filtered
-  }, [materials, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, searchQuery, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse])
+  }, [materials, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, searchQuery, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds])
 
   // Browse view materials grouped by universe
   const browseMaterialsByUniverse = useMemo(() => {
@@ -1576,6 +1623,120 @@ export default function Materials() {
                   <X className="w-4 h-4" />
                 </button>
               )}
+            </div>
+
+            {/* Filters */}
+            <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Filter className="h-4 w-4 text-slate-400" />
+                  <span className="text-sm font-medium text-slate-600">Filters</span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {/* Universe Filter */}
+                  <MultiSelect
+                    label="Universe"
+                    options={UNIVERSES.filter(u => u.id !== 'all').map(u => ({
+                      value: u.id,
+                      label: u.name
+                    }))}
+                    selectedValues={selectedUniverses}
+                    onChange={(values) => setSelectedUniverses(values as string[])}
+                    placeholder="All Universes"
+                  />
+
+                  {/* Category Filter */}
+                  <MultiSelect
+                    label="Category"
+                    options={categories.map((cat: any) => ({
+                      value: cat.id,
+                      label: cat.display_name
+                    }))}
+                    selectedValues={filterCategoryIds}
+                    onChange={(values) => {
+                      setFilterCategoryIds(values as number[])
+                      // Clear product filter when category changes
+                      setFilterProductIds([])
+                    }}
+                    placeholder="All Categories"
+                    disabled={selectedUniverses.length === 0}
+                  />
+
+                  {/* Product Filter */}
+                  <MultiSelect
+                    label="Product"
+                    options={products.map((prod: any) => ({
+                      value: prod.id,
+                      label: prod.display_name
+                    }))}
+                    selectedValues={filterProductIds}
+                    onChange={(values) => setFilterProductIds(values as number[])}
+                    placeholder="All Products"
+                    disabled={selectedUniverses.length === 0}
+                  />
+
+                  {/* Material Type Filter */}
+                  <MultiSelect
+                    label="Type"
+                    options={[
+                      { value: 'product_brief', label: 'Product Brief' },
+                      { value: 'sales_enablement_deck', label: 'Sales Enablement Deck' },
+                      { value: 'product_portfolio', label: 'Product Portfolio' },
+                      { value: 'sales_deck', label: 'Sales Deck' },
+                      { value: 'datasheet', label: 'Datasheet' },
+                      { value: 'product_catalog', label: 'Product Catalog' },
+                    ]}
+                    selectedValues={filterTypes}
+                    onChange={(values) => setFilterTypes(values as string[])}
+                    placeholder="All Types"
+                  />
+
+                  {/* Status Filter */}
+                  <MultiSelect
+                    label="Status"
+                    options={[
+                      { value: 'draft', label: 'Draft' },
+                      { value: 'review', label: 'Review' },
+                      { value: 'published', label: 'Published' },
+                      { value: 'archived', label: 'Archived' },
+                    ]}
+                    selectedValues={filterStatuses}
+                    onChange={(values) => setFilterStatuses(values as string[])}
+                    placeholder="All Statuses"
+                  />
+                </div>
+
+                {/* Clear Filters */}
+                {(searchQuery || filterTypes.length > 0 || filterStatuses.length > 0 || filterCategoryIds.length > 0 || filterProductIds.length > 0 || selectedUniverses.length > 0) && (
+                  <div className="flex items-center space-x-2 pt-2 border-t border-slate-200">
+                    <div className="text-xs text-slate-500 mr-2">
+                      {[
+                        searchQuery && 'search active',
+                        selectedUniverses.length > 0 && `${selectedUniverses.length} universe${selectedUniverses.length !== 1 ? 's' : ''}`,
+                        filterCategoryIds.length > 0 && `${filterCategoryIds.length} categor${filterCategoryIds.length !== 1 ? 'ies' : 'y'}`,
+                        filterProductIds.length > 0 && `${filterProductIds.length} product${filterProductIds.length !== 1 ? 's' : ''}`,
+                        filterTypes.length > 0 && `${filterTypes.length} type${filterTypes.length !== 1 ? 's' : ''}`,
+                        filterStatuses.length > 0 && `${filterStatuses.length} status${filterStatuses.length !== 1 ? 'es' : ''}`,
+                      ].filter(Boolean).join(' • ')}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSearchQuery('')
+                        setFilterTypes([])
+                        setFilterStatuses([])
+                        setFilterCategoryIds([])
+                        setFilterProductIds([])
+                        setSelectedUniverses([])
+                      }}
+                      className="text-sm text-primary-500 hover:text-primary-600 flex items-center space-x-1"
+                    >
+                      <X className="w-3 h-3" />
+                      <span>Clear all filters</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

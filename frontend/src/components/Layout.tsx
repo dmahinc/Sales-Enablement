@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2 } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone } from 'lucide-react'
 
 export default function Layout() {
   const { user, logout, loading } = useAuth()
@@ -35,6 +35,8 @@ export default function Layout() {
   // Base navigation items available to all roles
   const baseNavItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
+    { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
   ]
 
   // Director-specific navigation (monitoring and governance)
