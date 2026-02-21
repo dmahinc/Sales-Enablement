@@ -501,8 +501,8 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
       formDataToSend.append('send_notification', formData.send_notification ? 'true' : 'false')
     }
 
-    // Check for duplicates first (skip for 'other' type)
-    if (formData.material_type !== 'other' && file) {
+    // Check for duplicates first (skip for 'other' type and when optional sorting is enabled without product_id)
+    if (formData.material_type !== 'other' && file && formData.product_id) {
       try {
         // Ensure uploading is false before checking
         setUploading(false)

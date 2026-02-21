@@ -102,12 +102,14 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
       estimated_duration_minutes: formData.estimated_duration_minutes
         ? parseInt(formData.estimated_duration_minutes)
         : null,
-      materials: materials.map((m, idx) => ({
-        material_id: m.material_id,
-        order: m.order || idx + 1,
-        step_description: m.step_description,
-        is_required: m.is_required,
-      })),
+      materials: materials
+        .filter((m) => m.material_id && m.material_id > 0) // Only include materials with valid IDs
+        .map((m, idx) => ({
+          material_id: m.material_id,
+          order: m.order || idx + 1,
+          step_description: m.step_description,
+          is_required: m.is_required,
+        })),
     }
 
     // Only include send_notification if user is PMM/Director and creating (not updating)
