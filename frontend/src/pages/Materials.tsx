@@ -1274,29 +1274,26 @@ export default function Materials() {
     return (
       <div className="flex items-center justify-between">
         <div className="flex items-center flex-1 min-w-0">
-          <div className={`${bgColor} p-2 rounded-lg mr-4 flex items-center gap-1.5`} title={`Type: ${material.material_type || 'null'}`}>
-            {(() => {
-              const MaterialIcon = getMaterialTypeIcon(material.material_type)
-              return (
-                <>
-                  {material.product_name && (
-                    <div className="flex-shrink-0" title={material.product_name}>
-                      <ProductIcon 
-                        productName={material.product_name}
-                        size={16}
-                        className="text-slate-600"
-                      />
-                    </div>
-                  )}
-                  <MaterialIcon className="h-5 w-5 text-primary-500" />
-                  <span className="text-xs text-slate-400 hidden">{material.material_type || 'null'}</span>
-                </>
-              )
-            })()}
-          </div>
+          {material.product_name && (
+            <div className={`${bgColor} p-2 rounded-lg mr-4 flex items-center gap-1.5`} title={material.product_name}>
+              <div className="flex-shrink-0">
+                <ProductIcon 
+                  productName={material.product_name}
+                  size={22}
+                  className="text-slate-600"
+                />
+              </div>
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
-              <p className="text-sm font-medium text-slate-900 truncate">{formatMaterialTitle(material)}</p>
+              <p className="text-sm font-medium text-slate-900 truncate flex-1 min-w-0">{formatMaterialTitle(material)}</p>
+              {(() => {
+                const MaterialIcon = getMaterialTypeIcon(material.material_type)
+                return (
+                  <MaterialIcon className="h-4 w-4 text-primary-500 flex-shrink-0" title={`Type: ${material.material_type || 'null'}`} />
+                )
+              })()}
             </div>
             <p className="text-xs text-slate-500">
               <span className="inline-flex items-center">
