@@ -9,9 +9,10 @@ interface FileUploadModalProps {
   isOpen: boolean
   onClose: () => void
   onUploadSuccess?: (material: any) => void
+  allowOptionalSorting?: boolean
 }
 
-export default function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUploadModalProps) {
+export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allowOptionalSorting = false }: FileUploadModalProps) {
   const { user } = useAuth()
   const isDirector = user?.role === 'director' || user?.is_superuser
   const isPMM = user?.role === 'pmm'
@@ -387,18 +388,20 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess }: Fi
       return
     }
     
-    // Validate required fields
-    if (!formData.universe_id) {
-      alert('Please select Universe')
-      return
-    }
-    if (!formData.category_id) {
-      alert('Please select Category')
-      return
-    }
-    if (!formData.product_id) {
-      alert('Please select Product')
-      return
+    // Validate required fields (skip if optional sorting is allowed)
+    if (!allowOptionalSorting) {
+      if (!formData.universe_id) {
+        alert('Please select Universe')
+        return
+      }
+      if (!formData.category_id) {
+        alert('Please select Category')
+        return
+      }
+      if (!formData.product_id) {
+        alert('Please select Product')
+        return
+      }
     }
     
     // Validate other_type_description if material_type is "other"
@@ -415,9 +418,17 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess }: Fi
     }
     formDataToSend.append('audience', formData.audience)
     formDataToSend.append('freshness_date', formData.freshness_date)
-    formDataToSend.append('universe_id', formData.universe_id.toString())
-    formDataToSend.append('category_id', formData.category_id.toString())
-    formDataToSend.append('product_id', formData.product_id.toString())
+    
+    // Only append universe/category/product if provided
+    if (formData.universe_id) {
+      formDataToSend.append('universe_id', formData.universe_id.toString())
+    }
+    if (formData.category_id) {
+      formDataToSend.append('category_id', formData.category_id.toString())
+    }
+    if (formData.product_id) {
+      formDataToSend.append('product_id', formData.product_id.toString())
+    }
     if (formData.product_name) {
       formDataToSend.append('product_name', formData.product_name)
     }
@@ -809,10 +820,14 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess }: Fi
             )}
 
             {/* Product Hierarchy Selection */}
-            <ProductHierarchySelector
-              universeId={formData.universe_id}
-              categoryId={formData.category_id}
-              productId={formData.product_id}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Product Hierarchy {allowOptionalSorting ? '(Optional)' : '*'}
+              </label>
+              <ProductHierarchySelector
+                universeId={formData.universe_id}
+                categoryId={formData.category_id}
+                productId={formData.product_id}
               onUniverseChange={(id) => {
                 setFormData(prev => ({
                   ...prev,
@@ -873,7 +888,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess }: Fi
                   })
                 }
               }}
-              required={true}
+              required={!allowOptionalSorting}
               categoryLabelAction={
                 isDirector && formData.universe_id && !showCategoryForm ? (
                   <button
@@ -1140,6 +1155,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess }: Fi
                 ) : null
               }
             />
+            </div>
 
             {/* Actions */}
             <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">

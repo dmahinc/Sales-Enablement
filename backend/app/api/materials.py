@@ -646,69 +646,58 @@ async def upload_material_file(
     from app.services.storage import storage_service
     from app.models.product import Universe, Product
     
-    # Validate required fields
-    if not universe_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="universe_id is required"
-        )
-    if not category_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="category_id is required"
-        )
-    if not product_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="product_id is required"
-        )
+    # Handle optional universe/category/product (for track creation flow)
+    universe = None
+    category = None
+    product = None
+    final_universe_name = universe_name or "Uncategorized"
+    final_product_name = product_name or "Uncategorized"
     
-    # Look up universe and product
-    universe = db.query(Universe).filter(Universe.id == universe_id).first()
-    if not universe:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Universe with id {universe_id} not found"
-        )
+    if universe_id:
+        universe = db.query(Universe).filter(Universe.id == universe_id).first()
+        if not universe:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Universe with id {universe_id} not found"
+            )
+        final_universe_name = universe_name or universe.name
     
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Product with id {product_id} not found"
-        )
+    if category_id:
+        from app.models.product import Category
+        category = db.query(Category).filter(Category.id == category_id).first()
+        if not category:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Category with id {category_id} not found"
+            )
+        if universe_id and category.universe_id != universe_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Category does not belong to selected universe"
+            )
     
-    # Validate category belongs to universe
-    from app.models.product import Category
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Category with id {category_id} not found"
-        )
-    if category.universe_id != universe_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Category does not belong to selected universe"
-        )
-    
-    # Ensure product belongs to selected universe
-    if product.universe_id != universe_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Product does not belong to selected universe"
-        )
-    
-    # Ensure product belongs to selected category (if product has a category)
-    if product.category_id and product.category_id != category_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Product does not belong to selected category"
-        )
-    
-    # Use names from database if not provided
-    final_universe_name = universe_name or universe.name
-    final_product_name = product_name or product.display_name or product.name
+    if product_id:
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Product with id {product_id} not found"
+            )
+        final_product_name = product_name or product.display_name or product.name
+        
+        # Validate product belongs to selected universe if universe_id is provided
+        if universe_id and product.universe_id != universe_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Product does not belong to selected universe"
+            )
+        
+        # Validate product belongs to selected category if both are provided
+        if category_id and product.category_id and product.category_id != category_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Product does not belong to selected category"
+            )
     
     try:
         # Read file content

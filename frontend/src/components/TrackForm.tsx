@@ -35,6 +35,7 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
   }>>([])
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [uploadingForMaterialIndex, setUploadingForMaterialIndex] = useState<number | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -331,21 +332,36 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
                 </div>
 
                 <div className="flex-1 space-y-3">
-                  <select
-                    required
-                    value={material.material_id}
-                    onChange={(e) =>
-                      updateMaterial(index, 'material_id', parseInt(e.target.value))
-                    }
-                    className="input-ovh"
-                  >
-                    <option value={0}>Select Material</option>
-                    {availableMaterials?.map((m: any) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.material_type?.replace(/_/g, ' ')})
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <select
+                      required
+                      value={material.material_id}
+                      onChange={(e) =>
+                        updateMaterial(index, 'material_id', parseInt(e.target.value))
+                      }
+                      className="input-ovh"
+                    >
+                      <option value={0}>Select Material</option>
+                      {availableMaterials?.map((m: any) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.material_type?.replace(/_/g, ' ')})
+                        </option>
+                      ))}
+                    </select>
+                    {material.material_id === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUploadingForMaterialIndex(index)
+                          setIsUploadModalOpen(true)
+                        }}
+                        className="mt-2 text-sm text-primary-600 hover:text-primary-700 flex items-center"
+                      >
+                        <Upload className="w-4 h-4 mr-1" />
+                        Can't find it? Upload new material
+                      </button>
+                    )}
+                  </div>
 
                   <textarea
                     rows={2}
@@ -408,21 +424,33 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
       {/* Upload Material Modal */}
       <FileUploadModal
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        onClose={() => {
+          setIsUploadModalOpen(false)
+          setUploadingForMaterialIndex(null)
+        }}
+        allowOptionalSorting={true}
         onUploadSuccess={(uploadedMaterial) => {
           // Refetch materials to get the latest list
           refetchMaterials()
-          // Automatically add the uploaded material to the track
-          setMaterials([
-            ...materials,
-            {
-              material_id: uploadedMaterial.id,
-              order: materials.length + 1,
-              step_description: '',
-              is_required: true,
-              material: uploadedMaterial,
-            },
-          ])
+          
+          // If uploading for a specific material row, update that row
+          if (uploadingForMaterialIndex !== null) {
+            updateMaterial(uploadingForMaterialIndex, 'material_id', uploadedMaterial.id)
+            updateMaterial(uploadingForMaterialIndex, 'material', uploadedMaterial)
+          } else {
+            // Otherwise, add as a new material
+            setMaterials([
+              ...materials,
+              {
+                material_id: uploadedMaterial.id,
+                order: materials.length + 1,
+                step_description: '',
+                is_required: true,
+                material: uploadedMaterial,
+              },
+            ])
+          }
+          setUploadingForMaterialIndex(null)
         }}
       />
 
