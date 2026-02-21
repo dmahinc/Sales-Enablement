@@ -9,6 +9,7 @@ import BatchUploadModal from '../components/BatchUploadModal'
 import ShareLinkModal from '../components/ShareLinkModal'
 import MultiSelect from '../components/MultiSelect'
 import { useAuth } from '../contexts/AuthContext'
+import ProductIcon from '../components/ProductIcon'
 
 // Helper function to get icon for material type
 function getMaterialTypeIcon(materialType: string | null | undefined): LucideIcon {
@@ -164,7 +165,17 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
         
         {/* Document Type Badge (replacing status) */}
         {material.material_type && (
-          <div className="absolute top-3 right-3">
+          <div className="absolute top-3 right-3 flex items-center space-x-2">
+            {/* Product Icon Badge */}
+            {material.product_name && (
+              <div className="bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-white/50" title={material.product_name}>
+                <ProductIcon 
+                  productName={material.product_name}
+                  size={20}
+                  className="text-slate-700"
+                />
+              </div>
+            )}
             <span className={`text-xs px-2 py-1 rounded-full font-medium ${colors.bg} ${colors.icon}`}>
               {formatMaterialType(material)}
             </span>
@@ -487,6 +498,19 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 <div>
                   <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Universe</h4>
                   <p className="text-sm text-slate-900">{material.universe_name}</p>
+                </div>
+              )}
+              {material.product_name && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Product</h4>
+                  <div className="flex items-center space-x-2">
+                    <ProductIcon 
+                      productName={material.product_name}
+                      size={20}
+                      className="text-slate-700"
+                    />
+                    <p className="text-sm text-slate-900">{material.product_name}</p>
+                  </div>
                 </div>
               )}
               <div>
@@ -1248,12 +1272,21 @@ export default function Materials() {
     return (
       <div className="flex items-center justify-between">
         <div className="flex items-center flex-1 min-w-0">
-          <div className={`${bgColor} p-2 rounded-lg mr-4 flex items-center gap-1`} title={`Type: ${material.material_type || 'null'}`}>
+          <div className={`${bgColor} p-2 rounded-lg mr-4 flex items-center gap-1.5`} title={`Type: ${material.material_type || 'null'}`}>
             {(() => {
               const MaterialIcon = getMaterialTypeIcon(material.material_type)
               return (
                 <>
                   <MaterialIcon className="h-5 w-5 text-primary-500" />
+                  {material.product_name && (
+                    <div className="flex-shrink-0" title={material.product_name}>
+                      <ProductIcon 
+                        productName={material.product_name}
+                        size={16}
+                        className="text-slate-600"
+                      />
+                    </div>
+                  )}
                   <span className="text-xs text-slate-400 hidden">{material.material_type || 'null'}</span>
                 </>
               )

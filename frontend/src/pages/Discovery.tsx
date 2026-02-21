@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
+import ProductIcon from '../components/ProductIcon'
 
 interface Material {
   id: number
@@ -719,10 +720,23 @@ function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
   return (
     <div className="card-ovh p-4 hover:shadow-md transition-all group">
       <div className="flex items-start space-x-3">
-        <div className="bg-primary-50 p-2 rounded-lg flex-shrink-0">
+        <div className="bg-primary-50 p-2 rounded-lg flex-shrink-0 flex items-center space-x-1.5">
           {(() => {
             const MaterialIcon = getMaterialTypeIcon(material.material_type)
-            return <MaterialIcon className="h-5 w-5 text-primary-500" />
+            return (
+              <>
+                <MaterialIcon className="h-5 w-5 text-primary-500" />
+                {material.product_name && (
+                  <div className="flex-shrink-0" title={material.product_name}>
+                    <ProductIcon 
+                      productName={material.product_name}
+                      size={14}
+                      className="text-slate-600"
+                    />
+                  </div>
+                )}
+              </>
+            )
           })()}
         </div>
         <div className="flex-1 min-w-0">
@@ -738,6 +752,16 @@ function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
           <div className="flex items-center justify-between mt-2">
             {material.universe_name && (
               <span className="text-xs text-slate-400">{material.universe_name}</span>
+            )}
+            {material.product_name && (
+              <span className="text-xs text-slate-500 flex items-center space-x-1">
+                <ProductIcon 
+                  productName={material.product_name}
+                  size={12}
+                  className="text-slate-500"
+                />
+                <span className="truncate max-w-[120px]">{material.product_name}</span>
+              </span>
             )}
             {material.status && (
               <span className={`text-xs px-2 py-0.5 rounded ${
@@ -848,9 +872,19 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: Mater
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
         <MaterialIcon className={`w-16 h-16 ${colors.icon} relative z-10 transition-transform group-hover:scale-110`} />
         
-        {/* Status Badge */}
-        {material.status && (
-          <div className="absolute top-3 right-3">
+        {/* Status Badge and Product Icon */}
+        <div className="absolute top-3 right-3 flex items-center space-x-2">
+          {/* Product Icon Badge */}
+          {material.product_name && (
+            <div className="bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-white/50" title={material.product_name}>
+              <ProductIcon 
+                productName={material.product_name}
+                size={20}
+                className="text-slate-700"
+              />
+            </div>
+          )}
+          {material.status && (
             <span className={`text-xs px-2 py-1 rounded-full font-medium ${
               material.status === 'published' ? 'bg-green-100 text-green-700' :
               material.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
@@ -859,8 +893,8 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: Mater
             }`}>
               {material.status}
             </span>
-          </div>
-        )}
+          )}
+        </div>
         
         {/* Freshness Badge */}
         {freshness.days !== null && (
@@ -911,7 +945,14 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: Mater
             <span className="truncate">{material.universe_name}</span>
           )}
           {material.product_name && (
-            <span className="truncate ml-2">{material.product_name}</span>
+            <span className="truncate ml-2 flex items-center space-x-1">
+              <ProductIcon 
+                productName={material.product_name}
+                size={14}
+                className="text-slate-500 flex-shrink-0"
+              />
+              <span className="truncate">{material.product_name}</span>
+            </span>
           )}
         </div>
         
@@ -1028,7 +1069,14 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare }
               {material.product_name && (
                 <div>
                   <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Product</h4>
-                  <p className="text-sm text-slate-900">{material.product_name}</p>
+                  <div className="flex items-center space-x-2">
+                    <ProductIcon 
+                      productName={material.product_name}
+                      size={20}
+                      className="text-slate-700"
+                    />
+                    <p className="text-sm text-slate-900">{material.product_name}</p>
+                  </div>
                 </div>
               )}
               {material.last_updated && (
