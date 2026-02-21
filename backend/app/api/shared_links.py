@@ -475,6 +475,9 @@ async def get_timeline(
                         "timestamp": link.last_accessed_at,
                         "material_id": link.material_id,
                         "material_name": material.name,
+                        "product_name": material.product_name,
+                        "material_type": material.material_type,
+                        "other_type_description": material.other_type_description,
                         "customer_email": link.customer_email,
                         "customer_name": link.customer_name,
                         "shared_link_id": link.id

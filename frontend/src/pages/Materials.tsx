@@ -683,7 +683,6 @@ export default function Materials() {
   const isSales = user?.role === 'sales'
   const canEditDelete = isDirector || isPMM || user?.is_superuser
   
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isBatchUploadModalOpen, setIsBatchUploadModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
@@ -1395,18 +1394,11 @@ export default function Materials() {
               </button>
             </div>
             <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="btn-ovh-primary"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Material
-            </button>
-            <button
               onClick={() => setIsUploadModalOpen(true)}
               className="btn-ovh-secondary"
             >
               <Upload className="w-4 h-4 mr-2" />
-              Upload File
+              Upload Material
             </button>
             {(isDirector || isPMM) && (
               <button
@@ -1803,15 +1795,6 @@ export default function Materials() {
 
         {/* Modals */}
         <Modal
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-          title="Create Material"
-          size="lg"
-        >
-          <MaterialForm onClose={() => setIsCreateModalOpen(false)} />
-        </Modal>
-
-        <Modal
           isOpen={!!editingMaterial}
           onClose={() => setEditingMaterial(null)}
           title="Edit Material"
@@ -1927,18 +1910,11 @@ export default function Materials() {
                 </button>
               </div>
               <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="btn-ovh-primary"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Material
-              </button>
-              <button
                 onClick={() => setIsUploadModalOpen(true)}
                 className="btn-ovh-secondary"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Upload File
+                Upload Material
               </button>
               {(isDirector || isPMM) && (
                 <button
@@ -2249,30 +2225,21 @@ export default function Materials() {
               <p className="mt-2 text-sm text-slate-500">
                 {selectedUniverses.length > 0
                   ? `No materials found in selected universes` 
-                  : 'Get started by creating your first material'}
+                  : 'Get started by uploading your first material'}
               </p>
               <div className="mt-6 flex justify-center space-x-3">
                 <button
-                  onClick={() => setIsCreateModalOpen(true)}
+                  onClick={() => setIsUploadModalOpen(true)}
                   className="btn-ovh-primary"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Material
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Material
                 </button>
               </div>
             </div>
           )}
 
         {/* Modals */}
-        <Modal
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-          title="Create Material"
-          size="lg"
-        >
-          <MaterialForm onClose={() => setIsCreateModalOpen(false)} />
-        </Modal>
-
         <Modal
           isOpen={!!editingMaterial}
           onClose={() => setEditingMaterial(null)}

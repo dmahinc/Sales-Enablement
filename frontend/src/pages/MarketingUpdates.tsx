@@ -668,6 +668,9 @@ function MarketingUpdateForm({
   products: allProducts
 }: MarketingUpdateFormProps) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isDirector = user?.role === 'director' || user?.is_superuser
+  const isPMM = user?.role === 'pmm'
   
   // Helper function to format datetime-local value
   const formatDateTimeLocal = (dateString?: string): string => {
@@ -698,7 +701,8 @@ function MarketingUpdateForm({
     priority: update?.priority || 'informational',
     target_audience: update?.target_audience || '',
     published_at: formatDateTimeLocal(update?.published_at),
-    expires_at: formatDateTimeLocal(update?.expires_at)
+    expires_at: formatDateTimeLocal(update?.expires_at),
+    send_notification: false
   })
 
   // Get subcategories for selected category
@@ -805,6 +809,11 @@ function MarketingUpdateForm({
     if (formData.product_id) {
       const product = products.find(p => p.id === formData.product_id)
       if (product) submitData.product_name = product.display_name || product.name
+    }
+
+    // Only include send_notification if user is PMM/Director and creating (not updating)
+    if (!update && (isDirector || isPMM) && formData.send_notification !== undefined) {
+      submitData.send_notification = formData.send_notification
     }
 
     if (update) {
@@ -1080,6 +1089,22 @@ function MarketingUpdateForm({
               </p>
             </div>
           </div>
+
+          {/* Send Notification (only for PMM/Director, only on create) */}
+          {!update && (isDirector || isPMM) && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="send_notification"
+                checked={formData.send_notification}
+                onChange={(e) => setFormData({ ...formData, send_notification: e.target.checked })}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+              />
+              <label htmlFor="send_notification" className="ml-2 text-sm text-slate-700">
+                Send notification to all users about this update
+              </label>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3 pt-4">
             <button

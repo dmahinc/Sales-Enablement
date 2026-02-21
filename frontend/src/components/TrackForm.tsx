@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Plus, X, GripVertical } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 interface TrackFormProps {
   track?: any
@@ -9,6 +10,10 @@ interface TrackFormProps {
 }
 
 export default function TrackForm({ track, onClose }: TrackFormProps) {
+  const { user } = useAuth()
+  const isDirector = user?.role === 'director' || user?.is_superuser
+  const isPMM = user?.role === 'pmm'
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -17,6 +22,7 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
     target_audience: '',
     estimated_duration_minutes: '',
     status: 'draft',
+    send_notification: false,
   })
 
   const [materials, setMaterials] = useState<Array<{
@@ -45,6 +51,7 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
         target_audience: track.target_audience || '',
         estimated_duration_minutes: track.estimated_duration_minutes?.toString() || '',
         status: track.status || 'draft',
+        send_notification: false,
       })
       setMaterials(
         (track.materials || []).map((tm: any) => ({
@@ -86,7 +93,7 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const submitData = {
+    const submitData: any = {
       ...formData,
       estimated_duration_minutes: formData.estimated_duration_minutes
         ? parseInt(formData.estimated_duration_minutes)
@@ -97,6 +104,11 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
         step_description: m.step_description,
         is_required: m.is_required,
       })),
+    }
+
+    // Only include send_notification if user is PMM/Director and creating (not updating)
+    if (!track && (isDirector || isPMM) && formData.send_notification !== undefined) {
+      submitData.send_notification = formData.send_notification
     }
 
     if (track) {
@@ -363,6 +375,22 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
           )}
         </div>
       </div>
+
+      {/* Send Notification (only for PMM/Director, only on create) */}
+      {!track && (isDirector || isPMM) && (
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="send_notification"
+            checked={formData.send_notification}
+            onChange={(e) => setFormData({ ...formData, send_notification: e.target.checked })}
+            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+          />
+          <label htmlFor="send_notification" className="ml-2 text-sm text-slate-700">
+            Send notification to all users about this track
+          </label>
+        </div>
+      )}
 
       <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
         <button type="button" onClick={onClose} className="btn-ovh-secondary">

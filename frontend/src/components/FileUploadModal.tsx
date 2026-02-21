@@ -30,6 +30,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     product_id: null as number | null,
     product_name: '',
     universe_name: '',
+    send_notification: true,
   })
   const [uploading, setUploading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
@@ -416,6 +417,9 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     if (formData.universe_name) {
       formDataToSend.append('universe_name', formData.universe_name)
     }
+    if (isDirector || isPMM) {
+      formDataToSend.append('send_notification', formData.send_notification ? 'true' : 'false')
+    }
 
     // Check for duplicates first (skip for 'other' type)
     if (formData.material_type !== 'other' && file) {
@@ -591,6 +595,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       product_id: null,
       product_name: '',
       universe_name: '',
+      send_notification: true,
     })
     setShowCategoryForm(false)
     setCategoryFormData({ name: '', display_name: '', description: '' })
@@ -779,6 +784,22 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                 Date when the material was created or last updated
               </p>
             </div>
+
+            {/* Send Notification (only for PMM/Director) */}
+            {(isDirector || isPMM) && (
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="send_notification"
+                  checked={formData.send_notification}
+                  onChange={(e) => setFormData({ ...formData, send_notification: e.target.checked })}
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+                />
+                <label htmlFor="send_notification" className="ml-2 text-sm text-slate-700">
+                  Send notification to all users about this material
+                </label>
+              </div>
+            )}
 
             {/* Product Hierarchy Selection */}
             <ProductHierarchySelector

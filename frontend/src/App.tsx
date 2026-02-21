@@ -8,7 +8,6 @@ import PMMDashboard from './pages/PMMDashboard'
 import SalesDashboard from './pages/SalesDashboard'
 import Materials from './pages/Materials'
 import HealthDashboard from './pages/HealthDashboard'
-import Discovery from './pages/Discovery'
 import UsageAnalytics from './pages/UsageAnalytics'
 import Tracks from './pages/Tracks'
 import TrackDetail from './pages/TrackDetail'
@@ -18,6 +17,7 @@ import ShareView from './pages/ShareView'
 import Login from './pages/Login'
 import ProductReleases from './pages/ProductReleases'
 import MarketingUpdates from './pages/MarketingUpdates'
+import Notifications from './pages/Notifications'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 const queryClient = new QueryClient()
@@ -104,9 +104,9 @@ function AppRoutes() {
         <Route path="tracks" element={<Tracks />} />
         <Route path="tracks/:id" element={<TrackDetail />} />
         <Route path="users" element={<Users />} />
-        <Route path="discovery" element={<Discovery />} />
         <Route path="product-releases" element={<ProductReleases />} />
         <Route path="marketing-updates" element={<MarketingUpdates />} />
+        <Route path="notifications" element={<Notifications />} />
       </Route>
     </Routes>
   )

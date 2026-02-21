@@ -294,6 +294,47 @@ async def create_marketing_update(
         update_dict['created_by_name'] = update.created_by.full_name
         update_dict['created_by_email'] = update.created_by.email
     
+    # Create notification if requested (only PMM/Director can send)
+    if update_data.send_notification and current_user.role in ['pmm', 'director', 'admin']:
+        try:
+            from app.models.notification import Notification, notification_recipients
+            
+            notification = Notification(
+                title=f"New Marketing Update: {update.title}",
+                message=f"A new marketing update has been published: {update.title}",
+                notification_type="marketing_update",
+                target_id=update.id,
+                link_path=f"/marketing-updates",
+                sent_by_id=current_user.id
+            )
+            
+            db.add(notification)
+            db.flush()
+            
+            # Get all active users except sender
+            recipients = db.query(User).filter(
+                User.id != current_user.id,
+                User.is_active == True
+            ).all()
+            
+            # Add recipients
+            for recipient in recipients:
+                db.execute(
+                    notification_recipients.insert().values(
+                        notification_id=notification.id,
+                        user_id=recipient.id,
+                        is_read=False,
+                        read_at=None
+                    )
+                )
+            
+            db.commit()
+        except Exception as e:
+            # Log error but don't fail the creation
+            import logging
+            logging.error(f"Failed to create notification: {str(e)}")
+            db.rollback()
+    
     return update_dict
 
 

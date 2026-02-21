@@ -519,6 +519,9 @@ function ProductReleaseForm({
   products: allProducts
 }: ProductReleaseFormProps) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isDirector = user?.role === 'director' || user?.is_superuser
+  const isPMM = user?.role === 'pmm'
   
   // Helper function to format datetime-local value
   const formatDateTimeLocal = (dateString?: string): string => {
@@ -545,7 +548,8 @@ function ProductReleaseForm({
     universe_id: release?.universe_id || undefined,
     category_id: release?.category_id || undefined,
     product_id: release?.product_id || undefined,
-    published_at: formatDateTimeLocal(release?.published_at)
+    published_at: formatDateTimeLocal(release?.published_at),
+    send_notification: false
   })
 
   // Fetch products dynamically based on universe/category selection
@@ -604,6 +608,11 @@ function ProductReleaseForm({
       if (data.product_id) {
         const product = products.find(p => p.id === data.product_id)
         if (product) payload.product_name = product.display_name || product.name
+      }
+      
+      // Only include send_notification if user is PMM/Director
+      if ((isDirector || isPMM) && data.send_notification !== undefined) {
+        payload.send_notification = data.send_notification
       }
       
       await api.post('/product-releases', payload)
@@ -873,6 +882,22 @@ function ProductReleaseForm({
             Leave empty to use current date/time, or select a specific date and time
           </p>
         </div>
+
+        {/* Send Notification (only for PMM/Director, only on create) */}
+        {!release && (isDirector || isPMM) && (
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="send_notification"
+              checked={formData.send_notification}
+              onChange={(e) => setFormData({ ...formData, send_notification: e.target.checked })}
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+            />
+            <label htmlFor="send_notification" className="ml-2 text-sm text-slate-700">
+              Send notification to all users about this release
+            </label>
+          </div>
+        )}
 
         <div className="flex justify-end space-x-3 pt-4">
           <button

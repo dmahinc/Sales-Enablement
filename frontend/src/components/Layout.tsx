@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone } from 'lucide-react'
+import NotificationBell from './NotificationBell'
 
 export default function Layout() {
   const { user, logout, loading } = useAuth()
@@ -153,8 +154,12 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="py-6 px-4 sm:px-6 lg:px-8">
+      <main className="flex-1 overflow-y-auto flex flex-col">
+        {/* Header Bar */}
+        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-end">
+          <NotificationBell />
+        </div>
+        <div className="flex-1 py-6 px-4 sm:px-6 lg:px-8">
           <Outlet />
         </div>
       </main>

@@ -42,6 +42,7 @@ class TrackBase(BaseModel):
 class TrackCreate(TrackBase):
     """Schema for creating a track"""
     materials: Optional[List[TrackMaterialCreate]] = []
+    send_notification: Optional[bool] = Field(False, description="Send notification to all users about this track")
 
 
 class TrackUpdate(BaseModel):

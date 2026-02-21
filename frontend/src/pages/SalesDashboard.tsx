@@ -26,7 +26,7 @@ export default function SalesDashboard() {
       icon: FileText,
       color: 'bg-primary-500',
       bgColor: 'bg-primary-50',
-      link: '/discovery'
+      link: '/materials'
     },
     {
       name: 'Recently Viewed',
@@ -34,7 +34,7 @@ export default function SalesDashboard() {
       icon: Eye,
       color: 'bg-violet-500',
       bgColor: 'bg-violet-50',
-      link: '/discovery'
+      link: '/materials'
     },
     {
       name: 'Popular Materials',
@@ -42,7 +42,7 @@ export default function SalesDashboard() {
       icon: TrendingUp,
       color: 'bg-emerald-500',
       bgColor: 'bg-emerald-50',
-      link: '/discovery'
+      link: '/materials'
     },
     {
       name: 'Material Types',
@@ -50,7 +50,7 @@ export default function SalesDashboard() {
       icon: Filter,
       color: 'bg-amber-500',
       bgColor: 'bg-amber-50',
-      link: '/discovery'
+      link: '/materials'
     },
   ]
 
@@ -62,13 +62,6 @@ export default function SalesDashboard() {
           <h1 className="text-2xl font-semibold text-primary-700">Sales Dashboard</h1>
           <p className="mt-1 text-slate-500">Discover and share materials with prospects and customers</p>
         </div>
-        <Link
-          to="/discovery"
-          className="btn-ovh-primary mt-4 sm:mt-0"
-        >
-          <Search className="w-4 h-4 mr-2" />
-          Discover Materials
-        </Link>
       </div>
 
       {/* Loading State */}
@@ -141,7 +134,7 @@ export default function SalesDashboard() {
         <div className="card-ovh">
           <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-primary-700">Popular Materials</h2>
-            <Link to="/discovery" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
+            <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
               View all <ArrowRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
@@ -170,8 +163,8 @@ export default function SalesDashboard() {
               <div className="px-6 py-12 text-center">
                 <Star className="mx-auto h-12 w-12 text-slate-300" />
                 <p className="mt-2 text-sm text-slate-500">No popular materials yet</p>
-                <Link to="/discovery" className="mt-4 btn-ovh-primary inline-flex">
-                  Discover materials
+                <Link to="/materials" className="mt-4 btn-ovh-primary inline-flex">
+                  Explore materials
                 </Link>
               </div>
             )}
@@ -182,7 +175,7 @@ export default function SalesDashboard() {
         <div className="card-ovh">
           <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-primary-700">Recently Viewed</h2>
-            <Link to="/discovery" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
+            <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
               View all <ArrowRight className="w-4 h-4 ml-1" />
             </Link>
           </div>
@@ -218,7 +211,7 @@ export default function SalesDashboard() {
               <div className="px-6 py-12 text-center">
                 <Eye className="mx-auto h-12 w-12 text-slate-300" />
                 <p className="mt-2 text-sm text-slate-500">No recently viewed materials</p>
-                <Link to="/discovery" className="mt-4 btn-ovh-primary inline-flex">
+                <Link to="/materials" className="mt-4 btn-ovh-primary inline-flex">
                   Start exploring
                 </Link>
               </div>
@@ -236,7 +229,7 @@ export default function SalesDashboard() {
         </div>
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
-            to="/discovery"
+            to="/materials"
             className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-all group"
           >
             <div className="bg-primary-100 p-3 rounded-lg mr-4">
@@ -244,9 +237,9 @@ export default function SalesDashboard() {
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600">
-                Discover Materials
+                Explore Materials
               </h3>
-              <p className="text-xs text-slate-500">Search by product, persona, or use case</p>
+              <p className="text-xs text-slate-500">Browse materials by product, type, or search</p>
             </div>
             <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
           </Link>
@@ -281,7 +274,7 @@ export default function SalesDashboard() {
             {Object.entries(data.available_materials.by_type).map(([type, count]: [string, any]) => (
               <Link
                 key={type}
-                to={`/discovery?type=${encodeURIComponent(type)}`}
+                to={`/materials?type=${encodeURIComponent(type)}`}
                 className="p-4 bg-slate-50 rounded-lg hover:bg-primary-50 hover:border-primary-300 border border-transparent transition-all group"
               >
                 <p className="text-sm font-medium text-slate-700 group-hover:text-primary-700">{type}</p>

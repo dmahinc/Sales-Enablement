@@ -56,6 +56,154 @@ class ProductResponse(BaseModel):
         from_attributes = True
 
 
+# Create request models
+class ProductCreate(BaseModel):
+    name: str
+    display_name: str
+    universe_id: int
+    category_id: Optional[int] = None
+    short_description: Optional[str] = None
+    description: Optional[str] = None
+    phase: Optional[str] = None
+    website_url: Optional[str] = None
+    documentation_url: Optional[str] = None
+
+
+class CategoryCreate(BaseModel):
+    name: str
+    display_name: str
+    universe_id: int
+    description: Optional[str] = None
+
+
+class UniverseCreate(BaseModel):
+    name: str
+    display_name: str
+    description: Optional[str] = None
+
+
+@router.post(
+    "",
+    response_model=ProductResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Product",
+    description="Create a new product (Director/Admin only)"
+)
+async def create_product(
+    product_data: ProductCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new product"""
+    # Check permissions - only Director/Admin can create products
+    if current_user.role not in ['director', 'admin']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Directors and Admins can create products"
+        )
+    
+    # Validate universe exists
+    universe = db.query(Universe).filter(Universe.id == product_data.universe_id).first()
+    if not universe:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Universe with id {product_data.universe_id} not found"
+        )
+    
+    # Validate category if provided
+    if product_data.category_id:
+        category = db.query(Category).filter(Category.id == product_data.category_id).first()
+        if not category:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Category with id {product_data.category_id} not found"
+            )
+        # Validate category belongs to universe
+        if category.universe_id != product_data.universe_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Category does not belong to selected universe"
+            )
+    
+    # Check if product name already exists
+    existing_product = db.query(Product).filter(Product.name == product_data.name).first()
+    if existing_product:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Product with name '{product_data.name}' already exists"
+        )
+    
+    # Create product
+    product = Product(
+        name=product_data.name,
+        display_name=product_data.display_name,
+        universe_id=product_data.universe_id,
+        category_id=product_data.category_id,
+        short_description=product_data.short_description,
+        description=product_data.description,
+        phase=product_data.phase,
+        website_url=product_data.website_url,
+        documentation_url=product_data.documentation_url
+    )
+    
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    
+    return product
+
+
+@router.post(
+    "/categories",
+    response_model=CategoryResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Category",
+    description="Create a new product category (Director/Admin only)"
+)
+async def create_category(
+    category_data: CategoryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new category"""
+    # Check permissions - only Director/Admin can create categories
+    if current_user.role not in ['director', 'admin']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Directors and Admins can create categories"
+        )
+    
+    # Validate universe exists
+    universe = db.query(Universe).filter(Universe.id == category_data.universe_id).first()
+    if not universe:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Universe with id {category_data.universe_id} not found"
+        )
+    
+    # Check if category name already exists
+    existing_category = db.query(Category).filter(Category.name == category_data.name).first()
+    if existing_category:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Category with name '{category_data.name}' already exists"
+        )
+    
+    # Create category
+    category = Category(
+        name=category_data.name,
+        display_name=category_data.display_name,
+        universe_id=category_data.universe_id,
+        description=category_data.description
+    )
+    
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    
+    return category
+
+
 @router.get(
     "/universes",
     response_model=List[UniverseResponse],

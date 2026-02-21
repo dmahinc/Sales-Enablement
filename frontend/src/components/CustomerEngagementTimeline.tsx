@@ -429,14 +429,16 @@ export default function CustomerEngagementTimeline({
                                 {event.material_name}
                               </Link>
                               
-                              {event.product_name && event.material_type && (
+                              {(event.product_name || event.material_type) && (
                                 <div className="text-xs text-slate-500 mt-1">
                                   {(() => {
                                     try {
                                       return formatMaterialTitle(event)
                                     } catch (e) {
                                       console.error('Error formatting material title:', e)
-                                      return `${event.product_name || 'Unknown'} • ${event.material_type || 'Unknown'}`
+                                      const productName = event.product_name || 'Unknown Product'
+                                      const materialType = formatMaterialType(event)
+                                      return `${productName} • ${materialType}`
                                     }
                                   })()}
                                 </div>

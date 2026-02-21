@@ -638,6 +638,7 @@ async def upload_material_file(
     freshness_date: Optional[str] = Form(None),
     pmm_in_charge_id: Optional[int] = Form(None),
     replace_existing: str = Form("false"),
+    send_notification: Optional[str] = Form("false"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -904,6 +905,53 @@ async def upload_material_file(
                 }
                 for m in existing_by_type
             ]
+        
+        # Create notification if requested (only PMM/Director can send)
+        send_notification_bool = send_notification and str(send_notification).lower() in ("true", "1", "yes")
+        if send_notification_bool and current_user.role in ['pmm', 'director', 'admin']:
+            try:
+                from app.models.notification import Notification, notification_recipients
+                
+                # Format material type for display
+                material_type_display = material.material_type.replace('_', ' ').title()
+                if material.other_type_description:
+                    material_type_display = material.other_type_description
+                
+                notification = Notification(
+                    title=f"New Material: {material.name}",
+                    message=f"A new {material_type_display} has been uploaded for {material.product_name}.",
+                    notification_type="material",
+                    target_id=material.id,
+                    link_path=f"/materials",
+                    sent_by_id=current_user.id
+                )
+                
+                db.add(notification)
+                db.flush()
+                
+                # Get all active users except sender
+                recipients = db.query(User).filter(
+                    User.id != current_user.id,
+                    User.is_active == True
+                ).all()
+                
+                # Add recipients
+                for recipient in recipients:
+                    db.execute(
+                        notification_recipients.insert().values(
+                            notification_id=notification.id,
+                            user_id=recipient.id,
+                            is_read=False,
+                            read_at=None
+                        )
+                    )
+                
+                db.commit()
+            except Exception as e:
+                # Log error but don't fail the upload
+                import logging
+                logging.error(f"Failed to create notification: {str(e)}")
+                db.rollback()
         
         return material_dict
         

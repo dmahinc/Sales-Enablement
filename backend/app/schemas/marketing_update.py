@@ -27,7 +27,7 @@ class MarketingUpdateBase(BaseModel):
 
 class MarketingUpdateCreate(MarketingUpdateBase):
     """Schema for creating a marketing update"""
-    pass
+    send_notification: Optional[bool] = Field(False, description="Send notification to all users about this update")
 
 
 class MarketingUpdateUpdate(BaseModel):

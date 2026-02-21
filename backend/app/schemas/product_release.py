@@ -22,7 +22,7 @@ class ProductReleaseBase(BaseModel):
 
 class ProductReleaseCreate(ProductReleaseBase):
     """Schema for creating a product release"""
-    pass
+    send_notification: Optional[bool] = Field(False, description="Send notification to all users about this release")
 
 
 class ProductReleaseUpdate(BaseModel):

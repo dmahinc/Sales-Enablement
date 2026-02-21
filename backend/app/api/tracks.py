@@ -182,6 +182,47 @@ async def create_track(
         db.commit()
         db.refresh(track)
         
+        # Create notification if requested (only PMM/Director can send)
+        if track_data.send_notification and current_user.role in ['pmm', 'director', 'admin']:
+            try:
+                from app.models.notification import Notification, notification_recipients
+                
+                notification = Notification(
+                    title=f"New Enablement Track: {track.name}",
+                    message=f"A new enablement track has been created: {track.name}",
+                    notification_type="track",
+                    target_id=track.id,
+                    link_path=f"/tracks",
+                    sent_by_id=current_user.id
+                )
+                
+                db.add(notification)
+                db.flush()
+                
+                # Get all active users except sender
+                recipients = db.query(User).filter(
+                    User.id != current_user.id,
+                    User.is_active == True
+                ).all()
+                
+                # Add recipients
+                for recipient in recipients:
+                    db.execute(
+                        notification_recipients.insert().values(
+                            notification_id=notification.id,
+                            user_id=recipient.id,
+                            is_read=False,
+                            read_at=None
+                        )
+                    )
+                
+                db.commit()
+            except Exception as e:
+                # Log error but don't fail the creation
+                import logging
+                logging.error(f"Failed to create notification: {str(e)}")
+                db.rollback()
+        
         return await get_track(track.id, db, current_user)
     except HTTPException:
         raise

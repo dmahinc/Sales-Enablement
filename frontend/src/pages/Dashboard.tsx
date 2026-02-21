@@ -281,7 +281,7 @@ export default function Dashboard() {
                 </Link>
                 
                 <Link
-                  to="/discovery"
+                  to="/materials"
                   className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-violet-300 hover:bg-violet-50 transition-all group"
                 >
                   <div className="bg-violet-100 p-3 rounded-lg mr-4">
@@ -289,9 +289,9 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-sm font-medium text-slate-900 group-hover:text-violet-600">
-                      Discover Content
+                      Explore Materials
                     </h3>
-                    <p className="text-xs text-slate-500">Search product and solution materials</p>
+                    <p className="text-xs text-slate-500">Browse product and solution materials</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-violet-500 group-hover:translate-x-1 transition-all" />
                 </Link>
