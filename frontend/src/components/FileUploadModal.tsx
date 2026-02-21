@@ -8,11 +8,13 @@ import { useAuth } from '../contexts/AuthContext'
 interface FileUploadModalProps {
   isOpen: boolean
   onClose: () => void
+  onUploadSuccess?: (material: any) => void
 }
 
-export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProps) {
+export default function FileUploadModal({ isOpen, onClose, onUploadSuccess }: FileUploadModalProps) {
   const { user } = useAuth()
   const isDirector = user?.role === 'director' || user?.is_superuser
+  const isPMM = user?.role === 'pmm'
   
   const [file, setFile] = useState<File | null>(null)
   // Initialize freshness_date to today's date in YYYY-MM-DD format
@@ -264,6 +266,11 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       // Show warning message if backend returned one
       if (data?.warning) {
         alert(`Upload successful!\n\nNote: ${data.warning}`)
+      }
+      
+      // Call onUploadSuccess callback if provided (before closing modal)
+      if (onUploadSuccess && data) {
+        onUploadSuccess(data)
       }
       
       // Close the entire modal

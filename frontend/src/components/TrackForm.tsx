@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Plus, X, GripVertical } from 'lucide-react'
+import { Plus, X, GripVertical, Upload } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import FileUploadModal from './FileUploadModal'
 
 interface TrackFormProps {
   track?: any
@@ -33,10 +34,12 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
     material?: any
   }>>([])
 
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+
   const queryClient = useQueryClient()
 
   // Fetch available materials
-  const { data: availableMaterials } = useQuery({
+  const { data: availableMaterials, refetch: refetchMaterials } = useQuery({
     queryKey: ['materials'],
     queryFn: () => api.get('/materials').then(res => res.data),
   })
@@ -278,14 +281,24 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
           <label className="block text-sm font-medium text-slate-700">
             Track Materials (in order)
           </label>
-          <button
-            type="button"
-            onClick={addMaterial}
-            className="btn-ovh-secondary text-sm"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add Material
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setIsUploadModalOpen(true)}
+              className="btn-ovh-secondary text-sm"
+            >
+              <Upload className="w-4 h-4 mr-1" />
+              Upload New Material
+            </button>
+            <button
+              type="button"
+              onClick={addMaterial}
+              className="btn-ovh-secondary text-sm"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Material
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -391,6 +404,27 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
           </label>
         </div>
       )}
+
+      {/* Upload Material Modal */}
+      <FileUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadSuccess={(uploadedMaterial) => {
+          // Refetch materials to get the latest list
+          refetchMaterials()
+          // Automatically add the uploaded material to the track
+          setMaterials([
+            ...materials,
+            {
+              material_id: uploadedMaterial.id,
+              order: materials.length + 1,
+              step_description: '',
+              is_required: true,
+              material: uploadedMaterial,
+            },
+          ])
+        }}
+      />
 
       <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
         <button type="button" onClick={onClose} className="btn-ovh-secondary">
