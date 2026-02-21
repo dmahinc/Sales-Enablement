@@ -332,10 +332,21 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
         }
         // Not replacing - check if blocking (exact name match) or just warning
         const detail = error.response?.data?.detail
-        if (detail && typeof detail === 'object') {
+        // Handle both direct detail object and nested detail.message format
+        let errorDetail = detail
+        if (detail && typeof detail === 'string') {
+          try {
+            errorDetail = JSON.parse(detail)
+          } catch (e) {
+            // If parsing fails, try to extract message from string
+            errorDetail = { message: detail }
+          }
+        }
+        
+        if (errorDetail && typeof errorDetail === 'object') {
           // Blocking error (exact name match) - show replace dialog
-          if (detail.blocking && detail.existing_material) {
-            setExistingMaterial(detail.existing_material)
+          if (errorDetail.blocking && errorDetail.existing_material) {
+            setExistingMaterial(errorDetail.existing_material)
             setUploading(false)
             setIsReplacing(false)
             isReplacingRef.current = false
@@ -349,9 +360,16 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
               }
               formDataToStore.append('audience', formData.audience)
               formDataToStore.append('freshness_date', formData.freshness_date)
-              formDataToStore.append('universe_id', formData.universe_id!.toString())
-              formDataToStore.append('category_id', formData.category_id!.toString())
-              formDataToStore.append('product_id', formData.product_id!.toString())
+              // Only append universe/category/product if they exist (for optional sorting)
+              if (formData.universe_id) {
+                formDataToStore.append('universe_id', formData.universe_id.toString())
+              }
+              if (formData.category_id) {
+                formDataToStore.append('category_id', formData.category_id.toString())
+              }
+              if (formData.product_id) {
+                formDataToStore.append('product_id', formData.product_id.toString())
+              }
               if (formData.product_name) {
                 formDataToStore.append('product_name', formData.product_name)
               }
@@ -367,7 +385,24 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
         }
       }
       // For any other error, show error
-      const errorMessage = error.response?.data?.detail?.message || error.response?.data?.detail || error.message || 'Failed to upload file'
+      let errorMessage = 'Failed to upload file'
+      const detail = error.response?.data?.detail
+      if (detail) {
+        if (typeof detail === 'string') {
+          try {
+            const parsed = JSON.parse(detail)
+            errorMessage = parsed.message || detail
+          } catch (e) {
+            errorMessage = detail
+          }
+        } else if (typeof detail === 'object') {
+          errorMessage = detail.message || JSON.stringify(detail)
+        } else {
+          errorMessage = detail
+        }
+      } else {
+        errorMessage = error.response?.data?.message || error.message || 'Failed to upload file'
+      }
       alert(`Upload failed: ${errorMessage}`)
       setIsReplacing(false)
       isReplacingRef.current = false
