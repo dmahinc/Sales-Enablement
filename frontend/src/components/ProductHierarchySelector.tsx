@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { ChevronDown, Search, X } from 'lucide-react'
+import ProductIcon from './ProductIcon'
 
 interface Universe {
   id: number
@@ -330,16 +331,27 @@ export default function ProductHierarchySelector({
               !selectedProduct && required ? 'border-red-300' : ''
             } ${!universeId ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <span className={selectedProduct ? 'text-slate-900' : 'text-slate-400'}>
-              {!universeId 
-                ? 'Select Universe first' 
-                : productsLoading 
-                  ? 'Loading products...' 
-                  : selectedProduct 
-                    ? selectedProduct.display_name 
-                    : 'Select Product'}
-            </span>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${productDropdownOpen ? 'rotate-180' : ''}`} />
+            <div className="flex items-center space-x-2 flex-1 min-w-0">
+              {selectedProduct && (
+                <div className="flex-shrink-0">
+                  <ProductIcon 
+                    productName={selectedProduct.display_name}
+                    size={18}
+                    className="text-slate-600"
+                  />
+                </div>
+              )}
+              <span className={`flex-1 min-w-0 ${selectedProduct ? 'text-slate-900' : 'text-slate-400'}`}>
+                {!universeId 
+                  ? 'Select Universe first' 
+                  : productsLoading 
+                    ? 'Loading products...' 
+                    : selectedProduct 
+                      ? selectedProduct.display_name 
+                      : 'Select Product'}
+              </span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform flex-shrink-0 ${productDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
             
             {productDropdownOpen && universeId && (
@@ -374,11 +386,18 @@ export default function ProductHierarchySelector({
                           setProductDropdownOpen(false)
                           setProductSearch('')
                         }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors ${
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors flex items-start space-x-2 ${
                           productId === product.id ? 'bg-primary-50 text-primary-600 font-medium' : 'text-slate-700'
                         }`}
                       >
-                        <div>
+                        <div className="flex-shrink-0 mt-0.5">
+                          <ProductIcon 
+                            productName={product.display_name}
+                            size={18}
+                            className={productId === product.id ? 'text-primary-600' : 'text-slate-500'}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
                           <div className="font-medium">{product.display_name}</div>
                           {product.short_description && (
                             <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">
