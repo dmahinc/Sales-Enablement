@@ -604,9 +604,16 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
       }
       formDataToSend.append('audience', formData.audience)
       formDataToSend.append('freshness_date', formData.freshness_date)
-      formDataToSend.append('universe_id', formData.universe_id!.toString())
-      formDataToSend.append('category_id', formData.category_id!.toString())
-      formDataToSend.append('product_id', formData.product_id!.toString())
+      // Only append universe/category/product if they exist (for optional sorting)
+      if (formData.universe_id) {
+        formDataToSend.append('universe_id', formData.universe_id.toString())
+      }
+      if (formData.category_id) {
+        formDataToSend.append('category_id', formData.category_id.toString())
+      }
+      if (formData.product_id) {
+        formDataToSend.append('product_id', formData.product_id.toString())
+      }
       if (formData.product_name) {
         formDataToSend.append('product_name', formData.product_name)
       }
