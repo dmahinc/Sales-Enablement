@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { CheckCircle, XCircle, RefreshCw, Search, Filter, ChevronDown, ChevronUp } from 'lucide-react'
+import ProductIcon from './ProductIcon'
 
 interface MaterialTypeStatus {
   has_material: boolean
@@ -477,10 +478,21 @@ export default function ProductCompletenessMatrix() {
                       return (
                         <tr key={row.product_id} className="hover:bg-slate-50">
                           <td className="px-4 py-3 sticky left-0 bg-white z-10">
-                            <div className="font-medium text-slate-900">{row.product_display_name}</div>
-                            {row.category_name && (
-                              <div className="text-xs text-slate-500">{row.category_name}</div>
-                            )}
+                            <div className="flex items-center space-x-2">
+                              <div className="flex-shrink-0">
+                                <ProductIcon 
+                                  productName={row.product_display_name}
+                                  size={20}
+                                  className="text-slate-700"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-slate-900">{row.product_display_name}</div>
+                                {row.category_name && (
+                                  <div className="text-xs text-slate-500">{row.category_name}</div>
+                                )}
+                              </div>
+                            </div>
                           </td>
                           {materialTypeKeys.map(type => {
                             const status = row.material_types[type as keyof typeof row.material_types]
