@@ -784,7 +784,7 @@ function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
                 className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
                 title="Share"
               >
-                <Share2 className="h-4 w-4" />
+                <Share2 className="h-5 w-5" />
               </button>
             )}
             {material.file_path && (
@@ -796,7 +796,7 @@ function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
                 className="p-1.5 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                 title="Download"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-5 w-5" />
               </button>
             )}
           </div>
@@ -967,7 +967,7 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: Mater
               className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
               title="Share"
             >
-              <Share2 className="h-4 w-4" />
+              <Share2 className="h-5 w-5" />
             </button>
           )}
           {material.file_path && (
@@ -979,7 +979,7 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: Mater
               className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
               title="Download"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-5 w-5" />
             </button>
           )}
         </div>
@@ -1140,7 +1140,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare }
                 onClick={() => onDownload(material)}
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-5 h-5" />
                 <span>Download</span>
               </button>
             )}

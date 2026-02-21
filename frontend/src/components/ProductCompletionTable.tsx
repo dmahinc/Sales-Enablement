@@ -183,7 +183,7 @@ export default function ProductCompletionTable({
               onClick={clearSelection}
               className="px-4 py-2 text-sm text-slate-600 hover:text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 flex items-center gap-1"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
               Clear ({selectedProductIds.size})
             </button>
           )}

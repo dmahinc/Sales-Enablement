@@ -384,7 +384,7 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
                   onClick={() => removeMaterial(index)}
                   className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             </div>

@@ -249,7 +249,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
               className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
               title="Share"
             >
-              <Share2 className="h-4 w-4" />
+              <Share2 className="h-5 w-5" />
             </button>
           )}
           {material.file_path && (
@@ -261,7 +261,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
               className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
               title="Download"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-5 w-5" />
             </button>
           )}
           {canEditDelete && onEdit && (
@@ -273,7 +273,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
               className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
               title="Edit"
             >
-              <Edit className="h-4 w-4" />
+              <Edit className="h-5 w-5" />
             </button>
           )}
           {canEditDelete && onDelete && (
@@ -287,7 +287,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
               className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
               title="Delete"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-5 w-5" />
             </button>
           )}
         </div>
@@ -653,7 +653,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
               >
-                <Edit className="w-4 h-4" />
+                <Edit className="w-5 h-5" />
                 <span>Edit</span>
               </button>
             )}
@@ -665,7 +665,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center space-x-2"
               >
-                <Share2 className="w-4 h-4" />
+                <Share2 className="w-5 h-5" />
                 <span>Share</span>
               </button>
             )}
@@ -677,7 +677,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-5 h-5" />
                 <span>Download</span>
               </button>
             )}
@@ -691,7 +691,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center space-x-2"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-5 h-5" />
                 <span>Delete</span>
               </button>
             )}
@@ -1339,7 +1339,7 @@ export default function Materials() {
               className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center justify-center border border-transparent hover:border-blue-200"
               title="Preview"
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-5 w-5" />
             </button>
             {material.status === 'published' && (
               <button
@@ -1350,7 +1350,7 @@ export default function Materials() {
                 className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
                 title="Share"
               >
-                <Share2 className="h-4 w-4" />
+                <Share2 className="h-5 w-5" />
               </button>
             )}
             {material.file_path && (
@@ -1359,7 +1359,7 @@ export default function Materials() {
                 className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                 title="Download"
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-5 w-5" />
               </button>
             )}
             {canEditDelete && (

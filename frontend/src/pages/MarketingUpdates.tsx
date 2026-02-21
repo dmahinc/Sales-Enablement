@@ -524,14 +524,14 @@ export default function MarketingUpdates() {
                       className="p-1 text-slate-400 hover:text-primary-600"
                       title="Edit"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDelete(update.id)}
                       className="p-1 text-slate-400 hover:text-red-600"
                       title="Delete"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 )}
