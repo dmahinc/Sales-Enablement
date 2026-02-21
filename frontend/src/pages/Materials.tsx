@@ -161,21 +161,23 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
       {/* Thumbnail/Icon Section */}
       <div className={`${colors.bg} ${colors.border} border-b-2 h-48 flex items-center justify-center relative overflow-hidden`}>
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
-        <MaterialIcon className={`w-16 h-16 ${colors.icon} relative z-10 transition-transform group-hover:scale-110`} />
+        {material.product_name ? (
+          <ProductIcon 
+            productName={material.product_name}
+            size={64}
+            className="text-slate-700 relative z-10 transition-transform group-hover:scale-110"
+          />
+        ) : (
+          <MaterialIcon className={`w-16 h-16 ${colors.icon} relative z-10 transition-transform group-hover:scale-110`} />
+        )}
         
         {/* Document Type Badge (replacing status) */}
         {material.material_type && (
           <div className="absolute top-3 right-3 flex items-center space-x-2">
-            {/* Product Icon Badge */}
-            {material.product_name && (
-              <div className="bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-white/50" title={material.product_name}>
-                <ProductIcon 
-                  productName={material.product_name}
-                  size={20}
-                  className="text-slate-700"
-                />
-              </div>
-            )}
+            {/* Material Type Icon Badge */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-white/50" title={formatMaterialType(material)}>
+              <MaterialIcon className={`w-5 h-5 ${colors.icon}`} />
+            </div>
             <span className={`text-xs px-2 py-1 rounded-full font-medium ${colors.bg} ${colors.icon}`}>
               {formatMaterialType(material)}
             </span>
@@ -1277,7 +1279,6 @@ export default function Materials() {
               const MaterialIcon = getMaterialTypeIcon(material.material_type)
               return (
                 <>
-                  <MaterialIcon className="h-5 w-5 text-primary-500" />
                   {material.product_name && (
                     <div className="flex-shrink-0" title={material.product_name}>
                       <ProductIcon 
@@ -1287,6 +1288,7 @@ export default function Materials() {
                       />
                     </div>
                   )}
+                  <MaterialIcon className="h-5 w-5 text-primary-500" />
                   <span className="text-xs text-slate-400 hidden">{material.material_type || 'null'}</span>
                 </>
               )
