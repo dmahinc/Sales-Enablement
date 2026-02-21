@@ -478,11 +478,11 @@ export default function ProductCompletenessMatrix() {
                       return (
                         <tr key={row.product_id} className="hover:bg-slate-50">
                           <td className="px-4 py-3 sticky left-0 bg-white z-10">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-4">
                               <div className="flex-shrink-0">
                                 <ProductIcon 
                                   productName={row.product_display_name}
-                                  size={20}
+                                  size={28}
                                   className="text-slate-700"
                                 />
                               </div>
