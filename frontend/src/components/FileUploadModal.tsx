@@ -13,7 +13,7 @@ interface FileUploadModalProps {
   keepOpenOnSuccess?: boolean
 }
 
-export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allowOptionalSorting = false }: FileUploadModalProps) {
+export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allowOptionalSorting = false, keepOpenOnSuccess = false }: FileUploadModalProps) {
   const { user } = useAuth()
   const isDirector = user?.role === 'director' || user?.is_superuser
   const isPMM = user?.role === 'pmm'
