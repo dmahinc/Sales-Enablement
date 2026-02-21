@@ -10,6 +10,7 @@ interface FileUploadModalProps {
   onClose: () => void
   onUploadSuccess?: (material: any) => void
   allowOptionalSorting?: boolean
+  keepOpenOnSuccess?: boolean
 }
 
 export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allowOptionalSorting = false }: FileUploadModalProps) {
@@ -271,11 +272,37 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
       
       // Call onUploadSuccess callback if provided (before closing modal)
       if (onUploadSuccess && data) {
-        onUploadSuccess(data)
+        try {
+          onUploadSuccess(data)
+        } catch (error) {
+          console.error('Error in onUploadSuccess callback:', error)
+          // Don't close modal if callback fails
+          setUploading(false)
+          return
+        }
       }
       
-      // Close the entire modal
-      handleClose()
+      // Close the entire modal unless keepOpenOnSuccess is true
+      if (!keepOpenOnSuccess) {
+        handleClose()
+      } else {
+        // Reset upload state but keep modal open
+        setUploading(false)
+        setFile(null)
+        // Reset form data but keep modal open for another upload
+        setFormData({
+          material_type: 'product_brief',
+          other_type_description: '',
+          audience: 'internal',
+          freshness_date: getTodayDate(),
+          universe_id: null,
+          category_id: null,
+          product_id: null,
+          product_name: '',
+          universe_name: '',
+          send_notification: true,
+        })
+      }
     },
     onError: (error: any) => {
       console.error('Upload error:', error)

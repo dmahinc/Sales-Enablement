@@ -171,6 +171,7 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -282,24 +283,14 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
           <label className="block text-sm font-medium text-slate-700">
             Track Materials (in order)
           </label>
-          <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => setIsUploadModalOpen(true)}
-              className="btn-ovh-secondary text-sm"
-            >
-              <Upload className="w-4 h-4 mr-1" />
-              Upload New Material
-            </button>
-            <button
-              type="button"
-              onClick={addMaterial}
-              className="btn-ovh-secondary text-sm"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Material
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={addMaterial}
+            className="btn-ovh-secondary text-sm"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Add Material
+          </button>
         </div>
 
         <div className="space-y-3">
@@ -421,15 +412,35 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
         </div>
       )}
 
-      {/* Upload Material Modal */}
-      <FileUploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => {
-          setIsUploadModalOpen(false)
-          setUploadingForMaterialIndex(null)
-        }}
-        allowOptionalSorting={true}
-        onUploadSuccess={(uploadedMaterial) => {
+      <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
+        <button type="button" onClick={onClose} className="btn-ovh-secondary">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={createMutation.isPending || updateMutation.isPending}
+          className="btn-ovh-primary disabled:opacity-50"
+        >
+          {createMutation.isPending || updateMutation.isPending
+            ? 'Saving...'
+            : track
+            ? 'Update'
+            : 'Create'}
+        </button>
+      </div>
+    </form>
+
+    {/* Upload Material Modal - Outside form to prevent event bubbling */}
+    <FileUploadModal
+      isOpen={isUploadModalOpen}
+      onClose={() => {
+        setIsUploadModalOpen(false)
+        setUploadingForMaterialIndex(null)
+      }}
+      allowOptionalSorting={true}
+      keepOpenOnSuccess={false}
+      onUploadSuccess={(uploadedMaterial) => {
+        try {
           // Refetch materials to get the latest list
           refetchMaterials()
           
@@ -451,25 +462,12 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
             ])
           }
           setUploadingForMaterialIndex(null)
-        }}
-      />
-
-      <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
-        <button type="button" onClick={onClose} className="btn-ovh-secondary">
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={createMutation.isPending || updateMutation.isPending}
-          className="btn-ovh-primary disabled:opacity-50"
-        >
-          {createMutation.isPending || updateMutation.isPending
-            ? 'Saving...'
-            : track
-            ? 'Update'
-            : 'Create'}
-        </button>
-      </div>
-    </form>
+        } catch (error) {
+          console.error('Error handling uploaded material:', error)
+          alert('Material uploaded successfully, but there was an error adding it to the track. Please refresh and try again.')
+        }
+      }}
+    />
+  </>
   )
 }
