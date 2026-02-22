@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* OVHcloud Design System Variables */
+/* OVHcloud Design System Variables - Light Mode */
 :root {
   --ovh-primary: #0050d7;
   --ovh-primary-dark: #00185e;
@@ -21,6 +21,34 @@
   --ovh-border: #dcdcdc;
   --ovh-shadow: 0 2px 8px rgba(0, 24, 94, 0.08);
   --ovh-radius: 8px;
+  --ovh-bg: #f8fafc;
+  --ovh-bg-card: #ffffff;
+  --ovh-text: #00185e;
+  --ovh-text-secondary: #4d5693;
+}
+
+/* OVHcloud Design System Variables - Dark Mode */
+.dark {
+  --ovh-primary: #66b8ff;
+  --ovh-primary-dark: #99d6ff;
+  --ovh-primary-light: #3399ff;
+  --ovh-secondary: #94a3b8;
+  --ovh-accent: #0050d7;
+  --ovh-white: #ffffff;
+  --ovh-black: #000000;
+  --ovh-gray-100: #0f172a;
+  --ovh-gray-200: #1e293b;
+  --ovh-gray-300: #334155;
+  --ovh-gray-400: #475569;
+  --ovh-gray-500: #64748b;
+  --ovh-border: #334155;
+  --ovh-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --ovh-gray-600: #64748b;
+  --ovh-radius: 8px;
+  --ovh-bg: #0f172a;
+  --ovh-bg-card: #1e293b;
+  --ovh-text: #f1f5f9;
+  --ovh-text-secondary: #cbd5e1;
 }
 
 /* Base Styles */
@@ -34,13 +62,14 @@ body {
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--ovh-gray-100);
-  color: var(--ovh-primary-dark);
+  background-color: var(--ovh-bg);
+  color: var(--ovh-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-  color: var(--ovh-primary-dark);
+  color: var(--ovh-text);
   font-weight: 600;
 }
 
@@ -65,25 +94,38 @@ h1, h2, h3, h4, h5, h6 {
   
   .btn-ovh-secondary {
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-all duration-200;
-    background-color: var(--ovh-white);
+    background-color: var(--ovh-bg-card);
     color: var(--ovh-primary);
     border: 2px solid var(--ovh-primary);
   }
   
   .btn-ovh-secondary:hover {
     background-color: var(--ovh-accent);
+    color: var(--ovh-white);
+  }
+  
+  .dark .btn-ovh-secondary {
+    background-color: var(--ovh-gray-300);
+    color: var(--ovh-primary);
+  }
+  
+  .dark .btn-ovh-secondary:hover {
+    background-color: var(--ovh-primary);
+    color: var(--ovh-white);
   }
   
   /* Cards */
   .card-ovh {
-    @apply bg-white rounded-lg;
+    @apply rounded-lg transition-colors duration-300;
+    background-color: var(--ovh-bg-card);
     box-shadow: var(--ovh-shadow);
     border: 1px solid var(--ovh-border);
   }
   
   /* Navigation */
   .nav-ovh {
-    @apply bg-white;
+    @apply transition-colors duration-300;
+    background-color: var(--ovh-bg-card);
     box-shadow: var(--ovh-shadow);
     border-bottom: 1px solid var(--ovh-border);
   }
@@ -105,8 +147,9 @@ h1, h2, h3, h4, h5, h6 {
   /* Inputs */
   .input-ovh {
     @apply w-full px-3 py-2 text-sm rounded-md transition-all duration-200;
+    background-color: var(--ovh-bg-card);
     border: 1px solid var(--ovh-border);
-    color: var(--ovh-primary-dark);
+    color: var(--ovh-text);
   }
   
   .input-ovh:focus {
@@ -121,7 +164,8 @@ h1, h2, h3, h4, h5, h6 {
   
   /* Sidebar */
   .sidebar-ovh {
-    @apply bg-white;
+    @apply transition-colors duration-300;
+    background-color: var(--ovh-bg-card);
     border-right: 1px solid var(--ovh-border);
   }
   
@@ -171,14 +215,14 @@ h1, h2, h3, h4, h5, h6 {
   .table-ovh th {
     @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider;
     background-color: var(--ovh-gray-100);
-    color: var(--ovh-secondary);
+    color: var(--ovh-text-secondary);
     border-bottom: 1px solid var(--ovh-border);
   }
   
   .table-ovh td {
     @apply px-4 py-4;
     border-bottom: 1px solid var(--ovh-border);
-    color: var(--ovh-primary-dark);
+    color: var(--ovh-text);
   }
   
   .table-ovh tr:hover td {
@@ -193,7 +237,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--ovh-gray-100);
+  background: var(--ovh-bg);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -205,10 +249,23 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--ovh-secondary);
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--ovh-gray-600);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--ovh-gray-500);
+}
+
 /* Selection */
 ::selection {
   background-color: var(--ovh-accent);
-  color: var(--ovh-primary-dark);
+  color: var(--ovh-text);
+}
+
+.dark ::selection {
+  background-color: var(--ovh-primary);
+  color: var(--ovh-white);
 }
 
 /* Code */
@@ -218,4 +275,5 @@ code {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.875em;
+  color: var(--ovh-text);
 }

@@ -166,16 +166,49 @@ async def list_materials(
 @router.get("/{material_id}", response_model=MaterialResponse)
 async def get_material(
     material_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get a specific material"""
+    """Get a specific material and track view"""
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Material not found"
         )
+    
+    # Track view event for sales users (only track once per session to avoid spam)
+    # This helps track active sessions for the KPI
+    try:
+        from app.models.usage import MaterialUsage, UsageAction
+        # Only track for sales users to measure active sessions
+        if current_user.role == "sales":
+            # Check if we've already tracked a view for this user/material in the last minute
+            # This prevents duplicate tracking from rapid API calls
+            one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
+            recent_view = db.query(MaterialUsage).filter(
+                MaterialUsage.material_id == material_id,
+                MaterialUsage.user_id == current_user.id,
+                MaterialUsage.action == UsageAction.VIEW.value,
+                MaterialUsage.used_at >= one_minute_ago
+            ).first()
+            
+            if not recent_view:
+                usage_event = MaterialUsage(
+                    material_id=material_id,
+                    user_id=current_user.id,
+                    action=UsageAction.VIEW.value,
+                    used_at=datetime.utcnow(),
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent")
+                )
+                db.add(usage_event)
+                db.commit()
+    except Exception as e:
+        # Log error but don't fail the request
+        logger.error(f"Failed to track material view: {str(e)}")
+        db.rollback()
     
     # Add PMM information
     material_dict = MaterialResponse.model_validate(material).model_dump()
@@ -1040,6 +1073,64 @@ async def download_material_file(
         filename=filename,
         media_type=media_type
     )
+
+
+@router.post("/{material_id}/track-action")
+async def track_material_action(
+    material_id: int,
+    action: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Track a material action (view, browse, search, etc.) for usage analytics"""
+    from app.models.usage import MaterialUsage, UsageAction
+    
+    material = db.query(Material).filter(Material.id == material_id).first()
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+    
+    # Validate action
+    valid_actions = ["view", "browse", "search", "preview"]
+    if action not in valid_actions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid action. Must be one of: {', '.join(valid_actions)}"
+        )
+    
+    # Only track for sales users to measure active sessions
+    if current_user.role == "sales":
+        # Prevent duplicate tracking: check if same action was tracked in last 5 minutes
+        five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+        recent_action = db.query(MaterialUsage).filter(
+            MaterialUsage.material_id == material_id,
+            MaterialUsage.user_id == current_user.id,
+            MaterialUsage.action == action,
+            MaterialUsage.used_at >= five_minutes_ago
+        ).first()
+        
+        if not recent_action:
+            try:
+                usage_event = MaterialUsage(
+                    material_id=material_id,
+                    user_id=current_user.id,
+                    action=action,
+                    used_at=datetime.utcnow(),
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent")
+                )
+                db.add(usage_event)
+                db.commit()
+                return {"status": "tracked", "action": action, "material_id": material_id}
+            except Exception as e:
+                logger.error(f"Failed to track material action: {str(e)}")
+                db.rollback()
+                return {"status": "error", "message": str(e)}
+    
+    return {"status": "skipped", "reason": "not_sales_user"}
 
 
 @router.get("/{material_id}/executive-summary")

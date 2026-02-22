@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { useNavigate } from 'react-router-dom'
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react'
 
@@ -9,6 +10,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
+  const { theme } = useTheme()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,12 +29,26 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 flex items-center justify-center p-4">
+    <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 ${
+      theme === 'dark' 
+        ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
+        : 'bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500'
+    }`}>
       {/* Background Pattern */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary-400 rounded-full opacity-20"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-800 rounded-full opacity-20"></div>
-        <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-primary-100 rounded-full opacity-10"></div>
+        {theme === 'dark' ? (
+          <>
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary-900/30 rounded-full opacity-20"></div>
+            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-800/20 rounded-full opacity-20"></div>
+            <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-primary-700/10 rounded-full opacity-10"></div>
+          </>
+        ) : (
+          <>
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary-400 rounded-full opacity-20"></div>
+            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-primary-800 rounded-full opacity-20"></div>
+            <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-primary-100 rounded-full opacity-10"></div>
+          </>
+        )}
       </div>
 
       <div className="relative w-full max-w-md">
@@ -41,53 +57,57 @@ export default function Login() {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center mb-4">
-              <img src="/logo.svg" alt="Product Enablement & Customer Engagement Platform" className="h-20" />
+              <img 
+                src={theme === 'dark' ? "/logo-white.svg" : "/logo.svg"} 
+                alt="Product Enablement & Customer Engagement Platform" 
+                className="h-20 transition-opacity duration-300" 
+              />
             </div>
-            <h1 className="text-2xl font-semibold text-primary-700">Product Enablement & Customer Engagement Platform</h1>
-            <p className="text-slate-500 mt-2">Sign in to your account</p>
+            <h1 className="text-2xl font-semibold text-primary-700 dark:text-primary-400">Product Enablement & Customer Engagement Platform</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-2">Sign in to your account</p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
-              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
             </div>
           )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                 <input
                   id="email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input-ovh pl-10"
+                  className="input-ovh pl-10 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-400"
                   placeholder="you@ovhcloud.com"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
                 <input
                   id="password"
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-ovh pl-10"
+                  className="input-ovh pl-10 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-400"
                   placeholder="••••••••"
                 />
               </div>
@@ -114,7 +134,7 @@ export default function Login() {
 
           {/* Footer */}
           <div className="mt-8 text-center">
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               © 2026 OVHcloud Product Enablement & Customer Engagement Platform
             </p>
           </div>

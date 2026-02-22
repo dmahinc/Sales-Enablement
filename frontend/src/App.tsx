@@ -19,6 +19,7 @@ import ProductReleases from './pages/ProductReleases'
 import MarketingUpdates from './pages/MarketingUpdates'
 import Notifications from './pages/Notifications'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 
 const queryClient = new QueryClient()
 
@@ -115,14 +116,16 @@ function AppRoutes() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}>
-          <AppRoutes />
-        </Router>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Router future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}>
+            <AppRoutes />
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

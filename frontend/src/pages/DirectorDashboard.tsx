@@ -13,7 +13,6 @@ import {
   BarChart3,
   Target,
   Plus,
-  RefreshCw,
   LogIn
 } from 'lucide-react'
 import ProductCompletenessMatrix from '../components/ProductCompletenessMatrix'
@@ -21,7 +20,7 @@ import ProductCompletenessMatrix from '../components/ProductCompletenessMatrix'
 export default function DirectorDashboard() {
   const { user } = useAuth()
 
-  const { data, isLoading, error, refetch: refetchDashboard } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['director-dashboard'],
     queryFn: () => api.get('/dashboard/director').then(res => res.data),
   })
@@ -83,25 +82,14 @@ export default function DirectorDashboard() {
     },
   ]
 
-  const handleRefresh = () => {
-    refetchDashboard()
-  }
-
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-primary-700">Director Dashboard</h1>
-          <p className="mt-1 text-slate-500">Monitor team progress, document completion, and material health across product hierarchy</p>
+          <h1 className="text-2xl font-semibold text-primary-700 dark:text-primary-400">Director Dashboard</h1>
+          <p className="mt-1 text-slate-500 dark:text-slate-400">Monitor team progress, document completion, and material health across product hierarchy</p>
         </div>
-        <button 
-          onClick={handleRefresh}
-          className="btn-ovh-secondary mt-4 sm:mt-0"
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh Data
-        </button>
       </div>
 
       {/* Stats Grid */}

@@ -154,10 +154,21 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
   const MaterialIcon = getMaterialTypeIcon(material.material_type)
   const freshness = getFreshnessInfo(material.last_updated)
   
+  const handlePreview = () => {
+    // Track browse action when card is clicked
+    api.post(`/materials/${material.id}/track-action`, null, {
+      params: { action: 'browse' }
+    }).catch(err => {
+      // Silently fail - tracking shouldn't break the UI
+      console.debug('Failed to track browse action:', err)
+    })
+    onPreview(material)
+  }
+  
   return (
     <div 
       className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-xl hover:border-primary-300 transition-all duration-200 cursor-pointer"
-      onClick={() => onPreview(material)}
+      onClick={handlePreview}
     >
       {/* Thumbnail/Icon Section */}
       <div className={`${colors.bg} ${colors.border} border-b-2 h-48 flex items-center justify-center relative overflow-hidden`}>
@@ -321,6 +332,19 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
   const MaterialIcon = getMaterialTypeIcon(material.material_type)
   const freshness = getFreshnessInfo(material.last_updated)
   
+  // Track material preview/view when modal opens
+  useEffect(() => {
+    if (isOpen && material?.id) {
+      // Track preview action for sales users
+      api.post(`/materials/${material.id}/track-action`, null, {
+        params: { action: 'preview' }
+      }).catch(err => {
+        // Silently fail - tracking shouldn't break the UI
+        console.debug('Failed to track preview action:', err)
+      })
+    }
+  }, [isOpen, material?.id])
+
   // Reset summary state when modal closes or material changes
   useEffect(() => {
     if (!isOpen) {
@@ -740,6 +764,8 @@ export default function Materials() {
     queryFn: () => api.get('/materials').then(res => res.data),
   })
 
+  // Track search actions for sales users (moved after filteredMaterials is defined)
+
 
   // Fetch product hierarchy for filters
   const { data: universes = [], isLoading: universesLoading, error: universesError } = useQuery({
@@ -867,6 +893,26 @@ export default function Materials() {
       return true
     })
   }, [materials, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, searchQuery, allProducts, showArchivedByUniverse])
+
+  // Track search actions for sales users
+  useEffect(() => {
+    if (isSales && searchQuery.trim() && filteredMaterials && filteredMaterials.length > 0) {
+      // Debounce search tracking - only track after user stops typing for 2 seconds
+      const timeoutId = setTimeout(() => {
+        // Track search action for the first material in results (as a proxy for search activity)
+        const firstMaterial = filteredMaterials[0]
+        if (firstMaterial) {
+          api.post(`/materials/${firstMaterial.id}/track-action`, null, {
+            params: { action: 'search' }
+          }).catch(err => {
+            console.debug('Failed to track search action:', err)
+          })
+        }
+      }, 2000) // 2 second debounce
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [searchQuery, isSales, filteredMaterials])
 
 
   // Group ALL materials by universe (for card counts - always show total)
