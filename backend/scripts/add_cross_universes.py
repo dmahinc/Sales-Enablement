@@ -7,6 +7,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Import all models to ensure they're registered
+from app.models import product, user, notification, material, track  # noqa: F401
 from app.core.database import SessionLocal
 from app.models.product import Universe
 
