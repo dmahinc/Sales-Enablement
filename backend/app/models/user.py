@@ -6,6 +6,12 @@ from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 from typing import TYPE_CHECKING
 
+# Import notification_recipients table to ensure it's available for relationship
+try:
+    from app.models.notification import notification_recipients  # noqa: F401
+except ImportError:
+    pass
+
 if TYPE_CHECKING:
     from app.models.ai_correction import AICorrection
 

@@ -125,7 +125,8 @@ async def get_categories(
                 "Content Updates",
                 "Sales Playbooks",
                 "Training Materials",
-                "Content Best Practices"
+                "Content Best Practices",
+                "Product Monthly Update"
             ]
         },
         "events_activities": {

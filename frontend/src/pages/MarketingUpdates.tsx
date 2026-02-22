@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Eye, Plus, Edit, Trash2, Calendar, User, X, Filter, Tag } from 'lucide-react'
+import { Eye, Plus, Edit, Trash2, Calendar, User, X, Filter, Tag, Upload } from 'lucide-react'
 import Modal from '../components/Modal'
 import MultiSelect from '../components/MultiSelect'
+import FileUploadModal from '../components/FileUploadModal'
 import { useAuth } from '../contexts/AuthContext'
 import DOMPurify from 'dompurify'
 
@@ -702,8 +703,11 @@ function MarketingUpdateForm({
     target_audience: update?.target_audience || '',
     published_at: formatDateTimeLocal(update?.published_at),
     expires_at: formatDateTimeLocal(update?.expires_at),
-    send_notification: false
+    send_notification: false,
+    material_id: undefined as number | undefined
   })
+  
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
 
   // Get subcategories for selected category
   const availableSubcategories = formData.category && categoriesInfo[formData.category]
@@ -779,6 +783,7 @@ function MarketingUpdateForm({
       universe_id: formData.universe_id || null,
       category_id: formData.category_id || null,
       product_id: formData.product_id || null,
+      material_id: formData.material_id || null,
     }
 
     // Handle published_at
@@ -844,6 +849,7 @@ function MarketingUpdateForm({
   if (!isOpen) return null
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
@@ -969,6 +975,40 @@ function MarketingUpdateForm({
             />
             <p className="mt-1 text-xs text-slate-500">
               HTML tags are supported. Use &lt;p&gt; for paragraphs, &lt;strong&gt; for bold, &lt;ul&gt; and &lt;li&gt; for lists, &lt;a href=&quot;...&quot;&gt; for links, etc.
+            </p>
+          </div>
+
+          {/* Material Upload Section */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Attached Material (Optional)
+            </label>
+            <div className="flex items-center space-x-3">
+              {formData.material_id ? (
+                <div className="flex-1 flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <span className="text-sm text-slate-700">Material ID: {formData.material_id}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, material_id: undefined })}
+                    className="text-slate-400 hover:text-red-500"
+                    title="Remove material"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="btn-ovh-secondary text-sm"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Material
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Upload a material file to attach to this marketing update
             </p>
           </div>
 
@@ -1125,5 +1165,17 @@ function MarketingUpdateForm({
         </div>
       </form>
     </Modal>
+
+    {/* Upload Material Modal - Outside form Modal to prevent z-index issues */}
+    <FileUploadModal
+      isOpen={isUploadModalOpen}
+      onClose={() => setIsUploadModalOpen(false)}
+      allowOptionalSorting={true}
+      keepOpenOnSuccess={false}
+      onUploadSuccess={(uploadedMaterial) => {
+        setFormData({ ...formData, material_id: uploadedMaterial.id })
+      }}
+    />
+    </>
   )
 }

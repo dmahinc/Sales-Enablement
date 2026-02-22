@@ -24,6 +24,19 @@ FROM nginx:alpine
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Create SSL directory
+RUN mkdir -p /etc/nginx/ssl
+
+# Copy SSL certificates (from frontend/ssl directory)
+COPY ssl/sales-enablement.crt /etc/nginx/ssl/sales-enablement.crt
+COPY ssl/sales-enablement.key /etc/nginx/ssl/sales-enablement.key
+COPY ssl/ca.crt /etc/nginx/ssl/ca.crt
+
+# Set proper permissions for SSL key
+RUN chmod 600 /etc/nginx/ssl/sales-enablement.key && \
+    chmod 644 /etc/nginx/ssl/sales-enablement.crt && \
+    chmod 644 /etc/nginx/ssl/ca.crt
+
 # Copy HTTPS nginx configuration
 COPY nginx-https.conf /etc/nginx/conf.d/default.conf
 
