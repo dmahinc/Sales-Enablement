@@ -1,0 +1,797 @@
+{
+  "ai deploy": {
+    "icon_path": "All Products Icons/AI & Machine Learning/AI Deploy.svg",
+    "icon_file": "AI Deploy.svg",
+    "category": "AI & Machine Learning"
+  },
+  "ai endpoints": {
+    "icon_path": "All Products Icons/AI & Machine Learning/AI Endpoints.svg",
+    "icon_file": "AI Endpoints.svg",
+    "category": "AI & Machine Learning"
+  },
+  "ai notebooks": {
+    "icon_path": "All Products Icons/AI & Machine Learning/AI Notebooks.svg",
+    "icon_file": "AI Notebooks.svg",
+    "category": "AI & Machine Learning"
+  },
+  "ai training": {
+    "icon_path": "All Products Icons/AI & Machine Learning/AI Training.svg",
+    "icon_file": "AI Training.svg",
+    "category": "AI & Machine Learning"
+  },
+  "hycu for ovhcloud": {
+    "icon_path": "All Products Icons/Backup and Disaster Recovery/HYCU for OVHcloud.svg",
+    "icon_file": "HYCU for OVHcloud.svg",
+    "category": "Backup and Disaster Recovery"
+  },
+  "hycu": {
+    "icon_path": "All Products Icons/Backup and Disaster Recovery/HYCU for OVHcloud.svg",
+    "icon_file": "HYCU for OVHcloud.svg",
+    "category": "Backup and Disaster Recovery"
+  },
+  "options per products": {
+    "icon_path": "All Products Icons/Backup and Disaster Recovery/Options per products.svg",
+    "icon_file": "Options per products.svg",
+    "category": "Backup and Disaster Recovery"
+  },
+  "optis per products": {
+    "icon_path": "All Products Icons/Backup and Disaster Recovery/Options per products.svg",
+    "icon_file": "Options per products.svg",
+    "category": "Backup and Disaster Recovery"
+  },
+  "veeam enterprise plus": {
+    "icon_path": "All Products Icons/Backup and Disaster Recovery/Veeam Enterprise Plus.svg",
+    "icon_file": "Veeam Enterprise Plus.svg",
+    "category": "Backup and Disaster Recovery"
+  },
+  "workflow management": {
+    "icon_path": "All Products Icons/Backup and Disaster Recovery/Workflow Management.svg",
+    "icon_file": "Workflow Management.svg",
+    "category": "Backup and Disaster Recovery"
+  },
+  "advance": {
+    "icon_path": "All Products Icons/Compute/Advance.svg",
+    "icon_file": "Advance.svg",
+    "category": "Compute"
+  },
+  "bare metal pod": {
+    "icon_path": "All Products Icons/Compute/Bare Metal Pod.svg",
+    "icon_file": "Bare Metal Pod.svg",
+    "category": "Compute"
+  },
+  "cloud gpu": {
+    "icon_path": "All Products Icons/Compute/Cloud GPU.svg",
+    "icon_file": "Cloud GPU.svg",
+    "category": "Compute"
+  },
+  "dedicated servers": {
+    "icon_path": "All Products Icons/Compute/Dedicated Servers.svg",
+    "icon_file": "Dedicated Servers.svg",
+    "category": "Compute"
+  },
+  "high grade": {
+    "icon_path": "All Products Icons/Compute/High Grade.svg",
+    "icon_file": "High Grade.svg",
+    "category": "Compute"
+  },
+  "instances": {
+    "icon_path": "All Products Icons/Compute/Instances.svg",
+    "icon_file": "Instances.svg",
+    "category": "Compute"
+  },
+  "managed bare metal": {
+    "icon_path": "All Products Icons/Compute/Managed Bare Metal.svg",
+    "icon_file": "Managed Bare Metal.svg",
+    "category": "Compute"
+  },
+  "bare metal": {
+    "icon_path": "All Products Icons/Compute/Managed Bare Metal.svg",
+    "icon_file": "Managed Bare Metal.svg",
+    "category": "Compute"
+  },
+  "managed vmware vsphere qualified secnumcloud": {
+    "icon_path": "All Products Icons/Compute/Managed VMware vSphere qualified SecNumCloud.svg",
+    "icon_file": "Managed VMware vSphere qualified SecNumCloud.svg",
+    "category": "Compute"
+  },
+  "vmware vsphere qualified secnumcloud": {
+    "icon_path": "All Products Icons/Compute/Managed VMware vSphere qualified SecNumCloud.svg",
+    "icon_file": "Managed VMware vSphere qualified SecNumCloud.svg",
+    "category": "Compute"
+  },
+  "managed vmware vsphere": {
+    "icon_path": "All Products Icons/Compute/Managed VMware vSphere.svg",
+    "icon_file": "Managed VMware vSphere.svg",
+    "category": "Compute"
+  },
+  "vmware vsphere": {
+    "icon_path": "All Products Icons/Compute/Managed VMware vSphere.svg",
+    "icon_file": "Managed VMware vSphere.svg",
+    "category": "Compute"
+  },
+  "metal instances": {
+    "icon_path": "All Products Icons/Compute/Metal Instances.svg",
+    "icon_file": "Metal Instances.svg",
+    "category": "Compute"
+  },
+  "nutanix on ovhcloud": {
+    "icon_path": "All Products Icons/Compute/Nutanix on OVHcloud.svg",
+    "icon_file": "Nutanix on OVHcloud.svg",
+    "category": "Compute"
+  },
+  "nutanix": {
+    "icon_path": "All Products Icons/Compute/Nutanix on OVHcloud.svg",
+    "icon_file": "Nutanix on OVHcloud.svg",
+    "category": "Compute"
+  },
+  "on-prem cloud platform": {
+    "icon_path": "All Products Icons/Compute/On-Prem Cloud Platform.svg",
+    "icon_file": "On-Prem Cloud Platform.svg",
+    "category": "Compute"
+  },
+  "-prem cloud platm": {
+    "icon_path": "All Products Icons/Compute/On-Prem Cloud Platform.svg",
+    "icon_file": "On-Prem Cloud Platform.svg",
+    "category": "Compute"
+  },
+  "public vcf as a service": {
+    "icon_path": "All Products Icons/Compute/Public VCF as a Service.svg",
+    "icon_file": "Public VCF as a Service.svg",
+    "category": "Compute"
+  },
+  "public vcf as a": {
+    "icon_path": "All Products Icons/Compute/Public VCF as a Service.svg",
+    "icon_file": "Public VCF as a Service.svg",
+    "category": "Compute"
+  },
+  "rise": {
+    "icon_path": "All Products Icons/Compute/Rise.svg",
+    "icon_file": "Rise.svg",
+    "category": "Compute"
+  },
+  "sap hana on private cloud": {
+    "icon_path": "All Products Icons/Compute/SAP HANA on Private Cloud.svg",
+    "icon_file": "SAP HANA on Private Cloud.svg",
+    "category": "Compute"
+  },
+  "sap hana  private cloud": {
+    "icon_path": "All Products Icons/Compute/SAP HANA on Private Cloud.svg",
+    "icon_file": "SAP HANA on Private Cloud.svg",
+    "category": "Compute"
+  },
+  "scale": {
+    "icon_path": "All Products Icons/Compute/Scale.svg",
+    "icon_file": "Scale.svg",
+    "category": "Compute"
+  },
+  "vps": {
+    "icon_path": "All Products Icons/Compute/VPS.svg",
+    "icon_file": "VPS.svg",
+    "category": "Compute"
+  },
+  "internet access": {
+    "icon_path": "All Products Icons/Connectivity/Internet Access.svg",
+    "icon_file": "Internet Access.svg",
+    "category": "Connectivity"
+  },
+  "overthebox": {
+    "icon_path": "All Products Icons/Connectivity/OverTheBox.svg",
+    "icon_file": "OverTheBox.svg",
+    "category": "Connectivity"
+  },
+  "managed kubernetes service": {
+    "icon_path": "All Products Icons/Containers/Managed Kubernetes Service.svg",
+    "icon_file": "Managed Kubernetes Service.svg",
+    "category": "Containers"
+  },
+  "kubernetes": {
+    "icon_path": "All Products Icons/Containers/Managed Kubernetes Service.svg",
+    "icon_file": "Managed Kubernetes Service.svg",
+    "category": "Containers"
+  },
+  "managed private registry": {
+    "icon_path": "All Products Icons/Containers/Managed Private Registry.svg",
+    "icon_file": "Managed Private Registry.svg",
+    "category": "Containers"
+  },
+  "private registry": {
+    "icon_path": "All Products Icons/Containers/Managed Private Registry.svg",
+    "icon_file": "Managed Private Registry.svg",
+    "category": "Containers"
+  },
+  "managed rancher service": {
+    "icon_path": "All Products Icons/Containers/Managed Rancher Service.svg",
+    "icon_file": "Managed Rancher Service.svg",
+    "category": "Containers"
+  },
+  "rancher": {
+    "icon_path": "All Products Icons/Containers/Managed Rancher Service.svg",
+    "icon_file": "Managed Rancher Service.svg",
+    "category": "Containers"
+  },
+  "data platform": {
+    "icon_path": "All Products Icons/Data Analytics/Data Platform.svg",
+    "icon_file": "Data Platform.svg",
+    "category": "Data Analytics"
+  },
+  "data platm": {
+    "icon_path": "All Products Icons/Data Analytics/Data Platform.svg",
+    "icon_file": "Data Platform.svg",
+    "category": "Data Analytics"
+  },
+  "managed caching": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Caching.svg",
+    "icon_file": "Managed Caching.svg",
+    "category": "Data Analytics"
+  },
+  "caching": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Caching.svg",
+    "icon_file": "Managed Caching.svg",
+    "category": "Data Analytics"
+  },
+  "managed grafana": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Grafana.svg",
+    "icon_file": "Managed Grafana.svg",
+    "category": "Data Analytics"
+  },
+  "grafana": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Grafana.svg",
+    "icon_file": "Managed Grafana.svg",
+    "category": "Data Analytics"
+  },
+  "managed kafka connect": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Kafka Connect.svg",
+    "icon_file": "Managed Kafka Connect.svg",
+    "category": "Data Analytics"
+  },
+  "kafka cnect": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Kafka Connect.svg",
+    "icon_file": "Managed Kafka Connect.svg",
+    "category": "Data Analytics"
+  },
+  "managed kafka mirrormaker": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Kafka MirrorMaker.svg",
+    "icon_file": "Managed Kafka MirrorMaker.svg",
+    "category": "Data Analytics"
+  },
+  "kafka mirrormaker": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Kafka MirrorMaker.svg",
+    "icon_file": "Managed Kafka MirrorMaker.svg",
+    "category": "Data Analytics"
+  },
+  "managed kafka": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Kafka.svg",
+    "icon_file": "Managed Kafka.svg",
+    "category": "Data Analytics"
+  },
+  "kafka": {
+    "icon_path": "All Products Icons/Data Analytics/Managed Kafka.svg",
+    "icon_file": "Managed Kafka.svg",
+    "category": "Data Analytics"
+  },
+  "managed opensearch": {
+    "icon_path": "All Products Icons/Data Analytics/Managed OpenSearch.svg",
+    "icon_file": "Managed OpenSearch.svg",
+    "category": "Data Analytics"
+  },
+  "opensearch": {
+    "icon_path": "All Products Icons/Data Analytics/Managed OpenSearch.svg",
+    "icon_file": "Managed OpenSearch.svg",
+    "category": "Data Analytics"
+  },
+  "apis": {
+    "icon_path": "All Products Icons/Data Platform Components/APIs.svg",
+    "icon_file": "APIs.svg",
+    "category": "Data Platform Components"
+  },
+  "analytics manager": {
+    "icon_path": "All Products Icons/Data Platform Components/Analytics Manager.svg",
+    "icon_file": "Analytics Manager.svg",
+    "category": "Data Platform Components"
+  },
+  "application services": {
+    "icon_path": "All Products Icons/Data Platform Components/Application Services.svg",
+    "icon_file": "Application Services.svg",
+    "category": "Data Platform Components"
+  },
+  "applicati s": {
+    "icon_path": "All Products Icons/Data Platform Components/Application Services.svg",
+    "icon_file": "Application Services.svg",
+    "category": "Data Platform Components"
+  },
+  "control center": {
+    "icon_path": "All Products Icons/Data Platform Components/Control Center.svg",
+    "icon_file": "Control Center.svg",
+    "category": "Data Platform Components"
+  },
+  "ctrol center": {
+    "icon_path": "All Products Icons/Data Platform Components/Control Center.svg",
+    "icon_file": "Control Center.svg",
+    "category": "Data Platform Components"
+  },
+  "data catalog": {
+    "icon_path": "All Products Icons/Data Platform Components/Data Catalog.svg",
+    "icon_file": "Data Catalog.svg",
+    "category": "Data Platform Components"
+  },
+  "data processing engine": {
+    "icon_path": "All Products Icons/Data Platform Components/Data Processing Engine.svg",
+    "icon_file": "Data Processing Engine.svg",
+    "category": "Data Platform Components"
+  },
+  "identity access manager": {
+    "icon_path": "All Products Icons/Data Platform Components/Identity Access Manager.svg",
+    "icon_file": "Identity Access Manager.svg",
+    "category": "Data Platform Components"
+  },
+  "lakehouse manager": {
+    "icon_path": "All Products Icons/Data Platform Components/Lakehouse Manager.svg",
+    "icon_file": "Lakehouse Manager.svg",
+    "category": "Data Platform Components"
+  },
+  "managed cassandra": {
+    "icon_path": "All Products Icons/Databases/Managed Cassandra.svg",
+    "icon_file": "Managed Cassandra.svg",
+    "category": "Databases"
+  },
+  "cassandra": {
+    "icon_path": "All Products Icons/Databases/Managed Cassandra.svg",
+    "icon_file": "Managed Cassandra.svg",
+    "category": "Databases"
+  },
+  "managed m3 aggregator": {
+    "icon_path": "All Products Icons/Databases/Managed M3 Aggregator.svg",
+    "icon_file": "Managed M3 Aggregator.svg",
+    "category": "Databases"
+  },
+  "m3 aggregator": {
+    "icon_path": "All Products Icons/Databases/Managed M3 Aggregator.svg",
+    "icon_file": "Managed M3 Aggregator.svg",
+    "category": "Databases"
+  },
+  "managed m3db": {
+    "icon_path": "All Products Icons/Databases/Managed M3DB.svg",
+    "icon_file": "Managed M3DB.svg",
+    "category": "Databases"
+  },
+  "m3db": {
+    "icon_path": "All Products Icons/Databases/Managed M3DB.svg",
+    "icon_file": "Managed M3DB.svg",
+    "category": "Databases"
+  },
+  "managed mongodb": {
+    "icon_path": "All Products Icons/Databases/Managed MongoDB.svg",
+    "icon_file": "Managed MongoDB.svg",
+    "category": "Databases"
+  },
+  "mgodb": {
+    "icon_path": "All Products Icons/Databases/Managed MongoDB.svg",
+    "icon_file": "Managed MongoDB.svg",
+    "category": "Databases"
+  },
+  "managed mysql": {
+    "icon_path": "All Products Icons/Databases/Managed MySQL.svg",
+    "icon_file": "Managed MySQL.svg",
+    "category": "Databases"
+  },
+  "mysql": {
+    "icon_path": "All Products Icons/Databases/Managed MySQL.svg",
+    "icon_file": "Managed MySQL.svg",
+    "category": "Databases"
+  },
+  "managed postgresql": {
+    "icon_path": "All Products Icons/Databases/Managed PostgreSQL.svg",
+    "icon_file": "Managed PostgreSQL.svg",
+    "category": "Databases"
+  },
+  "postgresql": {
+    "icon_path": "All Products Icons/Databases/Managed PostgreSQL.svg",
+    "icon_file": "Managed PostgreSQL.svg",
+    "category": "Databases"
+  },
+  "managed valkey": {
+    "icon_path": "All Products Icons/Databases/Managed Valkey.svg",
+    "icon_file": "Managed Valkey.svg",
+    "category": "Databases"
+  },
+  "valkey": {
+    "icon_path": "All Products Icons/Databases/Managed Valkey.svg",
+    "icon_file": "Managed Valkey.svg",
+    "category": "Databases"
+  },
+  "horizon": {
+    "icon_path": "All Products Icons/Developper Tools/Horizon.svg",
+    "icon_file": "Horizon.svg",
+    "category": "Developper Tools"
+  },
+  "horiz": {
+    "icon_path": "All Products Icons/Developper Tools/Horizon.svg",
+    "icon_file": "Horizon.svg",
+    "category": "Developper Tools"
+  },
+  "ovhcloud api": {
+    "icon_path": "All Products Icons/Developper Tools/OVHcloud API.svg",
+    "icon_file": "OVHcloud API.svg",
+    "category": "Developper Tools"
+  },
+  "api": {
+    "icon_path": "All Products Icons/Developper Tools/OVHcloud API.svg",
+    "icon_file": "OVHcloud API.svg",
+    "category": "Developper Tools"
+  },
+  "ovhcloud cli": {
+    "icon_path": "All Products Icons/Developper Tools/OVHcloud CLI.svg",
+    "icon_file": "OVHcloud CLI.svg",
+    "category": "Developper Tools"
+  },
+  "cli": {
+    "icon_path": "All Products Icons/Developper Tools/OVHcloud CLI.svg",
+    "icon_file": "OVHcloud CLI.svg",
+    "category": "Developper Tools"
+  },
+  "ovhcloud manager": {
+    "icon_path": "All Products Icons/Developper Tools/OVHcloud Manager.svg",
+    "icon_file": "OVHcloud Manager.svg",
+    "category": "Developper Tools"
+  },
+  "manager": {
+    "icon_path": "All Products Icons/Developper Tools/OVHcloud Manager.svg",
+    "icon_file": "OVHcloud Manager.svg",
+    "category": "Developper Tools"
+  },
+  "sdk": {
+    "icon_path": "All Products Icons/Developper Tools/SDK.svg",
+    "icon_file": "SDK.svg",
+    "category": "Developper Tools"
+  },
+  "terraform": {
+    "icon_path": "All Products Icons/Developper Tools/Terraform.svg",
+    "icon_file": "Terraform.svg",
+    "category": "Developper Tools"
+  },
+  "terram": {
+    "icon_path": "All Products Icons/Developper Tools/Terraform.svg",
+    "icon_file": "Terraform.svg",
+    "category": "Developper Tools"
+  },
+  "dns": {
+    "icon_path": "All Products Icons/Domain & DNS/DNS.svg",
+    "icon_file": "DNS.svg",
+    "category": "Domain & DNS"
+  },
+  "domain names": {
+    "icon_path": "All Products Icons/Domain & DNS/Domain Names.svg",
+    "icon_file": "Domain Names.svg",
+    "category": "Domain & DNS"
+  },
+  "certificate manager": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/Certificate Manager.svg",
+    "icon_file": "Certificate Manager.svg",
+    "category": "Identity, Security & Operations"
+  },
+  "dedicated hsm": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/Dedicated HSM.svg",
+    "icon_file": "Dedicated HSM.svg",
+    "category": "Identity, Security & Operations"
+  },
+  "identity and access management (iam)": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/Identity and Access Management (IAM).svg",
+    "icon_file": "Identity and Access Management (IAM).svg",
+    "category": "Identity, Security & Operations"
+  },
+  "kms shared hsm": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/KMS Shared HSM.svg",
+    "icon_file": "KMS Shared HSM.svg",
+    "category": "Identity, Security & Operations"
+  },
+  "key management service (kms)": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/Key Management Service (KMS).svg",
+    "icon_file": "Key Management Service (KMS).svg",
+    "category": "Identity, Security & Operations"
+  },
+  "key management  (kms)": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/Key Management Service (KMS).svg",
+    "icon_file": "Key Management Service (KMS).svg",
+    "category": "Identity, Security & Operations"
+  },
+  "managed hsm": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/Managed HSM.svg",
+    "icon_file": "Managed HSM.svg",
+    "category": "Identity, Security & Operations"
+  },
+  "hsm": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/Managed HSM.svg",
+    "icon_file": "Managed HSM.svg",
+    "category": "Identity, Security & Operations"
+  },
+  "secret manager": {
+    "icon_path": "All Products Icons/Identity, Security & Operations/Secret Manager.svg",
+    "icon_file": "Secret Manager.svg",
+    "category": "Identity, Security & Operations"
+  },
+  "e-mail pro": {
+    "icon_path": "All Products Icons/Mail & Collaboration/E-mail Pro.svg",
+    "icon_file": "E-mail Pro.svg",
+    "category": "Mail & Collaboration"
+  },
+  "group 218": {
+    "icon_path": "All Products Icons/Mail & Collaboration/Group 218.svg",
+    "icon_file": "Group 218.svg",
+    "category": "Mail & Collaboration"
+  },
+  "group 238": {
+    "icon_path": "All Products Icons/Mail & Collaboration/Group 238.svg",
+    "icon_file": "Group 238.svg",
+    "category": "Mail & Collaboration"
+  },
+  "hosted exchange": {
+    "icon_path": "All Products Icons/Mail & Collaboration/Hosted Exchange.svg",
+    "icon_file": "Hosted Exchange.svg",
+    "category": "Mail & Collaboration"
+  },
+  "microsoft 365": {
+    "icon_path": "All Products Icons/Mail & Collaboration/Microsoft 365.svg",
+    "icon_file": "Microsoft 365.svg",
+    "category": "Mail & Collaboration"
+  },
+  "ovh mail migrator": {
+    "icon_path": "All Products Icons/Mail & Collaboration/OVH Mail Migrator.svg",
+    "icon_file": "OVH Mail Migrator.svg",
+    "category": "Mail & Collaboration"
+  },
+  "mail migrator": {
+    "icon_path": "All Products Icons/Mail & Collaboration/OVH Mail Migrator.svg",
+    "icon_file": "OVH Mail Migrator.svg",
+    "category": "Mail & Collaboration"
+  },
+  "private exchange": {
+    "icon_path": "All Products Icons/Mail & Collaboration/Private Exchange.svg",
+    "icon_file": "Private Exchange.svg",
+    "category": "Mail & Collaboration"
+  },
+  "trusted exchange": {
+    "icon_path": "All Products Icons/Mail & Collaboration/Trusted Exchange.svg",
+    "icon_file": "Trusted Exchange.svg",
+    "category": "Mail & Collaboration"
+  },
+  "zimbra": {
+    "icon_path": "All Products Icons/Mail & Collaboration/Zimbra.svg",
+    "icon_file": "Zimbra.svg",
+    "category": "Mail & Collaboration"
+  },
+  "web cloud databases": {
+    "icon_path": "All Products Icons/Managed Hosting/Web Cloud Databases.svg",
+    "icon_file": "Web Cloud Databases.svg",
+    "category": "Managed Hosting"
+  },
+  "web hosting": {
+    "icon_path": "All Products Icons/Managed Hosting/Web Hosting.svg",
+    "icon_file": "Web Hosting.svg",
+    "category": "Managed Hosting"
+  },
+  "additionnal ip": {
+    "icon_path": "All Products Icons/Network/Additionnal IP.svg",
+    "icon_file": "Additionnal IP.svg",
+    "category": "Network"
+  },
+  "additinal ip": {
+    "icon_path": "All Products Icons/Network/Additionnal IP.svg",
+    "icon_file": "Additionnal IP.svg",
+    "category": "Network"
+  },
+  "anti-ddos": {
+    "icon_path": "All Products Icons/Network/Anti-DDoS.svg",
+    "icon_file": "Anti-DDoS.svg",
+    "category": "Network"
+  },
+  "bring your own ip (byoip)": {
+    "icon_path": "All Products Icons/Network/Bring Your Own IP (BYOIP).svg",
+    "icon_file": "Bring Your Own IP (BYOIP).svg",
+    "category": "Network"
+  },
+  "cdn infrastructure": {
+    "icon_path": "All Products Icons/Network/CDN Infrastructure.svg",
+    "icon_file": "CDN Infrastructure.svg",
+    "category": "Network"
+  },
+  "floating ip for public cloud": {
+    "icon_path": "All Products Icons/Network/Floating IP for Public Cloud.svg",
+    "icon_file": "Floating IP for Public Cloud.svg",
+    "category": "Network"
+  },
+  "floating ip  public cloud": {
+    "icon_path": "All Products Icons/Network/Floating IP for Public Cloud.svg",
+    "icon_file": "Floating IP for Public Cloud.svg",
+    "category": "Network"
+  },
+  "load balancer for public cloud": {
+    "icon_path": "All Products Icons/Network/Load Balancer for Public Cloud.svg",
+    "icon_file": "Load Balancer for Public Cloud.svg",
+    "category": "Network"
+  },
+  "load balancer  public cloud": {
+    "icon_path": "All Products Icons/Network/Load Balancer for Public Cloud.svg",
+    "icon_file": "Load Balancer for Public Cloud.svg",
+    "category": "Network"
+  },
+  "network gateway for public cloud": {
+    "icon_path": "All Products Icons/Network/Network Gateway for Public Cloud.svg",
+    "icon_file": "Network Gateway for Public Cloud.svg",
+    "category": "Network"
+  },
+  "network gateway  public cloud": {
+    "icon_path": "All Products Icons/Network/Network Gateway for Public Cloud.svg",
+    "icon_file": "Network Gateway for Public Cloud.svg",
+    "category": "Network"
+  },
+  "ovhcloud connect": {
+    "icon_path": "All Products Icons/Network/OVHcloud Connect.svg",
+    "icon_file": "OVHcloud Connect.svg",
+    "category": "Network"
+  },
+  "cnect": {
+    "icon_path": "All Products Icons/Network/OVHcloud Connect.svg",
+    "icon_file": "OVHcloud Connect.svg",
+    "category": "Network"
+  },
+  "ovhcloud load balancer": {
+    "icon_path": "All Products Icons/Network/OVHcloud Load Balancer.svg",
+    "icon_file": "OVHcloud Load Balancer.svg",
+    "category": "Network"
+  },
+  "load balancer": {
+    "icon_path": "All Products Icons/Network/OVHcloud Load Balancer.svg",
+    "icon_file": "OVHcloud Load Balancer.svg",
+    "category": "Network"
+  },
+  "private network for public cloud": {
+    "icon_path": "All Products Icons/Network/Private Network for Public Cloud.svg",
+    "icon_file": "Private Network for Public Cloud.svg",
+    "category": "Network"
+  },
+  "private network  public cloud": {
+    "icon_path": "All Products Icons/Network/Private Network for Public Cloud.svg",
+    "icon_file": "Private Network for Public Cloud.svg",
+    "category": "Network"
+  },
+  "ssl gateway": {
+    "icon_path": "All Products Icons/Network/SSL Gateway.svg",
+    "icon_file": "SSL Gateway.svg",
+    "category": "Network"
+  },
+  "vrack private network": {
+    "icon_path": "All Products Icons/Network/vRack Private Network.svg",
+    "icon_file": "vRack Private Network.svg",
+    "category": "Network"
+  },
+  "vrack service endpoint": {
+    "icon_path": "All Products Icons/Network/vRack Service Endpoint.svg",
+    "icon_file": "vRack Service Endpoint.svg",
+    "category": "Network"
+  },
+  "vrack  endpoint": {
+    "icon_path": "All Products Icons/Network/vRack Service Endpoint.svg",
+    "icon_file": "vRack Service Endpoint.svg",
+    "category": "Network"
+  },
+  "logs data platform": {
+    "icon_path": "All Products Icons/Observability/Logs Data Platform.svg",
+    "icon_file": "Logs Data Platform.svg",
+    "category": "Observability"
+  },
+  "logs data platm": {
+    "icon_path": "All Products Icons/Observability/Logs Data Platform.svg",
+    "icon_file": "Logs Data Platform.svg",
+    "category": "Observability"
+  },
+  "active archive": {
+    "icon_path": "All Products Icons/Storage/Active Archive.svg",
+    "icon_file": "Active Archive.svg",
+    "category": "Storage"
+  },
+  "block storage": {
+    "icon_path": "All Products Icons/Storage/Block Storage.svg",
+    "icon_file": "Block Storage.svg",
+    "category": "Storage"
+  },
+  "cloud archive": {
+    "icon_path": "All Products Icons/Storage/Cloud Archive.svg",
+    "icon_file": "Cloud Archive.svg",
+    "category": "Storage"
+  },
+  "cloud disk array": {
+    "icon_path": "All Products Icons/Storage/Cloud Disk Array.svg",
+    "icon_file": "Cloud Disk Array.svg",
+    "category": "Storage"
+  },
+  "cold archive": {
+    "icon_path": "All Products Icons/Storage/Cold Archive.svg",
+    "icon_file": "Cold Archive.svg",
+    "category": "Storage"
+  },
+  "enterprise file storage": {
+    "icon_path": "All Products Icons/Storage/Enterprise File Storage.svg",
+    "icon_file": "Enterprise File Storage.svg",
+    "category": "Storage"
+  },
+  "flexible archive": {
+    "icon_path": "All Products Icons/Storage/Flexible Archive.svg",
+    "icon_file": "Flexible Archive.svg",
+    "category": "Storage"
+  },
+  "high performance": {
+    "icon_path": "All Products Icons/Storage/High performance.svg",
+    "icon_file": "High performance.svg",
+    "category": "Storage"
+  },
+  "high permance": {
+    "icon_path": "All Products Icons/Storage/High performance.svg",
+    "icon_file": "High performance.svg",
+    "category": "Storage"
+  },
+  "infrequent access": {
+    "icon_path": "All Products Icons/Storage/Infrequent access.svg",
+    "icon_file": "Infrequent access.svg",
+    "category": "Storage"
+  },
+  "nas-ha": {
+    "icon_path": "All Products Icons/Storage/NAS-HA.svg",
+    "icon_file": "NAS-HA.svg",
+    "category": "Storage"
+  },
+  "object storage standard": {
+    "icon_path": "All Products Icons/Storage/Object Storage Standard.svg",
+    "icon_file": "Object Storage Standard.svg",
+    "category": "Storage"
+  },
+  "public cloud file storage": {
+    "icon_path": "All Products Icons/Storage/Public Cloud File Storage.svg",
+    "icon_file": "Public Cloud File Storage.svg",
+    "category": "Storage"
+  },
+  "standard": {
+    "icon_path": "All Products Icons/Storage/Standard.svg",
+    "icon_file": "Standard.svg",
+    "category": "Storage"
+  },
+  "carrier sip trunk": {
+    "icon_path": "All Products Icons/Telephony/Carrier SIP Trunk.svg",
+    "icon_file": "Carrier SIP Trunk.svg",
+    "category": "Telephony"
+  },
+  "fax": {
+    "icon_path": "All Products Icons/Telephony/Fax.svg",
+    "icon_file": "Fax.svg",
+    "category": "Telephony"
+  },
+  "phone numbers": {
+    "icon_path": "All Products Icons/Telephony/Phone Numbers.svg",
+    "icon_file": "Phone Numbers.svg",
+    "category": "Telephony"
+  },
+  "phe numbers": {
+    "icon_path": "All Products Icons/Telephony/Phone Numbers.svg",
+    "icon_file": "Phone Numbers.svg",
+    "category": "Telephony"
+  },
+  "sip trunk": {
+    "icon_path": "All Products Icons/Telephony/SIP Trunk.svg",
+    "icon_file": "SIP Trunk.svg",
+    "category": "Telephony"
+  },
+  "sms": {
+    "icon_path": "All Products Icons/Telephony/SMS.svg",
+    "icon_file": "SMS.svg",
+    "category": "Telephony"
+  },
+  "voip telephony": {
+    "icon_path": "All Products Icons/Telephony/VOIP Telephony.svg",
+    "icon_file": "VOIP Telephony.svg",
+    "category": "Telephony"
+  },
+  "voip telephy": {
+    "icon_path": "All Products Icons/Telephony/VOIP Telephony.svg",
+    "icon_file": "VOIP Telephony.svg",
+    "category": "Telephony"
+  }
+}

@@ -30,6 +30,9 @@ class ProductRelease(BaseModel):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     published_at = Column(DateTime, nullable=True, index=True)  # When the release was published
     
+    # Phase (Alpha, Beta, GA)
+    phase = Column(String(20), nullable=True)  # Optional phase: 'alpha', 'beta', 'ga'
+    
     # Attached Material
     material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)  # Optional attached material
     

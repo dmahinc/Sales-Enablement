@@ -163,7 +163,8 @@ async def create_product_release(
         product_name=release_data.product_name,
         created_by_id=current_user.id,
         published_at=published_at,
-        material_id=release_data.material_id
+        material_id=release_data.material_id,
+        phase=release_data.phase
     )
     
     db.add(release)

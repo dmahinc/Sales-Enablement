@@ -67,3 +67,10 @@ alembic/versions/*.pyc
 *.tmp
 *.bak
 *.cache
+
+# SSL certificates and keys (security)
+ssl/
+frontend/ssl/
+*.crt
+*.key
+*.pem

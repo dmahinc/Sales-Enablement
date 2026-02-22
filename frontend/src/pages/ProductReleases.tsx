@@ -37,6 +37,7 @@ interface ProductRelease {
   created_at: string
   updated_at: string
   material_id?: number
+  phase?: string
 }
 
 interface Universe {
@@ -390,6 +391,12 @@ export default function ProductReleases() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-slate-900 mb-2 line-clamp-2">
                     {release.title}
+                    {release.phase && (
+                      <>
+                        <span className="text-slate-400 mx-2">•</span>
+                        <span className="font-semibold uppercase">{release.phase}</span>
+                      </>
+                    )}
                   </h3>
                   <p className="text-xs text-slate-500 mb-2">
                     {getHierarchyPath(release)}
@@ -639,7 +646,8 @@ function ProductReleaseForm({
     product_id: release?.product_id || undefined,
     published_at: formatDateTimeLocal(release?.published_at),
     send_notification: false,
-    material_id: undefined as number | undefined
+    material_id: undefined as number | undefined,
+    phase: release?.phase || ''
   })
   
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
@@ -811,6 +819,22 @@ function ProductReleaseForm({
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Phase (Optional)
+          </label>
+          <select
+            value={formData.phase}
+            onChange={(e) => setFormData({ ...formData, phase: e.target.value })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            <option value="">Select Phase</option>
+            <option value="alpha">Alpha</option>
+            <option value="beta">Beta</option>
+            <option value="ga">GA</option>
+          </select>
         </div>
 
         <div>

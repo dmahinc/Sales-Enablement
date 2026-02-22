@@ -1,7 +1,11 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+
+type NavItem = 
+  | { path: string; label: string; icon: LucideIcon }
+  | { type: 'section'; label: string }
 
 export default function Layout() {
   const { user, logout, loading } = useAuth()
@@ -40,39 +44,74 @@ export default function Layout() {
     { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
   ]
 
-  // Director-specific navigation (monitoring and governance)
+  // Director-specific navigation with section titles
+  // Structure:
+  // - MONITORING & ANALYTICS: Dashboard, Material Sharing, Usage Analytics
+  // - MATERIAL & ENABLEMENT: Manage Material, Enablement Tracks
+  // - NEWS: Latest Product Releases, Marketing Updates
+  // - MANAGEMENT: Users Management
   const directorNavItems = [
-    ...baseNavItems,
-    { path: '/materials', label: 'Manage Materials', icon: FileText },
-    { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
+    { type: 'section', label: 'MONITORING & ANALYTICS' },
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/sharing', label: 'Material Sharing', icon: Share2 },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
-    { path: '/users', label: 'Team Management', icon: Users },
+    { type: 'section', label: 'MATERIAL & ENABLEMENT' },
+    { path: '/materials', label: 'Manage Material', icon: FileText },
+    { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
+    { type: 'section', label: 'NEWS' },
+    { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
+    { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
+    { type: 'section', label: 'MANAGEMENT' },
+    { path: '/users', label: 'Users Management', icon: Users },
   ]
 
-  // PMM-specific navigation (same as Director except Users management)
+  // PMM-specific navigation with section titles (same structure as Director, but no Material Sharing or Users)
+  // Structure:
+  // - MONITORING & ANALYTICS: Dashboard, Usage Analytics
+  // - MATERIAL & ENABLEMENT: Manage Materials, Enablement Tracks
+  // - NEWS: Latest Product Releases, Marketing Updates
   const pmmNavItems = [
-    ...baseNavItems,
+    { type: 'section', label: 'MONITORING & ANALYTICS' },
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
+    { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Manage Materials', icon: FileText },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
-    { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
+    { type: 'section', label: 'NEWS' },
+    { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
+    { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
   ]
 
-  // Sales-specific navigation (consumption and sharing)
+  // Sales-specific navigation with section titles
+  // Structure:
+  // - MATERIAL & ENABLEMENT: Explore Materials, Enablement Tracks
+  // - CUSTOMER ENGAGEMENT: My Shares
+  // - NEWS: Latest Product Releases, Marketing Updates
   const salesNavItems = [
-    ...baseNavItems,
+    { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Explore Materials', icon: FileText },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
+    { type: 'section', label: 'CUSTOMER ENGAGEMENT' },
     { path: '/sharing', label: 'My Shares', icon: Share2 },
+    { type: 'section', label: 'NEWS' },
+    { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
+    { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
   ]
 
-  // Admin gets all items (Admin is Director's role)
+  // Admin gets all items (Admin is Director's role) - same order as Director
   const adminNavItems = [
-    ...baseNavItems,
-    { path: '/materials', label: 'Manage Materials', icon: FileText },
-    { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
+    { type: 'section', label: 'MONITORING & ANALYTICS' },
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/sharing', label: 'Material Sharing', icon: Share2 },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
-    { path: '/sharing', label: 'Sharing', icon: Share2 },
-    { path: '/users', label: 'Users', icon: Users },
+    { type: 'section', label: 'MATERIAL & ENABLEMENT' },
+    { path: '/materials', label: 'Manage Material', icon: FileText },
+    { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
+    { type: 'section', label: 'NEWS' },
+    { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
+    { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
+    { type: 'section', label: 'MANAGEMENT' },
+    { path: '/users', label: 'Users Management', icon: Users },
   ]
 
   // Select navigation based on role
@@ -102,23 +141,42 @@ export default function Layout() {
         {/* Navigation */}
         <nav className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = location.pathname === item.path
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500 -ml-1 pl-5'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-primary-600'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-primary-500' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
-                </Link>
-              )
+            {navItems.map((item, index) => {
+              // Handle section titles
+              if ('type' in item && item.type === 'section') {
+                return (
+                  <div
+                    key={`section-${index}`}
+                    className="px-4 py-2 mt-4 first:mt-0"
+                  >
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      {item.label}
+                    </span>
+                  </div>
+                )
+              }
+              
+              // Handle regular menu items
+              if ('path' in item && 'icon' in item) {
+                const Icon = item.icon
+                const isActive = location.pathname === item.path
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+                      isActive
+                        ? 'bg-primary-50 text-primary-600 border-l-4 border-primary-500 -ml-1 pl-5'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-primary-600'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-primary-500' : 'text-slate-400'}`} />
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              }
+              
+              return null
             })}
           </div>
         </nav>

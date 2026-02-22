@@ -19,6 +19,7 @@ class ProductReleaseBase(BaseModel):
     product_name: Optional[str] = Field(None, max_length=255)
     published_at: Optional[datetime] = None
     material_id: Optional[int] = Field(None, description="Optional attached material ID")
+    phase: Optional[str] = Field(None, description="Release phase: alpha, beta, or ga")
 
 
 class ProductReleaseCreate(ProductReleaseBase):
@@ -39,6 +40,7 @@ class ProductReleaseUpdate(BaseModel):
     product_name: Optional[str] = Field(None, max_length=255)
     published_at: Optional[datetime] = None
     material_id: Optional[int] = None
+    phase: Optional[str] = Field(None, description="Release phase: alpha, beta, or ga")
 
 
 class ProductReleaseResponse(ProductReleaseBase):

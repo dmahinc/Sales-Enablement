@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Link } from 'react-router-dom'
-import { Bell, Check } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Bell, Check, X } from 'lucide-react'
 
 // Simple date formatting function
 function formatDistanceToNow(date: Date): string {
@@ -35,6 +35,7 @@ interface Notification {
 
 export default function Notifications() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const { data: notifications = [], isLoading, error } = useQuery<Notification[]>({
     queryKey: ['notifications'],
@@ -120,15 +121,24 @@ export default function Notifications() {
               </span>
             )}
           </div>
-          {hasUnread && (
+          <div className="flex items-center gap-3">
+            {hasUnread && (
+              <button
+                onClick={handleMarkAllAsRead}
+                disabled={markAllAsReadMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {markAllAsReadMutation.isPending ? 'Marking...' : 'Mark all as read'}
+              </button>
+            )}
             <button
-              onClick={handleMarkAllAsRead}
-              disabled={markAllAsReadMutation.isPending}
-              className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-50"
+              onClick={() => navigate(-1)}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Close"
             >
-              {markAllAsReadMutation.isPending ? 'Marking...' : 'Mark all as read'}
+              <X className="h-5 w-5" />
             </button>
-          )}
+          </div>
         </div>
 
         {/* Notifications List */}

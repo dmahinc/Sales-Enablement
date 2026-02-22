@@ -1,0 +1,148 @@
+{
+  "AI & Machine Learning": [
+    "AI Deploy",
+    "AI Endpoints",
+    "AI Notebooks",
+    "AI Training"
+  ],
+  "Backup and Disaster Recovery": [
+    "HYCU for OVHcloud",
+    "Options per products",
+    "Veeam Enterprise Plus",
+    "Workflow Management"
+  ],
+  "Compute": [
+    "Advance",
+    "Bare Metal Pod",
+    "Cloud GPU",
+    "Dedicated Servers",
+    "Dedicated Servers Eco",
+    "High Grade",
+    "Instances",
+    "Managed Bare Metal",
+    "Managed VMware vSphere",
+    "Managed VMware vSphere qualified SecNumCloud",
+    "Metal Instances",
+    "Nutanix on OVHcloud",
+    "On-Prem Cloud Platform",
+    "Public VCF as a Service",
+    "Rise",
+    "SAP HANA on Private Cloud",
+    "Scale",
+    "VPS"
+  ],
+  "Connectivity": [
+    "Internet Access",
+    "OverTheBox"
+  ],
+  "Containers": [
+    "Managed Kubernetes Service",
+    "Managed Private Registry",
+    "Managed Rancher Service"
+  ],
+  "Data Analytics": [
+    "Data Platform",
+    "Managed Caching",
+    "Managed Grafana",
+    "Managed Kafka",
+    "Managed Kafka Connect",
+    "Managed Kafka MirrorMaker",
+    "Managed OpenSearch"
+  ],
+  "Data Platform Components": [
+    "APIs",
+    "Analytics Manager",
+    "Application Services",
+    "Control Center",
+    "Data Catalog",
+    "Data Processing Engine",
+    "Identity Access Manager",
+    "Lakehouse Manager"
+  ],
+  "Databases": [
+    "Managed Cassandra",
+    "Managed M3 Aggregator",
+    "Managed M3DB",
+    "Managed MongoDB",
+    "Managed MySQL",
+    "Managed PostgreSQL",
+    "Managed Valkey"
+  ],
+  "Developper Tools": [
+    "Horizon",
+    "OVHcloud API",
+    "OVHcloud CLI",
+    "OVHcloud Manager",
+    "SDK",
+    "Terraform"
+  ],
+  "Domain & DNS": [
+    "DNS",
+    "Domain Names"
+  ],
+  "Identity, Security & Operations": [
+    "Certificate Manager",
+    "Dedicated HSM",
+    "Identity and Access Management (IAM)",
+    "KMS Shared HSM",
+    "Key Management Service (KMS)",
+    "Managed HSM",
+    "Secret Manager"
+  ],
+  "Mail & Collaboration": [
+    "E-mail Pro",
+    "Group 218",
+    "Group 238",
+    "Hosted Exchange",
+    "Microsoft 365",
+    "OVH Mail Migrator",
+    "Private Exchange",
+    "Trusted Exchange",
+    "Zimbra"
+  ],
+  "Managed Hosting": [
+    "Web Cloud Databases",
+    "Web Hosting"
+  ],
+  "Network": [
+    "Additionnal IP",
+    "Anti-DDoS",
+    "Bring Your Own IP (BYOIP)",
+    "CDN Infrastructure",
+    "Floating IP for Public Cloud",
+    "Load Balancer for Public Cloud",
+    "Network Gateway for Public Cloud",
+    "OVHcloud Connect",
+    "OVHcloud Load Balancer",
+    "Private Network for Public Cloud",
+    "SSL Gateway",
+    "vRack Private Network",
+    "vRack Service Endpoint"
+  ],
+  "Observability": [
+    "Logs Data Platform"
+  ],
+  "Storage": [
+    "Active Archive",
+    "Block Storage",
+    "Cloud Archive",
+    "Cloud Disk Array",
+    "Cold Archive",
+    "Enterprise File Storage",
+    "Flexible Archive",
+    "High performance",
+    "Infrequent access",
+    "NAS-HA",
+    "Object Storage Standard",
+    "Public Cloud File Storage",
+    "Standard"
+  ],
+  "Telephony": [
+    "Carrier SIP Trunk",
+    "Fax",
+    "Phone Numbers",
+    "SIP Trunk",
+    "SMS",
+    "VOIP Telephony"
+  ]
+}
