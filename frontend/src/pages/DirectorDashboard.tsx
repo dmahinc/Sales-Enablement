@@ -13,7 +13,8 @@ import {
   BarChart3,
   Target,
   Plus,
-  RefreshCw
+  RefreshCw,
+  LogIn
 } from 'lucide-react'
 import ProductCompletenessMatrix from '../components/ProductCompletenessMatrix'
 
@@ -65,12 +66,12 @@ export default function DirectorDashboard() {
         : 'Across all products'
     },
     {
-      name: 'Team Members',
-      value: data?.team_contributions?.length || 0,
-      icon: Users,
+      name: 'Total Sales Sessions',
+      value: data?.total_sales_sessions || 0,
+      icon: LogIn,
       color: 'bg-violet-500',
       bgColor: 'bg-violet-50',
-      description: 'Active PMM contributors'
+      description: 'Cumulative connection sessions'
     },
     {
       name: 'Recent Activity',

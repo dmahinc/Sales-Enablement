@@ -1923,7 +1923,7 @@ export default function Materials() {
               <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
               <p className="mt-1 text-slate-500">
                 {selectedUniverses.length === 0
-                  ? 'Manage your products & solutions enablement materials'
+                  ? 'Manage your product enablement & customer engagement materials'
                   : selectedUniverses.length === 1
                     ? `Materials in ${UNIVERSES.find(u => u.id === selectedUniverses[0])?.name}`
                     : `Materials in ${selectedUniverses.length} universes`

@@ -2,7 +2,7 @@
 SharedLink Pydantic schemas for API requests/responses
 """
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -109,3 +109,15 @@ class TimelineEvent(BaseModel):
     customer_email: Optional[str] = None
     customer_name: Optional[str] = None
     shared_link_id: int
+
+
+class SharesOverTimeDataPoint(BaseModel):
+    """Schema for a single data point in shares over time chart"""
+    date: str  # Date in YYYY-MM-DD format
+    shares_count: int  # Number of shares created on this date
+    downloads_count: int  # Number of downloads on this date
+
+
+class SharesOverTimeResponse(BaseModel):
+    """Schema for shares over time response"""
+    data: List[SharesOverTimeDataPoint]

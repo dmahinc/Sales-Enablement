@@ -208,7 +208,7 @@ export default function ShareView() {
 
         <div className="mt-6 text-center">
           <p className="text-xs text-slate-400">
-            © 2026 OVHcloud Products & Solutions Enablement Platform
+            © 2026 OVHcloud Product Enablement & Customer Engagement Platform
           </p>
         </div>
       </div>

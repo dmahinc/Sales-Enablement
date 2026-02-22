@@ -15,7 +15,7 @@ from app.models.shared_link import SharedLink
 from app.models.usage import MaterialUsage, UsageAction
 from app.schemas.shared_link import (
     SharedLinkCreate, SharedLinkResponse, SharedLinkPublicResponse, SharedLinkUpdate, TimelineEvent,
-    SharedLinkStats, MaterialShareStats, CustomerShareStats
+    SharedLinkStats, MaterialShareStats, CustomerShareStats, SharesOverTimeResponse, SharesOverTimeDataPoint
 )
 from app.services.storage import storage_service
 
@@ -862,11 +862,29 @@ async def delete_shared_link(
 
 @router.get("/stats/overview", response_model=SharedLinkStats)
 async def get_shared_links_stats(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get overview statistics for shared links"""
+    """Get overview statistics for shared links, optionally filtered by date range"""
     from sqlalchemy import func, and_, or_
+    
+    # Parse date filters
+    start_datetime = None
+    end_datetime = None
+    if start_date:
+        try:
+            start_datetime = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        except ValueError:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+    if end_date:
+        try:
+            end_datetime = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
     
     # Base query - directors, admins, and PMMs see all links, sales see only their own
     if current_user.role in ["director", "admin", "pmm"]:
@@ -874,54 +892,95 @@ async def get_shared_links_stats(
     else:
         base_query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
     
-    # Total shares
-    total_shares = base_query.count()
+    # Apply date filter to Total Shares (filter by created_at)
+    shares_query = base_query
+    if start_datetime:
+        shares_query = shares_query.filter(SharedLink.created_at >= start_datetime)
+    if end_datetime:
+        shares_query = shares_query.filter(SharedLink.created_at <= end_datetime)
     
-    # Active shares (not expired and is_active)
+    # Total shares
+    total_shares = shares_query.count()
+    
+    # Active shares (not expired and is_active) - apply date filter to creation date
     now = datetime.utcnow()
-    active_shares = base_query.filter(
+    active_shares_query = shares_query.filter(
         and_(
             SharedLink.is_active == True,
             SharedLink.expires_at > now
         )
-    ).count()
+    )
+    active_shares = active_shares_query.count()
     
-    # Expired shares
-    expired_shares = base_query.filter(
+    # Expired shares - apply date filter to creation date
+    expired_shares_query = shares_query.filter(
         or_(
             SharedLink.is_active == False,
             SharedLink.expires_at <= now
         )
-    ).count()
+    )
+    expired_shares = expired_shares_query.count()
     
-    # Total accesses
-    if current_user.role in ["director", "admin", "pmm"]:
-        total_accesses = db.query(func.sum(SharedLink.access_count)).scalar() or 0
-    else:
-        total_accesses = db.query(func.sum(SharedLink.access_count)).filter(
-            SharedLink.shared_by_user_id == current_user.id
-        ).scalar() or 0
+    # Get material IDs for shared links (to filter MaterialUsage events)
+    shared_material_ids = list(set([link.material_id for link in base_query.all()]))
     
-    # Total downloads
-    if current_user.role in ["director", "admin", "pmm"]:
-        total_downloads = db.query(func.sum(SharedLink.download_count)).scalar() or 0
+    # Total accesses (views) - filter by MaterialUsage events with action='view'
+    if shared_material_ids:
+        views_query = db.query(MaterialUsage).filter(
+            MaterialUsage.action == 'view',
+            MaterialUsage.material_id.in_(shared_material_ids)
+        )
+        
+        # For sales users, only count views for their shared links
+        if current_user.role not in ["director", "admin", "pmm"]:
+            # Get material IDs for links shared by this user
+            user_shared_material_ids = db.query(SharedLink.material_id).filter(
+                SharedLink.shared_by_user_id == current_user.id
+            ).distinct().all()
+            user_shared_material_ids = [m[0] for m in user_shared_material_ids]
+            views_query = views_query.filter(MaterialUsage.material_id.in_(user_shared_material_ids))
+        
+        # Apply date filter
+        if start_datetime:
+            views_query = views_query.filter(MaterialUsage.used_at >= start_datetime)
+        if end_datetime:
+            views_query = views_query.filter(MaterialUsage.used_at <= end_datetime)
+        
+        total_accesses = views_query.count()
     else:
-        total_downloads = db.query(func.sum(SharedLink.download_count)).filter(
-            SharedLink.shared_by_user_id == current_user.id
-        ).scalar() or 0
+        total_accesses = 0
     
-    # Unique customers
-    if current_user.role in ["director", "admin", "pmm"]:
-        unique_customers = db.query(func.count(func.distinct(SharedLink.customer_email))).filter(
-            SharedLink.customer_email.isnot(None)
-        ).scalar() or 0
+    # Total downloads - filter by MaterialUsage events with action='download'
+    if shared_material_ids:
+        downloads_query = db.query(MaterialUsage).filter(
+            MaterialUsage.action == 'download',
+            MaterialUsage.material_id.in_(shared_material_ids)
+        )
+        
+        # For sales users, only count downloads for their shared links
+        if current_user.role not in ["director", "admin", "pmm"]:
+            # Get material IDs for links shared by this user
+            user_shared_material_ids = db.query(SharedLink.material_id).filter(
+                SharedLink.shared_by_user_id == current_user.id
+            ).distinct().all()
+            user_shared_material_ids = [m[0] for m in user_shared_material_ids]
+            downloads_query = downloads_query.filter(MaterialUsage.material_id.in_(user_shared_material_ids))
+        
+        # Apply date filter
+        if start_datetime:
+            downloads_query = downloads_query.filter(MaterialUsage.used_at >= start_datetime)
+        if end_datetime:
+            downloads_query = downloads_query.filter(MaterialUsage.used_at <= end_datetime)
+        
+        total_downloads = downloads_query.count()
     else:
-        unique_customers = db.query(func.count(func.distinct(SharedLink.customer_email))).filter(
-            and_(
-                SharedLink.shared_by_user_id == current_user.id,
-                SharedLink.customer_email.isnot(None)
-            )
-        ).scalar() or 0
+        total_downloads = 0
+    
+    # Unique customers - apply date filter to creation date
+    unique_customers_query = shares_query.filter(SharedLink.customer_email.isnot(None))
+    unique_customers = unique_customers_query.with_entities(
+        func.count(func.distinct(SharedLink.customer_email))
+    ).scalar() or 0
     
     return {
         "total_shares": total_shares,
@@ -1022,3 +1081,119 @@ async def get_customer_stats(
             })
     
     return result
+
+
+@router.get("/stats/over-time", response_model=SharesOverTimeResponse)
+async def get_shares_over_time(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get shares and downloads over time grouped by date, filtered by date range"""
+    from sqlalchemy import func
+    
+    # Parse date filters
+    start_datetime = None
+    end_datetime = None
+    if start_date:
+        try:
+            start_datetime = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        except ValueError:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+    if end_date:
+        try:
+            end_datetime = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+    
+    # Get shared material IDs for filtering downloads
+    if current_user.role in ["director", "admin", "pmm"]:
+        shared_link_query = db.query(SharedLink)
+    else:
+        shared_link_query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
+    
+    # Apply date filter to shared links
+    if start_datetime:
+        shared_link_query = shared_link_query.filter(SharedLink.created_at >= start_datetime)
+    if end_datetime:
+        shared_link_query = shared_link_query.filter(SharedLink.created_at <= end_datetime)
+    
+    shared_material_ids = [link.material_id for link in shared_link_query.all()]
+    
+    # Group shares by date and count
+    shares_by_date = shared_link_query.with_entities(
+        func.date(SharedLink.created_at).label('share_date'),
+        func.count(SharedLink.id).label('shares_count')
+    ).group_by(
+        func.date(SharedLink.created_at)
+    ).order_by(
+        func.date(SharedLink.created_at)
+    ).all()
+    
+    # Group downloads by date - filter by MaterialUsage events with action='download'
+    # Only count downloads for materials that were shared
+    if shared_material_ids:
+        downloads_query = db.query(MaterialUsage).filter(
+            MaterialUsage.action == 'download',
+            MaterialUsage.material_id.in_(shared_material_ids)
+        )
+    else:
+        # If no shared materials, return empty downloads
+        downloads_query = db.query(MaterialUsage).filter(False)
+    
+    # Apply date filter to downloads
+    if start_datetime:
+        downloads_query = downloads_query.filter(MaterialUsage.used_at >= start_datetime)
+    if end_datetime:
+        downloads_query = downloads_query.filter(MaterialUsage.used_at <= end_datetime)
+    
+    downloads_by_date = downloads_query.with_entities(
+        func.date(MaterialUsage.used_at).label('download_date'),
+        func.count(MaterialUsage.id).label('downloads_count')
+    ).group_by(
+        func.date(MaterialUsage.used_at)
+    ).order_by(
+        func.date(MaterialUsage.used_at)
+    ).all()
+    
+    # Create a map of dates to counts
+    shares_map = {}
+    for row in shares_by_date:
+        if row.share_date:
+            if isinstance(row.share_date, datetime):
+                date_str = row.share_date.strftime('%Y-%m-%d')
+            elif isinstance(row.share_date, str):
+                date_str = row.share_date
+            else:
+                date_str = str(row.share_date)
+            shares_map[date_str] = row.shares_count or 0
+    
+    downloads_map = {}
+    for row in downloads_by_date:
+        if row.download_date:
+            if isinstance(row.download_date, datetime):
+                date_str = row.download_date.strftime('%Y-%m-%d')
+            elif isinstance(row.download_date, str):
+                date_str = row.download_date
+            else:
+                date_str = str(row.download_date)
+            downloads_map[date_str] = row.downloads_count or 0
+    
+    # Combine all unique dates
+    all_dates = set(list(shares_map.keys()) + list(downloads_map.keys()))
+    
+    # Convert to response format
+    data_points = []
+    for date_str in sorted(all_dates):
+        data_points.append({
+            "date": date_str,
+            "shares_count": shares_map.get(date_str, 0),
+            "downloads_count": downloads_map.get(date_str, 0)
+        })
+    
+    return {
+        "data": data_points
+    }

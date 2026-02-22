@@ -65,6 +65,26 @@ async def get_director_dashboard(
         Material.created_at >= seven_days_ago
     ).count()
     
+    # Get total cumulative connection sessions for sales people
+    # Count unique days when sales users had activity (MaterialUsage events)
+    # This approximates connection sessions since we don't have explicit login tracking
+    sales_users = db.query(User.id).filter(User.role == "sales", User.is_active == True).all()
+    sales_user_ids = [u.id for u in sales_users]
+    
+    total_sales_sessions = 0
+    if sales_user_ids:
+        # Count unique days per sales user when they had activity
+        # Using MaterialUsage events as a proxy for connection sessions
+        unique_days_per_user = db.query(
+            MaterialUsage.user_id,
+            func.date(MaterialUsage.used_at).label('activity_date')
+        ).filter(
+            MaterialUsage.user_id.in_(sales_user_ids)
+        ).distinct().all()
+        
+        # Total cumulative sessions = sum of unique activity days across all sales users
+        total_sales_sessions = len(unique_days_per_user)
+    
     return {
         "total_products": total_products,
         "products_with_materials": products_with_materials,
@@ -72,6 +92,7 @@ async def get_director_dashboard(
         "total_materials": total_materials,
         "material_counts_by_status": status_counts,
         "team_contributions": team_contributions,
+        "total_sales_sessions": total_sales_sessions,
         "recent_activity": {
             "materials_last_7_days": materials_last_7_days
         }

@@ -41,9 +41,9 @@ export default function Login() {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center mb-4">
-              <img src="/logo.svg" alt="Products & Solutions Enablement" className="h-20" />
+              <img src="/logo.svg" alt="Product Enablement & Customer Engagement Platform" className="h-20" />
             </div>
-            <h1 className="text-2xl font-semibold text-primary-700">Products & Solutions Enablement</h1>
+            <h1 className="text-2xl font-semibold text-primary-700">Product Enablement & Customer Engagement Platform</h1>
             <p className="text-slate-500 mt-2">Sign in to your account</p>
           </div>
 
@@ -115,7 +115,7 @@ export default function Login() {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-slate-400">
-              © 2026 OVHcloud Products & Solutions Enablement Platform
+              © 2026 OVHcloud Product Enablement & Customer Engagement Platform
             </p>
           </div>
         </div>

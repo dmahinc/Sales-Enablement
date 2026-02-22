@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 
 type NavItem = 
@@ -10,6 +11,8 @@ type NavItem =
 export default function Layout() {
   const { user, logout, loading } = useAuth()
   const location = useLocation()
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   if (loading) {
     return (
@@ -126,16 +129,30 @@ export default function Layout() {
     navItems = salesNavItems
   }
 
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+
+    if (userMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [userMenuOpen])
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Vertical Sidebar */}
       <aside className="w-64 sidebar-ovh flex-shrink-0 flex flex-col">
         {/* Logo */}
-        <div className="p-6 border-b border-slate-200">
-          <div className="flex items-center space-x-3">
-            <img src="/logo-icon.svg" alt="Products & Solutions Enablement" className="h-10 w-10" />
-            <span className="text-lg font-semibold text-primary-700 hidden sm:block">Products & Solutions</span>
-          </div>
+        <div className="p-6 border-b border-slate-200 flex items-center justify-center">
+          <img src="/logo-icon.svg" alt="Product Enablement & Customer Engagement Platform" className="h-16 w-auto max-w-full" />
         </div>
 
         {/* Navigation */}
@@ -181,41 +198,54 @@ export default function Layout() {
           </div>
         </nav>
 
-        {/* User Menu */}
-        <div className="p-4 border-t border-slate-200">
-          <div className="flex items-center space-x-3 mb-3">
-            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-              <span className="text-primary-600 font-medium text-sm">
-                {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-700 truncate">
-                {user?.full_name}
-              </p>
-              <p className="text-xs text-slate-500 truncate">
-                {user?.email}
-              </p>
-              <p className="text-xs text-primary-600 font-medium mt-0.5 capitalize">
-                {user?.role || 'user'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={logout}
-            className="w-full flex items-center px-4 py-2 text-sm font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            <span>Logout</span>
-          </button>
-        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto flex flex-col">
         {/* Header Bar */}
-        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-end">
-          <NotificationBell />
+        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-primary-700">Product Enablement & Customer Engagement Platform</h1>
+          <div className="flex items-center space-x-4">
+            <NotificationBell />
+            {/* User Menu */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center space-x-2 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                  <span className="text-primary-600 font-medium text-sm">
+                    {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                  </span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {/* Dropdown Menu */}
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-slate-200">
+                    <p className="text-sm font-medium text-slate-700">
+                      {user?.full_name}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {user?.email}
+                    </p>
+                    <p className="text-xs text-primary-600 font-medium mt-1 capitalize">
+                      {user?.role || 'user'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="w-full flex items-center px-4 py-2 text-sm font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="flex-1 py-6 px-4 sm:px-6 lg:px-8">
           <Outlet />

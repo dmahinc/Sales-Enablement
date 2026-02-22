@@ -10,7 +10,8 @@ import {
   CheckCircle,
   ArrowRight,
   BarChart3,
-  BookOpen
+  BookOpen,
+  LogIn
 } from 'lucide-react'
 import ProductCompletenessMatrix from '../components/ProductCompletenessMatrix'
 
@@ -37,6 +38,13 @@ export default function Dashboard() {
   // Check for director role (case-insensitive, handle variations)
   const userRole = currentUser?.role?.toLowerCase()
   const isDirector = userRole === 'director' || userRole === 'admin' // Also check admin as fallback
+
+  // Fetch director dashboard data for admin/director roles
+  const { data: directorData } = useQuery({
+    queryKey: ['director-dashboard'],
+    queryFn: () => api.get('/dashboard/director').then(res => res.data),
+    enabled: isDirector,
+  })
   const isLoading = !isDirector && (materialsLoading || tracksLoading)
   const hasError = !isDirector && (materialsError || tracksError)
 
@@ -87,12 +95,12 @@ export default function Dashboard() {
       link: '#',
     },
     {
-      name: 'Team Members',
-      value: '—', // Could fetch from users API
-      icon: CheckCircle,
+      name: 'Total Sales Sessions',
+      value: directorData?.total_sales_sessions || 0,
+      icon: LogIn,
       color: 'bg-violet-500',
       bgColor: 'bg-violet-50',
-      link: '/users',
+      link: '#',
     },
     {
       name: 'Recent Activity',
@@ -147,7 +155,7 @@ export default function Dashboard() {
           <h1 className="text-2xl font-semibold text-primary-700">
             Dashboard {isDirector ? '(Director View)' : ''}
           </h1>
-          <p className="mt-1 text-slate-500">Products & Solutions Enablement - Your Single Source of Truth</p>
+          <p className="mt-1 text-slate-500">Product Enablement & Customer Engagement Platform - Your Single Source of Truth</p>
           {isDirector && (
             <p className="mt-1 text-xs text-blue-600">Role detected: Director - Showing completeness matrix</p>
           )}
