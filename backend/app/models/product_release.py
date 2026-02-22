@@ -30,8 +30,12 @@ class ProductRelease(BaseModel):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     published_at = Column(DateTime, nullable=True, index=True)  # When the release was published
     
+    # Attached Material
+    material_id = Column(Integer, ForeignKey("materials.id"), nullable=True)  # Optional attached material
+    
     # Relationships
     universe = relationship("Universe", foreign_keys=[universe_id])
     category = relationship("Category", foreign_keys=[category_id])
     product = relationship("Product", foreign_keys=[product_id])
     created_by = relationship("User", foreign_keys=[created_by_id])
+    material = relationship("Material", foreign_keys=[material_id])

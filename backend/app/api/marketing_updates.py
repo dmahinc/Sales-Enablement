@@ -263,6 +263,17 @@ async def create_marketing_update(
                 detail="Product does not belong to selected universe"
             )
     
+    # Validate material_id if provided
+    material = None
+    if update_data.material_id:
+        from app.models.material import Material
+        material = db.query(Material).filter(Material.id == update_data.material_id).first()
+        if not material:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Material with id {update_data.material_id} not found"
+            )
+    
     # Set published_at to now if not provided
     published_at = update_data.published_at or datetime.utcnow()
     
@@ -283,7 +294,8 @@ async def create_marketing_update(
         target_audience=update_data.target_audience,
         created_by_id=current_user.id,
         published_at=published_at,
-        expires_at=update_data.expires_at
+        expires_at=update_data.expires_at,
+        material_id=update_data.material_id
     )
     
     db.add(update)
@@ -408,6 +420,16 @@ async def update_marketing_update(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Product does not belong to selected universe"
+            )
+    
+    # Validate material_id if being updated
+    if 'material_id' in update_dict and update_dict['material_id']:
+        from app.models.material import Material
+        material = db.query(Material).filter(Material.id == update_dict['material_id']).first()
+        if not material:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Material with id {update_dict['material_id']} not found"
             )
     
     for key, value in update_dict.items():

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Eye, Plus, Edit, Trash2, Calendar, User, X, Filter, Upload } from 'lucide-react'
+import { Eye, Plus, Edit, Trash2, Calendar, User, X, Filter, Upload, Download } from 'lucide-react'
 import Modal from '../components/Modal'
 import MultiSelect from '../components/MultiSelect'
 import FileUploadModal from '../components/FileUploadModal'
@@ -36,6 +36,7 @@ interface ProductRelease {
   published_at?: string
   created_at: string
   updated_at: string
+  material_id?: number
 }
 
 interface Universe {
@@ -57,6 +58,25 @@ interface Product {
   display_name: string
   category_id?: number
   universe_id: number
+}
+
+// Helper functions - defined outside component so they can be used by child components
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'N/A'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return 'Invalid date'
+  }
+}
+
+const getHierarchyPath = (release: ProductRelease) => {
+  const parts: string[] = []
+  if (release.universe_name) parts.push(release.universe_name)
+  if (release.category_name) parts.push(release.category_name)
+  if (release.product_name) parts.push(release.product_name)
+  return parts.length > 0 ? parts.join(' • ') : 'General'
 }
 
 export default function ProductReleases() {
@@ -138,19 +158,6 @@ export default function ProductReleases() {
     }
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Not published'
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-  }
-
-  const getHierarchyPath = (release: ProductRelease) => {
-    const parts: string[] = []
-    if (release.universe_name) parts.push(release.universe_name)
-    if (release.category_name) parts.push(release.category_name)
-    if (release.product_name) parts.push(release.product_name)
-    return parts.length > 0 ? parts.join(' • ') : 'General'
-  }
 
   // Filter releases based on selected filters
   const filteredReleases = useMemo(() => {
@@ -392,14 +399,14 @@ export default function ProductReleases() {
                   <div className="flex items-center space-x-2 ml-2">
                     <button
                       onClick={() => handleEdit(release)}
-                      className="p-1 text-slate-400 hover:text-primary-600"
+                      className="p-1 text-slate-600 hover:text-primary-600"
                       title="Edit"
                     >
                       <Edit className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDelete(release.id)}
-                      className="p-1 text-slate-400 hover:text-red-600"
+                      className="p-1 text-slate-600 hover:text-red-600"
                       title="Delete"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -444,43 +451,11 @@ export default function ProductReleases() {
 
       {/* View Modal */}
       {selectedRelease && (
-        <Modal
+        <ProductReleaseViewModal
+          release={selectedRelease}
           isOpen={!!selectedRelease}
           onClose={() => setSelectedRelease(null)}
-          title={selectedRelease.title}
-          size="lg"
-        >
-          <div className="space-y-4">
-            {/* Hierarchy Path */}
-            <div className="text-sm text-slate-600">
-              {getHierarchyPath(selectedRelease)}
-            </div>
-
-            {/* Metadata */}
-            <div className="flex items-center space-x-4 text-sm text-slate-500 pb-4 border-b border-slate-200">
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4" />
-                <span>{formatDate(selectedRelease.published_at || selectedRelease.created_at)}</span>
-              </div>
-              {selectedRelease.created_by_name && (
-                <div className="flex items-center space-x-1">
-                  <User className="w-4 h-4" />
-                  <span>{selectedRelease.created_by_name}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="prose prose-sm max-w-none">
-              <div 
-                className="text-slate-700"
-                dangerouslySetInnerHTML={{ 
-                  __html: sanitizeHTML(selectedRelease.content)
-                }}
-              />
-            </div>
-          </div>
-        </Modal>
+        />
       )}
 
       {/* Create/Edit Modal */}
@@ -499,6 +474,119 @@ export default function ProductReleases() {
         />
       )}
     </div>
+  )
+}
+
+interface ProductReleaseViewModalProps {
+  release: ProductRelease
+  isOpen: boolean
+  onClose: () => void
+}
+
+function ProductReleaseViewModal({ release, isOpen, onClose }: ProductReleaseViewModalProps) {
+  // Fetch material if material_id exists
+  const { data: material } = useQuery({
+    queryKey: ['material', release.material_id],
+    queryFn: () => api.get(`/materials/${release.material_id}`).then(res => res.data),
+    enabled: !!release.material_id,
+  })
+
+  const handleDownload = async () => {
+    if (!material || !material.file_path) return
+    
+    const xhr = new XMLHttpRequest()
+    const token = localStorage.getItem('token')
+    const API_URL = import.meta.env.VITE_API_URL || '/api'
+    const url = `${API_URL}/materials/${material.id}/download`
+
+    xhr.open('GET', url, true)
+    xhr.responseType = 'blob'
+
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    }
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const blob = xhr.response
+        const downloadUrl = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = downloadUrl
+        link.download = material.file_name || material.name || 'material'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(downloadUrl)
+      }
+    }
+
+    xhr.send()
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={release.title}
+      size="lg"
+    >
+      <div className="space-y-4">
+        {/* Hierarchy Path */}
+        <div className="text-sm text-slate-600">
+          {getHierarchyPath(release)}
+        </div>
+
+        {/* Metadata */}
+        <div className="flex items-center space-x-4 text-sm text-slate-500 pb-4 border-b border-slate-200">
+          <div className="flex items-center space-x-1">
+            <Calendar className="w-4 h-4" />
+            <span>{formatDate(release.published_at || release.created_at)}</span>
+          </div>
+          {release.created_by_name && (
+            <div className="flex items-center space-x-1">
+              <User className="w-4 h-4" />
+              <span>{release.created_by_name}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="prose prose-sm max-w-none">
+          <div 
+            className="text-slate-700"
+            dangerouslySetInnerHTML={{ 
+              __html: sanitizeHTML(release.content)
+            }}
+          />
+        </div>
+
+        {/* Attached Material */}
+        {material && material.file_path && (
+          <div className="pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white rounded-lg">
+                  <Download className="w-5 h-5 text-primary-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{material.name}</p>
+                  {material.file_name && (
+                    <p className="text-xs text-slate-500">{material.file_name}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={handleDownload}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
   )
 }
 

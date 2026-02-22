@@ -18,6 +18,7 @@ class ProductReleaseBase(BaseModel):
     category_name: Optional[str] = Field(None, max_length=255)
     product_name: Optional[str] = Field(None, max_length=255)
     published_at: Optional[datetime] = None
+    material_id: Optional[int] = Field(None, description="Optional attached material ID")
 
 
 class ProductReleaseCreate(ProductReleaseBase):
@@ -37,6 +38,7 @@ class ProductReleaseUpdate(BaseModel):
     category_name: Optional[str] = Field(None, max_length=255)
     product_name: Optional[str] = Field(None, max_length=255)
     published_at: Optional[datetime] = None
+    material_id: Optional[int] = None
 
 
 class ProductReleaseResponse(ProductReleaseBase):

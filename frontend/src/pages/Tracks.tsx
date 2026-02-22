@@ -139,14 +139,14 @@ export default function Tracks() {
                   </Link>
                   <button
                     onClick={() => setEditingTrack(track)}
-                    className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+                    className="p-2 text-slate-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                     title="Edit"
                   >
                     <Edit className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => handleDelete(track.id)}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                    className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                     title="Delete"
                   >
                     <Trash2 className="h-5 w-5" />

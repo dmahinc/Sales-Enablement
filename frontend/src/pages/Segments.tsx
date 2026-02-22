@@ -109,17 +109,17 @@ export default function Segments() {
               <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex justify-end space-x-2">
                 <button
                   onClick={() => setEditingSegment(segment)}
-                  className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+                  className="p-2 text-slate-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                   title="Edit"
                 >
-                  <Edit className="h-4 w-4" />
+                  <Edit className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => handleDelete(segment.id)}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                  className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                   title="Delete"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-5 w-5" />
                 </button>
               </div>
             </div>

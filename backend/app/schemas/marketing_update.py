@@ -23,6 +23,7 @@ class MarketingUpdateBase(BaseModel):
     target_audience: Optional[str] = Field(None, max_length=100, description="Target audience")
     published_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
+    material_id: Optional[int] = Field(None, description="Optional attached material ID")
 
 
 class MarketingUpdateCreate(MarketingUpdateBase):
@@ -47,6 +48,7 @@ class MarketingUpdateUpdate(BaseModel):
     target_audience: Optional[str] = Field(None, max_length=100)
     published_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
+    material_id: Optional[int] = None
 
 
 class MarketingUpdateResponse(MarketingUpdateBase):

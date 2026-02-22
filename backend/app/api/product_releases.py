@@ -139,6 +139,17 @@ async def create_product_release(
     # Set published_at to now if not provided
     published_at = release_data.published_at or datetime.utcnow()
     
+    # Validate material_id if provided
+    material = None
+    if release_data.material_id:
+        from app.models.material import Material
+        material = db.query(Material).filter(Material.id == release_data.material_id).first()
+        if not material:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Material with id {release_data.material_id} not found"
+            )
+    
     # Create release
     release = ProductRelease(
         title=release_data.title,
@@ -151,7 +162,8 @@ async def create_product_release(
         category_name=release_data.category_name,
         product_name=release_data.product_name,
         created_by_id=current_user.id,
-        published_at=published_at
+        published_at=published_at,
+        material_id=release_data.material_id
     )
     
     db.add(release)
@@ -235,6 +247,16 @@ async def update_product_release(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Product does not belong to selected universe"
+            )
+    
+    # Validate material_id if being updated
+    if 'material_id' in update_dict and update_dict['material_id']:
+        from app.models.material import Material
+        material = db.query(Material).filter(Material.id == update_dict['material_id']).first()
+        if not material:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Material with id {update_dict['material_id']} not found"
             )
     
     for key, value in update_dict.items():

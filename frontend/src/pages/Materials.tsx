@@ -247,7 +247,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
                 e.stopPropagation()
                 onShare(material)
               }}
-              className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+              className="p-2 text-slate-700 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
               title="Share"
             >
               <Share2 className="h-5 w-5" />
@@ -259,7 +259,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
                 e.stopPropagation()
                 onDownload(material)
               }}
-              className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+              className="p-2 text-slate-700 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
               title="Download"
             >
               <Download className="h-5 w-5" />
@@ -271,7 +271,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
                 e.stopPropagation()
                 onEdit(material)
               }}
-              className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+              className="p-2 text-slate-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
               title="Edit"
             >
               <Edit className="h-5 w-5" />
@@ -285,7 +285,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
                   onDelete(material.id)
                 }
               }}
-              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+              className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
               title="Delete"
             >
               <Trash2 className="h-5 w-5" />
@@ -1288,13 +1288,21 @@ export default function Materials() {
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-1">
-              <p className="text-sm font-medium text-slate-900 truncate flex-1 min-w-0">{formatMaterialTitle(material)}</p>
-              {(() => {
-                const MaterialIcon = getMaterialTypeIcon(material.material_type)
-                return (
-                  <MaterialIcon className="h-4 w-4 text-primary-500 flex-shrink-0" title={`Type: ${material.material_type || 'null'}`} />
-                )
-              })()}
+              <div className="flex items-center space-x-2 truncate flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900">{material.product_name || 'Unknown Product'}</p>
+                <span className="text-slate-400">•</span>
+                <p className="text-sm font-medium text-slate-900">{formatMaterialType(material)}</p>
+                {(() => {
+                  const MaterialIcon = getMaterialTypeIcon(material.material_type)
+                  const colors = getMaterialTypeColors(material.material_type)
+                  return (
+                    <>
+                      <span className="text-slate-400">•</span>
+                      <MaterialIcon className={`h-6 w-6 ${colors.icon} flex-shrink-0`} title={`Type: ${material.material_type || 'null'}`} />
+                    </>
+                  )
+                })()}
+              </div>
             </div>
             <p className="text-xs text-slate-500">
               <span className="inline-flex items-center">
@@ -1348,7 +1356,7 @@ export default function Materials() {
                   setSharingMaterial(material)
                   setIsShareModalOpen(true)
                 }}
-                className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                className="p-2 text-slate-700 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
                 title="Share"
               >
                 <Share2 className="h-5 w-5" />
@@ -1357,7 +1365,7 @@ export default function Materials() {
             {material.file_path && (
               <button
                 onClick={() => handleDownload(material)}
-                className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+                className="p-2 text-slate-700 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                 title="Download"
               >
                 <Download className="h-5 w-5" />
@@ -1367,17 +1375,17 @@ export default function Materials() {
               <>
                 <button
                   onClick={() => setEditingMaterial(material)}
-                  className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+                  className="p-2 text-slate-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                   title="Edit"
                 >
-                  <Edit className="h-4 w-4" />
+                  <Edit className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => handleDelete(material.id)}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                  className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                   title="Delete"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-5 w-5" />
                 </button>
               </>
             )}

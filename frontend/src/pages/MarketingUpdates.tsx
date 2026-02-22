@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Eye, Plus, Edit, Trash2, Calendar, User, X, Filter, Tag, Upload } from 'lucide-react'
+import { Eye, Plus, Edit, Trash2, Calendar, User, X, Filter, Tag, Upload, Download } from 'lucide-react'
 import Modal from '../components/Modal'
 import MultiSelect from '../components/MultiSelect'
 import FileUploadModal from '../components/FileUploadModal'
@@ -41,6 +41,7 @@ interface MarketingUpdate {
   expires_at?: string
   created_at: string
   updated_at: string
+  material_id?: number
 }
 
 interface CategoryInfo {
@@ -71,6 +72,51 @@ interface Product {
   display_name: string
   category_id?: number
   universe_id: number
+}
+
+// Helper functions - defined outside component so they can be used by child components
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'N/A'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  } catch {
+    return 'Invalid date'
+  }
+}
+
+const getHierarchyPath = (update: MarketingUpdate) => {
+  const parts = []
+  if (update.universe_name) parts.push(update.universe_name)
+  if (update.category_name) parts.push(update.category_name)
+  if (update.product_name) parts.push(update.product_name)
+  return parts.length > 0 ? parts.join(' • ') : 'General'
+}
+
+const getPriorityBadgeColor = (priority?: string) => {
+  switch (priority) {
+    case 'critical':
+      return 'bg-red-100 text-red-800'
+    case 'important':
+      return 'bg-orange-100 text-orange-800'
+    case 'informational':
+    default:
+      return 'bg-blue-100 text-blue-800'
+  }
+}
+
+const getCategoryLabel = (category: string) => {
+  const categoryMap: Record<string, string> = {
+    'competitive_intelligence': 'Competitive Intelligence',
+    'market_trends_insights': 'Market Trends & Insights',
+    'product_updates': 'Product Updates',
+    'campaign_messaging': 'Campaign & Messaging',
+    'customer_success': 'Customer Success Stories',
+    'content_enablement': 'Content & Enablement',
+    'sales_tools': 'Sales Tools & Resources',
+    'training_development': 'Training & Development'
+  }
+  return categoryMap[category] || category
 }
 
 export default function MarketingUpdates() {
@@ -258,40 +304,9 @@ export default function MarketingUpdates() {
     }
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A'
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      })
-    } catch {
-      return 'N/A'
-    }
-  }
-
+  // getCategoryLabel needs categoriesInfo from component scope
   const getCategoryLabel = (categoryKey: string) => {
     return categoriesInfo[categoryKey]?.label || categoryKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-  }
-
-  const getHierarchyPath = (update: MarketingUpdate) => {
-    const parts = []
-    if (update.universe_name) parts.push(update.universe_name)
-    if (update.category_name) parts.push(update.category_name)
-    if (update.product_name) parts.push(update.product_name)
-    return parts.length > 0 ? parts.join(' • ') : 'General'
-  }
-
-  const getPriorityBadgeColor = (priority?: string) => {
-    switch (priority) {
-      case 'critical':
-        return 'bg-red-100 text-red-800'
-      case 'important':
-        return 'bg-orange-100 text-orange-800'
-      default:
-        return 'bg-blue-100 text-blue-800'
-    }
   }
 
   // Error handling
@@ -522,14 +537,14 @@ export default function MarketingUpdates() {
                   <div className="flex items-center space-x-2 ml-2">
                     <button
                       onClick={() => handleEdit(update)}
-                      className="p-1 text-slate-400 hover:text-primary-600"
+                      className="p-1 text-slate-600 hover:text-primary-600"
                       title="Edit"
                     >
                       <Edit className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDelete(update.id)}
-                      className="p-1 text-slate-400 hover:text-red-600"
+                      className="p-1 text-slate-600 hover:text-red-600"
                       title="Delete"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -574,59 +589,11 @@ export default function MarketingUpdates() {
 
       {/* View Modal */}
       {selectedUpdate && (
-        <Modal
+        <MarketingUpdateViewModal
+          update={selectedUpdate}
           isOpen={!!selectedUpdate}
           onClose={() => setSelectedUpdate(null)}
-          title={selectedUpdate.title}
-          size="lg"
-        >
-          <div className="space-y-4">
-            {/* Category and Priority */}
-            <div className="flex items-center space-x-2">
-              <span className={`px-2 py-1 text-xs font-medium rounded ${getPriorityBadgeColor(selectedUpdate.priority)}`}>
-                {selectedUpdate.priority || 'informational'}
-              </span>
-              <span className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700">
-                {getCategoryLabel(selectedUpdate.category)}
-              </span>
-              {selectedUpdate.subcategory && (
-                <span className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700">
-                  <Tag className="w-3 h-3 inline mr-1" />
-                  {selectedUpdate.subcategory}
-                </span>
-              )}
-            </div>
-
-            {/* Hierarchy Path */}
-            <div className="text-sm text-slate-600">
-              {getHierarchyPath(selectedUpdate)}
-            </div>
-
-            {/* Metadata */}
-            <div className="flex items-center space-x-4 text-sm text-slate-500 pb-4 border-b border-slate-200">
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4" />
-                <span>{formatDate(selectedUpdate.published_at || selectedUpdate.created_at)}</span>
-              </div>
-              {selectedUpdate.created_by_name && (
-                <div className="flex items-center space-x-1">
-                  <User className="w-4 h-4" />
-                  <span>{selectedUpdate.created_by_name}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="prose prose-sm max-w-none">
-              <div 
-                className="text-slate-700"
-                dangerouslySetInnerHTML={{ 
-                  __html: sanitizeHTML(selectedUpdate.content)
-                }}
-              />
-            </div>
-          </div>
-        </Modal>
+        />
       )}
 
       {/* Create/Edit Modal */}
@@ -646,6 +613,149 @@ export default function MarketingUpdates() {
         />
       )}
     </div>
+  )
+}
+
+interface MarketingUpdateViewModalProps {
+  update: MarketingUpdate
+  isOpen: boolean
+  onClose: () => void
+}
+
+function MarketingUpdateViewModal({ update, isOpen, onClose }: MarketingUpdateViewModalProps) {
+  // Fetch material if material_id exists
+  const { data: material } = useQuery({
+    queryKey: ['material', update.material_id],
+    queryFn: () => api.get(`/materials/${update.material_id}`).then(res => res.data),
+    enabled: !!update.material_id,
+  })
+
+  // Fetch categoriesInfo for getCategoryLabel
+  const { data: categoriesInfo = {} } = useQuery<CategoriesResponse>({
+    queryKey: ['marketing-updates-categories'],
+    queryFn: async () => {
+      const response = await api.get('/marketing-updates/categories')
+      return response.data
+    },
+    retry: false
+  })
+
+  const getCategoryLabelLocal = (categoryKey: string) => {
+    return categoriesInfo[categoryKey]?.label || categoryKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  }
+
+  const handleDownload = async () => {
+    if (!material || !material.file_path) return
+    
+    const xhr = new XMLHttpRequest()
+    const token = localStorage.getItem('token')
+    const API_URL = import.meta.env.VITE_API_URL || '/api'
+    const url = `${API_URL}/materials/${material.id}/download`
+
+    xhr.open('GET', url, true)
+    xhr.responseType = 'blob'
+
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    }
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const blob = xhr.response
+        const downloadUrl = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = downloadUrl
+        link.download = material.file_name || material.name || 'material'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(downloadUrl)
+      }
+    }
+
+    xhr.send()
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={update.title}
+      size="lg"
+    >
+      <div className="space-y-4">
+        {/* Category and Priority */}
+        <div className="flex items-center space-x-2">
+          <span className={`px-2 py-1 text-xs font-medium rounded ${getPriorityBadgeColor(update.priority)}`}>
+            {update.priority || 'informational'}
+          </span>
+          <span className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700">
+            {getCategoryLabelLocal(update.category)}
+          </span>
+          {update.subcategory && (
+            <span className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700">
+              <Tag className="w-3 h-3 inline mr-1" />
+              {update.subcategory}
+            </span>
+          )}
+        </div>
+
+        {/* Hierarchy Path */}
+        <div className="text-sm text-slate-600">
+          {getHierarchyPath(update)}
+        </div>
+
+        {/* Metadata */}
+        <div className="flex items-center space-x-4 text-sm text-slate-500 pb-4 border-b border-slate-200">
+          <div className="flex items-center space-x-1">
+            <Calendar className="w-4 h-4" />
+            <span>{formatDate(update.published_at || update.created_at)}</span>
+          </div>
+          {update.created_by_name && (
+            <div className="flex items-center space-x-1">
+              <User className="w-4 h-4" />
+              <span>{update.created_by_name}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="prose prose-sm max-w-none">
+          <div 
+            className="text-slate-700"
+            dangerouslySetInnerHTML={{ 
+              __html: sanitizeHTML(update.content)
+            }}
+          />
+        </div>
+
+        {/* Attached Material */}
+        {material && material.file_path && (
+          <div className="pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white rounded-lg">
+                  <Download className="w-5 h-5 text-primary-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{material.name}</p>
+                  {material.file_name && (
+                    <p className="text-xs text-slate-500">{material.file_name}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={handleDownload}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
   )
 }
 

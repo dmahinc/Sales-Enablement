@@ -174,14 +174,14 @@ export default function Users() {
                       <div className="flex items-center justify-end space-x-2">
                         <button
                           onClick={() => setEditingUser(user)}
-                          className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+                          className="p-2 text-slate-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
                           title="Edit"
                         >
                           <Edit className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(user.id, user.email)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                           title="Delete"
                         >
                           <Trash2 className="h-5 w-5" />

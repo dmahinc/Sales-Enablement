@@ -781,7 +781,7 @@ function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
                   e.stopPropagation()
                   onShare(material)
                 }}
-                className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                className="p-1.5 text-slate-700 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
                 title="Share"
               >
                 <Share2 className="h-5 w-5" />
@@ -964,7 +964,7 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: Mater
                 e.stopPropagation()
                 onShare(material)
               }}
-              className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+              className="p-2 text-slate-700 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
               title="Share"
             >
               <Share2 className="h-5 w-5" />
@@ -976,7 +976,7 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: Mater
                 e.stopPropagation()
                 onDownload(material)
               }}
-              className="p-2 text-slate-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
+              className="p-2 text-slate-700 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
               title="Download"
             >
               <Download className="h-5 w-5" />
