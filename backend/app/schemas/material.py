@@ -106,7 +106,7 @@ class MaterialBase(BaseModel):
     @validator('universe_name')
     def validate_universe(cls, v):
         if v:
-            valid_universes = ["Public Cloud", "Private Cloud", "Bare Metal", "Hosting & Collaboration"]
+            valid_universes = ["Public Cloud", "Private Cloud", "Bare Metal", "Hosting & Collaboration", "Cross-Universes"]
             if v not in valid_universes:
                 raise ValueError(f"universe_name must be one of: {valid_universes}")
         return v
@@ -244,7 +244,7 @@ class MaterialUpload(BaseModel):
 
     @validator('universe_name')
     def validate_universe(cls, v):
-        valid_universes = ["Public Cloud", "Private Cloud", "Bare Metal", "Hosting & Collaboration"]
+        valid_universes = ["Public Cloud", "Private Cloud", "Bare Metal", "Hosting & Collaboration", "Cross-Universes"]
         if v not in valid_universes:
             raise ValueError(f"universe_name must be one of: {valid_universes}")
         return v

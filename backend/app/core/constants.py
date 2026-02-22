@@ -21,7 +21,8 @@ VALID_UNIVERSES = [
     "Public Cloud",
     "Private Cloud",
     "Bare Metal",
-    "Hosting & Collaboration"
+    "Hosting & Collaboration",
+    "Cross-Universes"
 ]
 
 # Material Statuses
