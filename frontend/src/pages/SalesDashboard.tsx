@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Link } from 'react-router-dom'
@@ -12,12 +13,91 @@ import {
   Filter
 } from 'lucide-react'
 import CustomerEngagementTimeline from '../components/CustomerEngagementTimeline'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function SalesDashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['sales-dashboard'],
     queryFn: () => api.get('/dashboard/sales').then(res => res.data),
   })
+
+  // Initialize with default dates (last 30 days)
+  const getDefaultDates = () => {
+    const today = new Date()
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(today.getDate() - 30)
+    return {
+      start: thirtyDaysAgo.toISOString().split('T')[0],
+      end: today.toISOString().split('T')[0]
+    }
+  }
+  
+  const defaultDates = getDefaultDates()
+  const [startDate, setStartDate] = useState<string>(defaultDates.start)
+  const [endDate, setEndDate] = useState<string>(defaultDates.end)
+  const [dateFilterActive, setDateFilterActive] = useState<boolean>(true)
+
+  // Fetch shares over time data
+  const { data: sharesOverTime, isLoading: isLoadingSharesOverTime, error: sharesOverTimeError } = useQuery({
+    queryKey: ['shares-over-time', dateFilterActive ? startDate : null, dateFilterActive ? endDate : null],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (dateFilterActive && startDate) {
+        params.append('start_date', startDate)
+      }
+      if (dateFilterActive && endDate) {
+        params.append('end_date', endDate)
+      }
+      const queryString = params.toString()
+      return api.get(`/shared-links/stats/over-time${queryString ? '?' + queryString : ''}`).then(res => res.data)
+    },
+  })
+
+  // Toggle state for cumulative vs daily view
+  const [isCumulative, setIsCumulative] = useState(false)
+  
+  // Fill in missing dates with 0 for smoother chart display
+  const chartData = sharesOverTime?.data ? (() => {
+    if (!dateFilterActive || !startDate || !endDate) {
+      return sharesOverTime.data.map((item: any) => ({
+        ...item,
+        shares_count: item.shares_count || 0,
+        downloads_count: item.downloads_count || 0
+      }))
+    }
+    
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const sharesMap = new Map(sharesOverTime.data.map((item: any) => [item.date, item.shares_count || 0]))
+    const downloadsMap = new Map(sharesOverTime.data.map((item: any) => [item.date, item.downloads_count || 0]))
+    const filledData = []
+    
+    const currentDate = new Date(start)
+    while (currentDate <= end) {
+      const dateStr = currentDate.toISOString().split('T')[0]
+      filledData.push({
+        date: dateStr,
+        shares_count: sharesMap.get(dateStr) || 0,
+        downloads_count: downloadsMap.get(dateStr) || 0
+      })
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+    return filledData
+  })() : []
+  
+  const displayData = isCumulative ? (() => {
+    let cumulativeShares = 0
+    let cumulativeDownloads = 0
+    return chartData.map((item: any) => {
+      cumulativeShares += item.shares_count || 0
+      cumulativeDownloads += item.downloads_count || 0
+      return {
+        ...item,
+        shares_count: cumulativeShares,
+        downloads_count: cumulativeDownloads
+      }
+    })
+  })() : chartData
 
   const stats = [
     {
@@ -106,6 +186,130 @@ export default function SalesDashboard() {
             </Link>
           )
         })}
+      </div>
+      )}
+
+      {/* Shares Over Time Chart */}
+      {!isLoading && !error && (
+      <div className="card-ovh">
+        <div className="px-6 py-4 border-b border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-primary-700">My Shares Over Time</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                {isCumulative ? 'Cumulative' : 'Daily'} number of your shares and downloads over the selected timeframe
+                {dateFilterActive && startDate && endDate && (
+                  <span className="ml-1">({startDate} to {endDate})</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs ${!isCumulative ? 'text-primary-700 font-medium' : 'text-slate-500'}`}>Daily</span>
+                <button
+                  onClick={() => setIsCumulative(!isCumulative)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 ${
+                    isCumulative ? 'bg-primary-600' : 'bg-slate-300'
+                  }`}
+                  role="switch"
+                  aria-checked={isCumulative}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      isCumulative ? 'translate-x-[18px]' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+                <span className={`text-xs ${isCumulative ? 'text-primary-700 font-medium' : 'text-slate-500'}`}>Cumulative</span>
+              </div>
+              <TrendingUp className="w-5 h-5 text-primary-500" />
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          {isLoadingSharesOverTime ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
+              <span className="ml-3 text-slate-500">Loading chart data...</span>
+            </div>
+          ) : sharesOverTimeError ? (
+            <div className="text-center py-12">
+              <TrendingUp className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+              <p className="text-sm text-slate-500">Error loading chart data</p>
+            </div>
+          ) : displayData && displayData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={displayData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#64748b"
+                  style={{ fontSize: '12px' }}
+                  tickFormatter={(value) => {
+                    const date = new Date(value)
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  }}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  stroke="#0050d7"
+                  style={{ fontSize: '12px' }}
+                  label={{ value: isCumulative ? 'Cumulative Shares' : 'Number of Shares', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="#10b981"
+                  style={{ fontSize: '12px' }}
+                  label={{ value: isCumulative ? 'Cumulative Downloads' : 'Number of Downloads', angle: 90, position: 'insideRight', style: { fontSize: '12px' } }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '12px'
+                  }}
+                  labelFormatter={(value) => {
+                    const date = new Date(value)
+                    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+                  }}
+                  formatter={(value: number, name: string) => {
+                    if (name === 'shares_count') return [value, 'Shares']
+                    if (name === 'downloads_count') return [value, 'Downloads']
+                    return [value, name]
+                  }}
+                />
+                <Legend />
+                <Line 
+                  yAxisId="left"
+                  type="monotone" 
+                  dataKey="shares_count" 
+                  stroke="#0050d7" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5, fill: '#0050d7', strokeWidth: 2 }}
+                  name="Shares"
+                />
+                <Line 
+                  yAxisId="right"
+                  type="monotone" 
+                  dataKey="downloads_count" 
+                  stroke="#10b981" 
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 5, fill: '#10b981', strokeWidth: 2 }}
+                  name="Downloads"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center py-12">
+              <TrendingUp className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+              <p className="text-sm text-slate-500">No shares data available for the selected timeframe</p>
+            </div>
+          )}
+        </div>
       </div>
       )}
 

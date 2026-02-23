@@ -1,7 +1,7 @@
 # Sales Enablement Platform - Product Brief
 
-**Document Version:** 1.1  
-**Date:** February 14, 2026  
+**Document Version:** 1.2  
+**Date:** February 23, 2026  
 **Status:** Updated  
 **Owner:** Product Marketing Team
 
@@ -77,9 +77,12 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
   - Download materials for customer meetings
   - Generate shareable links to send documents to customers
   - Track which documents were shared with which customers
+  - Manage assigned customers (view, create, edit, delete)
+  - View shares over time analytics for their customer portfolio
   - Access latest product information and positioning
   - Follow Sales Enablement Tracks for product training
   - Collaborate with Product teams on content gaps
+  - View customer engagement timeline for their assigned customers
 
 #### 3. Directors & Leadership
 - **Count:** ~5-10 users
@@ -99,6 +102,16 @@ The **Product & Solutions Sales Enablement Platform** is a collaborative interna
 
 #### 5. Marketing Leadership
 - **Key Activities:** Strategic oversight, content governance
+
+#### 6. Customers (External Users)
+- **Count:** Unlimited
+- **Usage Frequency:** On-demand (when materials are shared)
+- **Key Activities:**
+  - Access shared materials via secure links
+  - View materials shared by OVHcloud personas (Director, PMM, Sales)
+  - Bookmark/favorite materials for easy access
+  - Receive notifications about new shared materials
+  - Interact with sales contacts through messaging
 
 ---
 
@@ -196,6 +209,28 @@ US-2.9: As an Admin, I want to see analytics on document sharing to understand c
   - Unique customer count per material
   - Sharing activity by user/role
   - Customer engagement metrics (views, downloads from shared links)
+
+US-2.10: As a Sales Rep, I want to see shares over time chart before customer engagement timeline to understand sharing trends.
+  Acceptance Criteria:
+  - Chart displays shares and downloads over time
+  - Toggle between daily and cumulative views
+  - Adapts to selected timeframe
+  - Appears before Customer Engagement Timeline section
+
+US-2.11: As a Sales Rep, I want to manage only customers assigned to me or created by me.
+  Acceptance Criteria:
+  - Can view list of assigned/created customers
+  - Can create new customers (automatically assigned)
+  - Can edit customer information
+  - Can delete customers
+  - All shared materials data filtered to assigned/created customers only
+
+US-2.12: As a Customer, I want to access materials shared with me by OVHcloud personas.
+  Acceptance Criteria:
+  - Can view all materials shared with my email address
+  - Can bookmark/favorite materials for easy access
+  - Can receive notifications about new shared materials
+  - Can interact with sales contacts through messaging
 ```
 
 ### Epic 3: Collaboration & Single Source of Truth
@@ -284,11 +319,21 @@ US-4.6: As a Director, I want to see age distribution per universe to understand
 │   ├── Usage Rates
 │   ├── Material Statistics
 │   └── Usage History
-├── 🔗 Document Sharing
-│   ├── Generate Shareable Link
-│   ├── Share History (by document)
-│   ├── Share History (by customer)
-│   └── Customer Engagement Tracking
+├── 🔗 Document Sharing / My Shared Materials (Sales)
+│   ├── Stats Overview (Total Shares, Active Links, Expired Links, Total Views, Total Downloads, Unique Customers)
+│   ├── Shares Over Time Chart (with cumulative/daily toggle)
+│   ├── Customer Engagement Timeline
+│   ├── Filters (by material, by customer)
+│   └── Most Shared Materials
+├── 👥 My Customers (Sales)
+│   ├── Customer List/Table
+│   ├── Add Customer
+│   ├── Edit Customer
+│   └── Delete Customer
+├── 📱 Customer Dashboard (Customer Persona)
+│   ├── My Shared Materials
+│   ├── Notifications
+│   └── Favorites/Bookmarks
 └── 🔍 Discovery
     ├── Search Box
     ├── Filters (universe, type, status, product)
@@ -328,6 +373,26 @@ SharedLink (Document Sharing)
 ├── last_accessed_at
 ├── is_active (can be revoked)
 └── created_at, updated_at
+
+User (Extended for Sales Customer Management)
+├── id, email, full_name, role
+├── assigned_sales_id (foreign key to sales person)
+├── created_by_id (foreign key to creator)
+├── is_active, is_superuser
+└── created_at, updated_at
+
+CustomerFavorite (Customer Bookmarks)
+├── id
+├── customer_id (foreign key to User)
+├── material_id (foreign key to Material)
+└── created_at
+
+CustomerMessage (Customer-Sales Communication)
+├── id
+├── customer_id (foreign key to User)
+├── sales_user_id (foreign key to User)
+├── message_content
+└── created_at
 
 Product (Product Hierarchy)
 ├── id, name, display_name
@@ -492,10 +557,18 @@ The platform follows OVHcloud's design system with:
 - ✅ Usage analytics
 - ✅ OVHcloud design system
 - ✅ Single source of truth (status tracking)
+- ✅ Document sharing with customers (shareable links)
+- ✅ Customer tracking and engagement analytics
+- ✅ Shares Over Time chart (with cumulative/daily toggle)
+- ✅ Sales persona customer management (My Customers)
+- ✅ Sales persona data filtering (only assigned/created customers)
+- ✅ Customer persona dashboard and material discovery
+- ✅ Customer favorites/bookmarks
+- ✅ Customer notifications
+- ✅ Dark mode / Night mode
+- ✅ Product Enablement & Customer Engagement Platform branding
 
 ### Phase 2: Enhancement (Q2 2026)
-- [ ] Document sharing with customers (shareable links)
-- [ ] Customer tracking and engagement analytics
 - [ ] Content blocks (reusable components)
 - [ ] Advanced search with filters
 - [ ] Bulk operations (upload, edit, delete)
@@ -503,6 +576,8 @@ The platform follows OVHcloud's design system with:
 - [ ] Content expiration alerts
 - [ ] Completeness matrix export (CSV/Excel)
 - [ ] Historical completeness tracking
+- [ ] Enhanced customer messaging features
+- [ ] Customer engagement analytics dashboard
 
 ### Phase 3: Intelligence (Q3 2026)
 - [ ] AI-powered semantic search
@@ -565,6 +640,7 @@ The platform follows OVHcloud's design system with:
 | 0.1 | 2026-02-02 | - | Initial draft |
 | 1.0 | 2026-02-02 | - | Initial version |
 | 1.1 | 2026-02-14 | - | Added Product Completeness Matrix, age distribution, material status breakdown, Director Dashboard features |
+| 1.2 | 2026-02-23 | - | Added Customer Persona, Sales customer management, Shares Over Time chart, Sales data filtering, Dark mode, Platform rebranding |
 
 ---
 

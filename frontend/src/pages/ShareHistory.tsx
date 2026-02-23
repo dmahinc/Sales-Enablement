@@ -208,6 +208,45 @@ export default function ShareHistory() {
         </div>
       </div>
 
+      {/* Stats Overview */}
+      {stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="card-ovh p-4">
+            <p className="text-sm text-slate-500">Total Shares</p>
+            <p className="text-2xl font-semibold text-primary-700">{stats.total_shares}</p>
+            {dateFilterActive && (
+              <p className="text-xs text-slate-400 mt-1">For selected timeframe</p>
+            )}
+          </div>
+          <div className="card-ovh p-4">
+            <p className="text-sm text-slate-500">Active Links</p>
+            <p className="text-2xl font-semibold text-emerald-600">{stats.active_shares}</p>
+          </div>
+          <div className="card-ovh p-4">
+            <p className="text-sm text-slate-500">Expired Links</p>
+            <p className="text-2xl font-semibold text-slate-400">{stats.expired_shares}</p>
+          </div>
+          <div className="card-ovh p-4">
+            <p className="text-sm text-slate-500">Total Views</p>
+            <p className="text-2xl font-semibold text-primary-700">{stats.total_accesses}</p>
+            {dateFilterActive && (
+              <p className="text-xs text-slate-400 mt-1">For selected timeframe</p>
+            )}
+          </div>
+          <div className="card-ovh p-4">
+            <p className="text-sm text-slate-500">Total Downloads</p>
+            <p className="text-2xl font-semibold text-emerald-600">{stats.total_downloads || 0}</p>
+            {dateFilterActive && (
+              <p className="text-xs text-slate-400 mt-1">For selected timeframe</p>
+            )}
+          </div>
+          <div className="card-ovh p-4">
+            <p className="text-sm text-slate-500">Unique Customers</p>
+            <p className="text-2xl font-semibold text-primary-700">{stats.unique_customers}</p>
+          </div>
+        </div>
+      )}
+
       {/* Shares Over Time Chart - Available for all users */}
       <div className="card-ovh">
           <div className="px-6 py-4 border-b border-slate-200">
@@ -329,45 +368,6 @@ export default function ShareHistory() {
             )}
           </div>
         </div>
-
-      {/* Stats Overview */}
-      {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-          <div className="card-ovh p-4">
-            <p className="text-sm text-slate-500">Total Shares</p>
-            <p className="text-2xl font-semibold text-primary-700">{stats.total_shares}</p>
-            {dateFilterActive && (
-              <p className="text-xs text-slate-400 mt-1">For selected timeframe</p>
-            )}
-          </div>
-          <div className="card-ovh p-4">
-            <p className="text-sm text-slate-500">Active Links</p>
-            <p className="text-2xl font-semibold text-emerald-600">{stats.active_shares}</p>
-          </div>
-          <div className="card-ovh p-4">
-            <p className="text-sm text-slate-500">Expired Links</p>
-            <p className="text-2xl font-semibold text-slate-400">{stats.expired_shares}</p>
-          </div>
-          <div className="card-ovh p-4">
-            <p className="text-sm text-slate-500">Total Views</p>
-            <p className="text-2xl font-semibold text-primary-700">{stats.total_accesses}</p>
-            {dateFilterActive && (
-              <p className="text-xs text-slate-400 mt-1">For selected timeframe</p>
-            )}
-          </div>
-          <div className="card-ovh p-4">
-            <p className="text-sm text-slate-500">Total Downloads</p>
-            <p className="text-2xl font-semibold text-emerald-600">{stats.total_downloads || 0}</p>
-            {dateFilterActive && (
-              <p className="text-xs text-slate-400 mt-1">For selected timeframe</p>
-            )}
-          </div>
-          <div className="card-ovh p-4">
-            <p className="text-sm text-slate-500">Unique Customers</p>
-            <p className="text-2xl font-semibold text-primary-700">{stats.unique_customers}</p>
-          </div>
-        </div>
-      )}
 
       {/* Customer Engagement Timeline */}
       <div className="card-ovh">
