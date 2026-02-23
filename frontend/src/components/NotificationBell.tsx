@@ -3,6 +3,7 @@ import { Bell } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 // Simple date formatting function (no external dependency needed)
 function formatDistanceToNow(date: Date): string {
   const now = new Date()
@@ -37,6 +38,8 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isCustomer = user?.role === 'customer'
 
   // Fetch notifications
   const { data: notifications = [], refetch, error } = useQuery<Notification[]>({
@@ -108,10 +111,11 @@ export default function NotificationBell() {
     if (notification.link_path) {
       return notification.link_path
     }
-    // Default links based on type
+    // Default links based on type and user role
     switch (notification.notification_type) {
       case 'material':
-        return '/materials'
+        // For customers, materials link to their shared materials page
+        return isCustomer ? '/' : '/materials'
       case 'product_release':
         return '/product-releases'
       case 'marketing_update':

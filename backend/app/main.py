@@ -23,6 +23,8 @@ from app.models.material import Material  # noqa: F401
 from app.models.product_release import ProductRelease  # noqa: F401
 from app.models.marketing_update import MarketingUpdate  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
+from app.models.shared_link import SharedLink  # noqa: F401
+from app.models.customer_message import CustomerMessage  # noqa: F401
 # AICorrection model may not exist in all deployments
 try:
     from app.models.ai_correction import AICorrection  # noqa: F401
@@ -192,7 +194,7 @@ async def health_check():
 
 # Import routers
 # Import routers - handle missing modules gracefully
-from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, notifications
+from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, notifications, customers
 
 # Challenge-response authentication endpoints
 from app.api import challenge as challenge_router
@@ -240,5 +242,11 @@ app.include_router(shared_links.router)
 app.include_router(product_releases.router)
 app.include_router(marketing_updates.router)
 app.include_router(notifications.router)
+app.include_router(customers.router)
+try:
+    from app.api import sales
+    app.include_router(sales.router)
+except ImportError:
+    pass  # Sales router is optional
 if dashboard:
     app.include_router(dashboard.router)

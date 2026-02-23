@@ -137,8 +137,12 @@ async def create_user(
             hashed_password=get_password_hash(user_data.password),
             role=user_data.role,
             is_active=user_data.is_active if hasattr(user_data, 'is_active') else True,
-            is_superuser=user_data.is_superuser if hasattr(user_data, 'is_superuser') else False
+            is_superuser=user_data.is_superuser if hasattr(user_data, 'is_superuser') else False,
+            created_by_id=current_user.id  # Track who created this user
         )
+        
+        # Note: Sales users should use /api/sales/customers endpoint to create customers
+        # This endpoint (admin-only) does not automatically assign customers to sales
         
         db.add(user)
         db.commit()
@@ -210,8 +214,28 @@ async def update_user(
                 detail="Cannot remove your own superuser status"
             )
     
-    # Update fields
+    # Validate: Sales can only be assigned to customers (not PMMs or other roles)
     update_data = user_data.dict(exclude_unset=True, exclude={"password"})
+    
+    # If assigning to a sales person, ensure the user is a customer
+    if "assigned_sales_id" in update_data and update_data["assigned_sales_id"] is not None:
+        if user.role != "customer":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only customers can be assigned to sales persons. User '{user.email}' has role '{user.role}'"
+            )
+        # Verify the assigned sales person exists and is actually a sales person
+        assigned_sales = db.query(User).filter(User.id == update_data["assigned_sales_id"]).first()
+        if not assigned_sales:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assigned sales person not found"
+            )
+        if assigned_sales.role != "sales":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User '{assigned_sales.email}' is not a sales person (role: '{assigned_sales.role}')"
+            )
     
     # Handle password update separately
     if user_data.password:

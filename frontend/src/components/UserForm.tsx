@@ -154,6 +154,7 @@ export default function UserForm({ user, onClose }: UserFormProps) {
           <option value="pmm">PMM (Product Marketing Manager)</option>
           <option value="sales">Sales</option>
           <option value="admin">Admin</option>
+          <option value="customer">Customer</option>
         </select>
       </div>
 

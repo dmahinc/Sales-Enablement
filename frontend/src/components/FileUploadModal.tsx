@@ -11,9 +11,10 @@ interface FileUploadModalProps {
   onUploadSuccess?: (material: any) => void
   allowOptionalSorting?: boolean
   keepOpenOnSuccess?: boolean
+  defaultStatus?: string
 }
 
-export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allowOptionalSorting = false, keepOpenOnSuccess = false }: FileUploadModalProps) {
+export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allowOptionalSorting = false, keepOpenOnSuccess = false, defaultStatus = 'draft' }: FileUploadModalProps) {
   const { user } = useAuth()
   const isDirector = user?.role === 'director' || user?.is_superuser
   const isPMM = user?.role === 'pmm'
@@ -28,6 +29,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
     material_type: 'product_brief',
     other_type_description: '',
     audience: 'internal',
+    status: defaultStatus,
     freshness_date: getTodayDate(),
     universe_id: null as number | null,
     category_id: null as number | null,
@@ -294,6 +296,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
           material_type: 'product_brief',
           other_type_description: '',
           audience: 'internal',
+          status: defaultStatus,
           freshness_date: getTodayDate(),
           universe_id: null,
           category_id: null,
@@ -360,6 +363,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
               }
               formDataToStore.append('audience', formData.audience)
               formDataToStore.append('freshness_date', formData.freshness_date)
+              formDataToStore.append('status', formData.status)
               // Only append universe/category/product if they exist (for optional sorting)
               if (formData.universe_id) {
                 formDataToStore.append('universe_id', formData.universe_id.toString())
@@ -480,6 +484,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
     }
     formDataToSend.append('audience', formData.audience)
     formDataToSend.append('freshness_date', formData.freshness_date)
+    formDataToSend.append('status', formData.status)
     
     // Only append universe/category/product if provided
     if (formData.universe_id) {
@@ -604,6 +609,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
       }
       formDataToSend.append('audience', formData.audience)
       formDataToSend.append('freshness_date', formData.freshness_date)
+      formDataToSend.append('status', formData.status)
       // Only append universe/category/product if they exist (for optional sorting)
       if (formData.universe_id) {
         formDataToSend.append('universe_id', formData.universe_id.toString())
@@ -676,6 +682,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
       material_type: 'product_brief',
       other_type_description: '',
       audience: 'internal',
+      status: defaultStatus,
       freshness_date: getTodayDate(),
       universe_id: null,
       category_id: null,
@@ -795,10 +802,15 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
                   onChange={(e) => {
                     const newMaterialType = e.target.value
                     // Auto-set audience based on material type
+                    // Sales decks are always customer-facing
                     let newAudience = formData.audience
                     if (newMaterialType === 'product_brief' || newMaterialType === 'sales_enablement_deck') {
                       newAudience = 'internal'
                     } else if (newMaterialType === 'datasheet' || newMaterialType === 'sales_deck') {
+                      newAudience = 'customer_facing'
+                    }
+                    // Ensure sales_deck is always customer_facing (can't be changed to internal)
+                    if (newMaterialType === 'sales_deck' && newAudience === 'internal') {
                       newAudience = 'customer_facing'
                     }
                     setFormData({ 
@@ -840,19 +852,52 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
                 <select
                   required
                   value={formData.audience}
-                  onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-                  disabled={formData.material_type !== 'other'}
-                  className={`input-ovh ${formData.material_type !== 'other' ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                  onChange={(e) => {
+                    // Prevent sales_deck from being set to internal
+                    const newAudience = e.target.value
+                    if (formData.material_type === 'sales_deck' && newAudience === 'internal') {
+                      return // Don't allow changing sales_deck to internal
+                    }
+                    setFormData({ ...formData, audience: newAudience })
+                  }}
+                  disabled={formData.material_type !== 'other' && formData.material_type !== 'sales_deck'}
+                  className={`input-ovh ${formData.material_type !== 'other' && formData.material_type !== 'sales_deck' ? 'bg-slate-100 cursor-not-allowed' : ''}`}
                 >
                   <option value="internal">Internal</option>
                   <option value="customer_facing">Customer Facing</option>
                 </select>
-                {formData.material_type !== 'other' && (
+                {formData.material_type !== 'other' && formData.material_type !== 'sales_deck' && (
                   <p className="mt-1 text-xs text-slate-500">
                     Automatically set based on material type
                   </p>
                 )}
+                {formData.material_type === 'sales_deck' && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Sales decks are customer-facing materials and can be shared with customers
+                  </p>
+                )}
               </div>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Status *
+              </label>
+              <select
+                required
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="input-ovh"
+              >
+                <option value="draft">Draft</option>
+                <option value="review">Review</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                Material publication status
+              </p>
             </div>
 
             {/* Freshness Date */}

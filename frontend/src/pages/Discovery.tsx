@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
 import ProductIcon from '../components/ProductIcon'
@@ -42,6 +43,8 @@ interface Product {
 }
 
 export default function Discovery() {
+  const { user } = useAuth()
+  const isSales = user?.role === 'sales'
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUniverseId, setSelectedUniverseId] = useState<number | null>(null)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
@@ -581,6 +584,7 @@ export default function Discovery() {
                               setIsShareModalOpen(true)
                             }}
                             onPreview={(material) => setPreviewMaterial(material)}
+                            isSales={isSales}
                           />
                         ))}
                       </div>
@@ -595,6 +599,7 @@ export default function Discovery() {
                               setSharingMaterial(material)
                               setIsShareModalOpen(true)
                             }}
+                            isSales={isSales}
                           />
                         ))}
                       </div>
@@ -614,6 +619,7 @@ export default function Discovery() {
                           setIsShareModalOpen(true)
                         }}
                         onPreview={(material) => setPreviewMaterial(material)}
+                        isSales={isSales}
                       />
                     ))}
                   </div>
@@ -628,6 +634,7 @@ export default function Discovery() {
                           setSharingMaterial(material)
                           setIsShareModalOpen(true)
                         }}
+                        isSales={isSales}
                       />
                     ))}
                   </div>
@@ -663,6 +670,7 @@ export default function Discovery() {
             setIsShareModalOpen(true)
             setPreviewMaterial(null)
           }}
+          isSales={isSales}
         />
       )}
 
@@ -690,6 +698,7 @@ interface MaterialCardProps {
   material: Material
   onDownload: (material: Material) => void
   onShare: (material: Material) => void
+  isSales?: boolean
 }
 
 // Helper function to get icon for material type
@@ -716,7 +725,7 @@ function getMaterialTypeIcon(materialType: string | null | undefined): LucideIco
   }
 }
 
-function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
+function MaterialCard({ material, onDownload, onShare, isSales = false }: MaterialCardProps) {
   return (
     <div className="card-ovh p-4 hover:shadow-md transition-all group">
       <div className="flex items-start space-x-3">
@@ -775,7 +784,7 @@ function MaterialCard({ material, onDownload, onShare }: MaterialCardProps) {
           </div>
           {/* Action buttons */}
           <div className="flex items-center justify-end space-x-2 mt-3 pt-3 border-t border-slate-100">
-            {material.status === 'published' && (
+            {material.status === 'published' && !(isSales && material.audience === 'internal') && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
@@ -855,9 +864,10 @@ interface MaterialGalleryCardProps {
   onDownload: (material: Material) => void
   onShare: (material: Material) => void
   onPreview: (material: Material) => void
+  isSales?: boolean
 }
 
-function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: MaterialGalleryCardProps) {
+function MaterialGalleryCard({ material, onDownload, onShare, onPreview, isSales = false }: MaterialGalleryCardProps) {
   const colors = getMaterialTypeColors(material.material_type)
   const MaterialIcon = getMaterialTypeIcon(material.material_type)
   const freshness = getFreshnessInfo(material.last_updated)
@@ -958,18 +968,18 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview }: Mater
         
         {/* Action Buttons */}
         <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
-          {material.status === 'published' && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onShare(material)
-              }}
-              className="p-2 text-slate-700 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
-              title="Share"
-            >
-              <Share2 className="h-5 w-5" />
-            </button>
-          )}
+            {material.status === 'published' && !(isSales && material.audience === 'internal') && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onShare(material)
+                }}
+                className="p-2 text-slate-700 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                title="Share"
+              >
+                <Share2 className="h-5 w-5" />
+              </button>
+            )}
           {material.file_path && (
             <button
               onClick={(e) => {
@@ -994,9 +1004,10 @@ interface MaterialPreviewModalProps {
   onClose: () => void
   onDownload: (material: Material) => void
   onShare: (material: Material) => void
+  isSales?: boolean
 }
 
-function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare }: MaterialPreviewModalProps) {
+function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, isSales = false }: MaterialPreviewModalProps) {
   if (!isOpen) return null
   
   const colors = getMaterialTypeColors(material.material_type)
@@ -1126,7 +1137,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare }
             >
               Close
             </button>
-            {material.status === 'published' && (
+            {material.status === 'published' && !(isSales && material.audience === 'internal') && (
               <button
                 onClick={() => onShare(material)}
                 className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center space-x-2"

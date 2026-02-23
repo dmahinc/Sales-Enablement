@@ -81,6 +81,13 @@ async def create_shared_link(
             detail="Only published materials can be shared"
         )
     
+    # Sales users cannot share internal materials
+    if current_user.role == "sales" and material.audience == "internal":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sales users cannot share internal materials. Only customer-facing or shared assets can be shared."
+        )
+    
     # Generate unique token
     token = generate_unique_token()
     # Ensure token is unique (very unlikely collision, but check anyway)
@@ -199,10 +206,12 @@ async def get_shared_link_by_token(
     shared_link.last_accessed_at = datetime.utcnow()
     
     # Track view event in MaterialUsage for timeline (individual view events)
+    # Use shared_by_user_id to identify this as a customer action via shared link
+    # This allows the timeline to match these events to the correct shared link
     try:
         usage_event = MaterialUsage(
             material_id=material.id,
-            user_id=shared_link.shared_by_user_id or 0,  # Use creator's ID or 0 for anonymous
+            user_id=shared_link.shared_by_user_id,  # Use creator's ID to identify customer action via shared link
             action=UsageAction.VIEW.value,
             used_at=datetime.utcnow(),
             ip_address=request.client.host if request.client else None,
@@ -311,11 +320,17 @@ async def download_shared_material(
     shared_link.access_count += 1
     shared_link.last_accessed_at = datetime.utcnow()
     
-    # Track download usage (if we have user info, otherwise track anonymously)
+    # Update download tracking
+    shared_link.download_count = (shared_link.download_count or 0) + 1
+    shared_link.last_downloaded_at = datetime.utcnow()
+    
+    # Track download usage
+    # Use shared_by_user_id to identify this as a customer action via shared link
+    # This allows the timeline to match these events to the correct shared link
     try:
         usage_event = MaterialUsage(
             material_id=material.id,
-            user_id=shared_link.shared_by_user_id or 0,  # Use 0 for anonymous
+            user_id=shared_link.shared_by_user_id,  # Use creator's ID to identify customer action via shared link
             action=UsageAction.DOWNLOAD.value,
             used_at=datetime.utcnow(),
             ip_address=request.client.host if request.client else None,
@@ -398,9 +413,33 @@ async def get_timeline(
             end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
             end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
     
-    # Get shared links - directors, admins, and PMMs see all links, sales see only their own
+    # Get shared links - directors, admins, and PMMs see all links
+    # Sales see only links shared with customers assigned to them or created by them
     if current_user.role in ["director", "admin", "pmm"]:
         shared_links_query = db.query(SharedLink)
+    elif current_user.role == "sales":
+        # Get customer emails assigned to or created by this sales person
+        assigned_customers = db.query(User).filter(
+            and_(
+                User.role == "customer",
+                or_(
+                    User.assigned_sales_id == current_user.id,
+                    User.created_by_id == current_user.id
+                )
+            )
+        ).all()
+        
+        customer_emails = [customer.email for customer in assigned_customers]
+        
+        if customer_emails:
+            shared_links_query = db.query(SharedLink).filter(
+                and_(
+                    SharedLink.shared_by_user_id == current_user.id,
+                    SharedLink.customer_email.in_(customer_emails)
+                )
+            )
+        else:
+            shared_links_query = db.query(SharedLink).filter(False)
     else:
         shared_links_query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
     
@@ -483,25 +522,15 @@ async def get_timeline(
                         "shared_link_id": link.id
                     })
             
-            # Add "downloaded" events from last_downloaded_at
-            if (not event_type or event_type == "downloaded") and link.last_downloaded_at:
-                if (not start_datetime or link.last_downloaded_at >= start_datetime) and \
-                   (not end_datetime or link.last_downloaded_at <= end_datetime):
-                    events.append({
-                        "event_type": "downloaded",
-                        "timestamp": link.last_downloaded_at,
-                        "material_id": link.material_id,
-                        "material_name": material.name,
-                        "product_name": material.product_name,
-                        "material_type": material.material_type,
-                        "other_type_description": material.other_type_description,
-                        "customer_email": link.customer_email,
-                        "customer_name": link.customer_name,
-                        "shared_link_id": link.id
-                    })
+            # NOTE: We no longer add "downloaded" events from last_downloaded_at here
+            # Instead, we rely on MaterialUsage events below to show ALL individual download events
+            # This ensures we see every download, not just the last one
         
         # SECONDARY: Add MaterialUsage events as supplement (if they exist and aren't duplicates)
-        # MaterialUsage events are sparse, so this is just a supplement
+        # IMPORTANT: Include MaterialUsage events for customer downloads/views via shared links
+        # For downloads: Include events where user_id matches shared_by_user_id (customer downloads via shared link)
+        # For views: Include events where user_id matches shared_by_user_id (customer views via shared link)
+        # Exclude internal tracking actions (browse, search, preview) which are for sales session tracking only
         action_filter = []
         if not event_type or event_type == "viewed":
             action_filter.append(UsageAction.VIEW.value)
@@ -509,28 +538,25 @@ async def get_timeline(
             action_filter.append(UsageAction.DOWNLOAD.value)
         
         if action_filter and shared_material_ids:
+            # Get user_ids from shared links (these represent customer actions via shared links)
+            shared_link_user_ids = list(set([link.shared_by_user_id for link in shared_links if link.shared_by_user_id]))
+            
             # Query MaterialUsage events
+            # Include events where user_id matches shared_by_user_id (customer actions via shared links)
+            # OR user_id == 0 if we have an anonymous user (for future compatibility)
             usage_query = db.query(MaterialUsage).filter(
                 MaterialUsage.action.in_(action_filter),
                 MaterialUsage.material_id.in_(shared_material_ids)
             )
             
-            # For directors/admins/PMMs: see all MaterialUsage events
-            # For sales: only see events from their own shared links or anonymous (user_id=0)
-            if current_user.role not in ["director", "admin", "pmm"]:
-                # Get all user_ids from shared links (creators)
-                shared_link_user_ids = list(set([link.shared_by_user_id for link in shared_links if link.shared_by_user_id]))
-                
-                # Filter by user_id: must match one of the shared link creators OR be 0
-                if shared_link_user_ids:
-                    usage_query = usage_query.filter(
-                        or_(
-                            MaterialUsage.user_id.in_(shared_link_user_ids),
-                            MaterialUsage.user_id == 0
-                        )
-                    )
-                else:
-                    usage_query = usage_query.filter(MaterialUsage.user_id == 0)
+            # Filter by user_ids from shared links (customer actions)
+            if shared_link_user_ids:
+                usage_query = usage_query.filter(
+                    MaterialUsage.user_id.in_(shared_link_user_ids)
+                )
+            else:
+                # If no shared_link_user_ids, skip MaterialUsage events
+                usage_query = usage_query.filter(False)
             
             if material_id:
                 usage_query = usage_query.filter(MaterialUsage.material_id == material_id)
@@ -542,9 +568,11 @@ async def get_timeline(
             usage_events = usage_query.order_by(MaterialUsage.used_at.desc()).all()
             
             # Track existing events to avoid duplicates
+            # For downloads, we want to show ALL MaterialUsage events, so we don't check against SharedLink events
+            # For views, we still check against SharedLink last_accessed_at to avoid duplicates
             existing_event_keys = set()
             for e in events:
-                if e.get("event_type") in ["viewed", "downloaded"]:
+                if e.get("event_type") == "viewed":  # Only check viewed events, not downloaded
                     existing_event_keys.add((
                         e.get("material_id"),
                         e.get("customer_email") or "",
@@ -566,22 +594,24 @@ async def get_timeline(
                     if customer_email and link.customer_email != customer_email:
                         continue
                     
-                    # Match if user_id matches shared_by_user_id, or if user_id is 0 (anonymous)
-                    # Directors/admins/PMMs can see all events, so skip this check for them
-                    if current_user.role not in ["director", "admin", "pmm"]:
-                        if usage.user_id != 0 and link.shared_by_user_id != usage.user_id:
-                            continue
+                    # Match MaterialUsage events to shared links by user_id
+                    # MaterialUsage events with user_id matching shared_by_user_id are customer actions via shared links
+                    if usage.user_id != link.shared_by_user_id:
+                        continue  # Skip if user_id doesn't match (not a customer action via this shared link)
                     
                     # Check if this event already exists from SharedLink tracking
-                    event_key = (
-                        usage.material_id,
-                        link.customer_email or "",
-                        usage.used_at.isoformat(),
-                        "viewed" if usage.action == UsageAction.VIEW.value else "downloaded"
-                    )
-                    
-                    if event_key in existing_event_keys:
-                        continue  # Skip duplicate
+                    # For downloads, we show ALL MaterialUsage events (no duplicate check)
+                    # For views, we check against SharedLink last_accessed_at to avoid duplicates
+                    if usage.action == UsageAction.VIEW.value:
+                        event_key = (
+                            usage.material_id,
+                            link.customer_email or "",
+                            usage.used_at.isoformat(),
+                            "viewed"
+                        )
+                        
+                        if event_key in existing_event_keys:
+                            continue  # Skip duplicate view event
                     
                     existing_event_keys.add(event_key)
                     
@@ -613,8 +643,46 @@ async def list_shared_links(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """List shared links (requires authentication - only shows links created by current user)"""
-    query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
+    """
+    List shared links (requires authentication)
+    - Directors, PMMs, Admins: see all links
+    - Sales: only see links shared with customers assigned to them or created by them
+    """
+    from sqlalchemy import and_, or_
+    
+    # Base query - filter by user role
+    if current_user.role in ["director", "admin", "pmm"]:
+        # Directors, PMMs, Admins see all links
+        query = db.query(SharedLink)
+    elif current_user.role == "sales":
+        # Sales: only see links shared with their assigned/created CUSTOMERS (role == 'customer')
+        # Get customer emails assigned to or created by this sales person (ONLY customers, not PMMs)
+        assigned_customers = db.query(User).filter(
+            and_(
+                User.role == "customer",  # Only customers, not PMMs or other roles
+                or_(
+                    User.assigned_sales_id == current_user.id,
+                    User.created_by_id == current_user.id
+                )
+            )
+        ).all()
+        
+        customer_emails = [customer.email for customer in assigned_customers]
+        
+        if customer_emails:
+            # Filter shared links by customer emails
+            query = db.query(SharedLink).filter(
+                and_(
+                    SharedLink.shared_by_user_id == current_user.id,  # Created by this sales person
+                    SharedLink.customer_email.in_(customer_emails)  # Shared with assigned CUSTOMERS only
+                )
+            )
+        else:
+            # No assigned customers, return empty result
+            query = db.query(SharedLink).filter(False)
+    else:
+        # Other roles: only their own links
+        query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
     
     if material_id:
         query = query.filter(SharedLink.material_id == material_id)
@@ -1001,9 +1069,33 @@ async def get_material_stats(
     """Get statistics for most shared materials"""
     from sqlalchemy import func, and_, or_
     
-    # Base query - directors, admins, and PMMs see all links, sales see only their own
+    # Base query - directors, admins, and PMMs see all links
+    # Sales see only links shared with customers assigned to them or created by them
     if current_user.role in ["director", "admin", "pmm"]:
         base_query = db.query(SharedLink)
+    elif current_user.role == "sales":
+        # Get customer emails assigned to or created by this sales person (ONLY customers, not PMMs)
+        assigned_customers = db.query(User).filter(
+            and_(
+                User.role == "customer",  # Only customers, not PMMs or other roles
+                or_(
+                    User.assigned_sales_id == current_user.id,
+                    User.created_by_id == current_user.id
+                )
+            )
+        ).all()
+        
+        customer_emails = [customer.email for customer in assigned_customers]
+        
+        if customer_emails:
+            base_query = db.query(SharedLink).filter(
+                and_(
+                    SharedLink.shared_by_user_id == current_user.id,
+                    SharedLink.customer_email.in_(customer_emails)
+                )
+            )
+        else:
+            base_query = db.query(SharedLink).filter(False)
     else:
         base_query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
     
@@ -1041,11 +1133,36 @@ async def get_customer_stats(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get statistics for customers who have received shared links"""
-    from sqlalchemy import func, and_, distinct
+    from sqlalchemy import func, and_, distinct, or_
     
-    # Base query - directors, admins, and PMMs see all links, sales see only their own
+    # Base query - directors, admins, and PMMs see all links
+    # Sales see only links shared with customers assigned to them or created by them
     if current_user.role in ["director", "admin", "pmm"]:
         base_query = db.query(SharedLink).filter(SharedLink.customer_email.isnot(None))
+    elif current_user.role == "sales":
+        # Get customer emails assigned to or created by this sales person
+        assigned_customers = db.query(User).filter(
+            and_(
+                User.role == "customer",
+                or_(
+                    User.assigned_sales_id == current_user.id,
+                    User.created_by_id == current_user.id
+                )
+            )
+        ).all()
+        
+        customer_emails = [customer.email for customer in assigned_customers]
+        
+        if customer_emails:
+            base_query = db.query(SharedLink).filter(
+                and_(
+                    SharedLink.shared_by_user_id == current_user.id,
+                    SharedLink.customer_email.isnot(None),
+                    SharedLink.customer_email.in_(customer_emails)
+                )
+            )
+        else:
+            base_query = db.query(SharedLink).filter(False)
     else:
         base_query = db.query(SharedLink).filter(
             and_(
@@ -1091,7 +1208,7 @@ async def get_shares_over_time(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get shares and downloads over time grouped by date, filtered by date range"""
-    from sqlalchemy import func
+    from sqlalchemy import func, and_, or_
     
     # Parse date filters
     start_datetime = None
@@ -1110,8 +1227,32 @@ async def get_shares_over_time(
             end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
     
     # Get shared material IDs for filtering downloads
+    # Sales see only links shared with customers assigned to them or created by them
     if current_user.role in ["director", "admin", "pmm"]:
         shared_link_query = db.query(SharedLink)
+    elif current_user.role == "sales":
+        # Get customer emails assigned to or created by this sales person
+        assigned_customers = db.query(User).filter(
+            and_(
+                User.role == "customer",
+                or_(
+                    User.assigned_sales_id == current_user.id,
+                    User.created_by_id == current_user.id
+                )
+            )
+        ).all()
+        
+        customer_emails = [customer.email for customer in assigned_customers]
+        
+        if customer_emails:
+            shared_link_query = db.query(SharedLink).filter(
+                and_(
+                    SharedLink.shared_by_user_id == current_user.id,
+                    SharedLink.customer_email.in_(customer_emails)
+                )
+            )
+        else:
+            shared_link_query = db.query(SharedLink).filter(False)
     else:
         shared_link_query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
     

@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard'
 import DirectorDashboard from './pages/DirectorDashboard'
 import PMMDashboard from './pages/PMMDashboard'
 import SalesDashboard from './pages/SalesDashboard'
+import CustomerDashboard from './pages/CustomerDashboard'
+import CustomerMaterials from './pages/CustomerMaterials'
 import Materials from './pages/Materials'
 import HealthDashboard from './pages/HealthDashboard'
 import UsageAnalytics from './pages/UsageAnalytics'
@@ -18,6 +20,7 @@ import Login from './pages/Login'
 import ProductReleases from './pages/ProductReleases'
 import MarketingUpdates from './pages/MarketingUpdates'
 import Notifications from './pages/Notifications'
+import MyCustomers from './pages/MyCustomers'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 
@@ -66,6 +69,9 @@ function RoleBasedDashboard() {
       case 'sales':
         console.log('RoleBasedDashboard - Rendering SalesDashboard')
         return <SalesDashboard />
+      case 'customer':
+        console.log('RoleBasedDashboard - Rendering CustomerMaterials')
+        return <CustomerMaterials />
       default:
         console.log('RoleBasedDashboard - Unknown role, using default Dashboard')
         // Fallback to generic dashboard for admin or unknown roles
@@ -108,6 +114,7 @@ function AppRoutes() {
         <Route path="product-releases" element={<ProductReleases />} />
         <Route path="marketing-updates" element={<MarketingUpdates />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="my-customers" element={<MyCustomers />} />
       </Route>
     </Routes>
   )

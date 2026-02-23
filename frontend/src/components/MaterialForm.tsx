@@ -557,16 +557,28 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
           <select
             required
             value={formData.audience}
-            onChange={(e) => setFormData({ ...formData, audience: e.target.value })}
-            disabled={formData.material_type !== 'other'}
-            className={`input-ovh ${formData.material_type !== 'other' ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+            onChange={(e) => {
+              // Prevent sales_deck from being set to internal
+              const newAudience = e.target.value
+              if (formData.material_type === 'sales_deck' && newAudience === 'internal') {
+                return // Don't allow changing sales_deck to internal
+              }
+              setFormData({ ...formData, audience: newAudience })
+            }}
+            disabled={formData.material_type !== 'other' && formData.material_type !== 'sales_deck'}
+            className={`input-ovh ${formData.material_type !== 'other' && formData.material_type !== 'sales_deck' ? 'bg-slate-100 cursor-not-allowed' : ''}`}
           >
             <option value="internal">Internal</option>
             <option value="customer_facing">Customer Facing</option>
           </select>
-          {formData.material_type !== 'other' && (
+          {formData.material_type !== 'other' && formData.material_type !== 'sales_deck' && (
             <p className="mt-1 text-xs text-slate-500">
               Automatically set based on material type
+            </p>
+          )}
+          {formData.material_type === 'sales_deck' && (
+            <p className="mt-1 text-xs text-slate-500">
+              Sales decks are customer-facing materials and can be shared with customers
             </p>
           )}
         </div>

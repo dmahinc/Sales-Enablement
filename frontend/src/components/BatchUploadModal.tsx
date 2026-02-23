@@ -582,6 +582,8 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
           singleFormData.append('universe_id', suggestion.universe_id.toString())
           singleFormData.append('category_id', suggestion.category_id.toString())
           singleFormData.append('product_id', suggestion.product_id.toString())
+          // Batch upload defaults to 'published' status
+          singleFormData.append('status', 'published')
           
           if (suggestion.product_name) {
             singleFormData.append('product_name', suggestion.product_name)

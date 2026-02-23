@@ -147,9 +147,10 @@ interface BrowseMaterialCardProps {
   onDelete?: (id: number) => void
   onPreview: (material: any) => void
   canEditDelete?: boolean
+  isSales?: boolean
 }
 
-function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, onPreview, canEditDelete = false }: BrowseMaterialCardProps) {
+function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, onPreview, canEditDelete = false, isSales = false }: BrowseMaterialCardProps) {
   const colors = getMaterialTypeColors(material.material_type)
   const MaterialIcon = getMaterialTypeIcon(material.material_type)
   const freshness = getFreshnessInfo(material.last_updated)
@@ -252,7 +253,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
         
         {/* Action Buttons */}
         <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
-          {material.status === 'published' && (
+          {material.status === 'published' && !(isSales && material.audience === 'internal') && (
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -317,9 +318,10 @@ interface MaterialPreviewModalProps {
   onEdit: (material: any) => void
   onDelete: (id: number) => void
   canEditDelete?: boolean
+  isSales?: boolean
 }
 
-function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, onEdit, onDelete, canEditDelete = false }: MaterialPreviewModalProps) {
+function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, onEdit, onDelete, canEditDelete = false, isSales = false }: MaterialPreviewModalProps) {
   const [executiveSummary, setExecutiveSummary] = useState<string | null>(null)
   const [isLoadingSummary, setIsLoadingSummary] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -682,7 +684,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 <span>Edit</span>
               </button>
             )}
-            {material.status === 'published' && (
+            {material.status === 'published' && !(isSales && material.audience === 'internal') && (
               <button
                 onClick={() => {
                   onShare(material)
@@ -1396,7 +1398,7 @@ export default function Materials() {
             >
               <Eye className="h-5 w-5" />
             </button>
-            {material.status === 'published' && (
+            {material.status === 'published' && !(isSales && material.audience === 'internal') && (
               <button
                 onClick={() => {
                   setSharingMaterial(material)
@@ -1850,6 +1852,7 @@ export default function Materials() {
                             onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
                             onPreview={(material) => setPreviewMaterial(material)}
                             canEditDelete={canEditDelete}
+                            isSales={isSales}
                           />
                         ))}
                       </div>
@@ -1870,6 +1873,7 @@ export default function Materials() {
                         onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
                         onPreview={(material) => setPreviewMaterial(material)}
                         canEditDelete={canEditDelete}
+                        isSales={isSales}
                       />
                     ))}
                   </div>
@@ -1937,6 +1941,7 @@ export default function Materials() {
               }
             }}
             canEditDelete={canEditDelete}
+            isSales={isSales}
           />
         )}
 
@@ -2383,6 +2388,7 @@ export default function Materials() {
               }
             }}
             canEditDelete={canEditDelete}
+            isSales={isSales}
           />
         )}
 

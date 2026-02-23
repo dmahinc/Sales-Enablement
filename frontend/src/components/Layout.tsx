@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 
 type NavItem = 
@@ -41,6 +41,7 @@ export default function Layout() {
   const isDirector = user?.role === 'director'
   const isPMM = user?.role === 'pmm'
   const isSales = user?.role === 'sales'
+  const isCustomer = user?.role === 'customer'
 
   // Base navigation items available to all roles
   const baseNavItems = [
@@ -90,17 +91,24 @@ export default function Layout() {
   // Sales-specific navigation with section titles
   // Structure:
   // - MATERIAL & ENABLEMENT: Explore Materials, Enablement Tracks
-  // - CUSTOMER ENGAGEMENT: My Shares
+  // - CUSTOMER ENGAGEMENT: My Customers, My Shared Materials
   // - NEWS: Latest Product Releases, Marketing Updates
   const salesNavItems = [
     { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Explore Materials', icon: FileText },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
     { type: 'section', label: 'CUSTOMER ENGAGEMENT' },
-    { path: '/sharing', label: 'My Shares', icon: Share2 },
+    { path: '/my-customers', label: 'My Customers', icon: UserCircle },
+    { path: '/sharing', label: 'My Shared Materials', icon: Share2 },
     { type: 'section', label: 'NEWS' },
     { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
     { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
+  ]
+
+  // Customer-specific navigation (focused on material discovery)
+  const customerNavItems = [
+    { path: '/', label: 'My Shared Materials', icon: FileText },
+    { path: '/notifications', label: 'Notifications', icon: Bell },
   ]
 
   // Admin gets all items (Admin is Director's role) - same order as Director
@@ -129,6 +137,8 @@ export default function Layout() {
     navItems = pmmNavItems
   } else if (isSales) {
     navItems = salesNavItems
+  } else if (isCustomer) {
+    navItems = customerNavItems
   }
 
   // Close user menu when clicking outside
@@ -210,7 +220,9 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto flex flex-col">
         {/* Header Bar */}
         <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between transition-colors duration-300">
-          <h1 className="text-2xl font-bold text-primary-700 dark:text-primary-400 tracking-tight">Product Enablement & Customer Engagement Platform</h1>
+          <h1 className={`text-2xl font-bold text-primary-700 dark:text-primary-400 tracking-tight ${isCustomer ? 'text-lg' : ''}`}>
+            {isCustomer ? 'OVHcloud Customer Portal' : 'Product Enablement & Customer Engagement Platform'}
+          </h1>
           <div className="flex items-center space-x-4">
             {/* Theme Toggle */}
             <button

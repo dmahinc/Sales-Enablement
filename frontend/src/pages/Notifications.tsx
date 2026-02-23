@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Link, useNavigate } from 'react-router-dom'
 import { Bell, Check, X } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 // Simple date formatting function
 function formatDistanceToNow(date: Date): string {
@@ -65,7 +66,8 @@ export default function Notifications() {
     }
     switch (notification.notification_type) {
       case 'material':
-        return '/materials'
+        // For customers, materials link to their shared materials page
+        return isCustomer ? '/' : '/materials'
       case 'product_release':
         return '/product-releases'
       case 'marketing_update':

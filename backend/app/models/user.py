@@ -1,7 +1,7 @@
 """
 User model - represents PMMs and other users
 """
-from sqlalchemy import Column, String, Boolean, Integer
+from sqlalchemy import Column, String, Boolean, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 from typing import TYPE_CHECKING
@@ -29,12 +29,18 @@ class User(BaseModel):
     is_superuser = Column(Boolean, default=False)
     
     # Role
-    role = Column(String(50), default="pmm")  # pmm, director, sales, admin
+    role = Column(String(50), default="pmm")  # pmm, director, sales, admin, customer
+    
+    # Customer assignment (for customer role)
+    assigned_sales_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # Sales person assigned to this customer
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # User who created this account
     
     # Relationships (using string references to avoid circular imports)
     # Specify foreign_keys to avoid ambiguity since Material has both owner_id and pmm_in_charge_id
     materials = relationship("Material", back_populates="owner", foreign_keys="Material.owner_id", lazy="dynamic")
     notifications = relationship("Notification", secondary="notification_recipients", back_populates="recipients")
+    assigned_sales = relationship("User", foreign_keys=[assigned_sales_id], remote_side="User.id", backref="assigned_customers")
+    creator = relationship("User", foreign_keys=[created_by_id], remote_side="User.id", backref="created_users")
     # AICorrection relationship - conditionally defined
     # Note: This will fail if AICorrection model doesn't exist and is accessed
     # The relationship is defined but won't be used if the model doesn't exist

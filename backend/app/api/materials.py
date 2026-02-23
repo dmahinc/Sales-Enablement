@@ -565,6 +565,26 @@ async def update_material(
                 update_data['material_type']
             )
         
+        # Ensure sales_deck is always customer_facing (cannot be internal)
+        # Check both current material type and updated material type
+        current_material_type = material.material_type  # Already in DB format (PRODUCT_SALES_DECK)
+        updated_material_type = update_data.get('material_type')
+        
+        if current_material_type == 'PRODUCT_SALES_DECK' or updated_material_type == 'PRODUCT_SALES_DECK':
+            if 'audience' in update_data and update_data['audience']:
+                # Map audience to database format
+                audience_mapping = {
+                    'internal': 'INTERNAL',
+                    'customer_facing': 'CUSTOMER_FACING',
+                    'shared_asset': 'BOTH',
+                }
+                db_audience = audience_mapping.get(update_data['audience'], update_data['audience'])
+                if db_audience == 'INTERNAL':
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Sales decks must be customer-facing and cannot be set to internal"
+                    )
+        
         if 'audience' in update_data and update_data['audience']:
             update_data['audience'] = audience_mapping.get(
                 update_data['audience'],
@@ -672,6 +692,7 @@ async def upload_material_file(
     pmm_in_charge_id: Optional[int] = Form(None),
     replace_existing: str = Form("false"),
     send_notification: Optional[str] = Form("false"),
+    status: Optional[str] = Form("draft"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -781,6 +802,13 @@ async def upload_material_file(
                 detail="Invalid material_type or audience"
             )
         
+        # Ensure sales_deck is always customer_facing (cannot be internal)
+        if db_material_type == 'PRODUCT_SALES_DECK' and db_audience == 'INTERNAL':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Sales decks must be customer-facing and cannot be set to internal"
+            )
+        
         # Get other_type_description if material_type is "other"
         final_other_type_description = None
         if material_type == 'other':
@@ -877,6 +905,15 @@ async def upload_material_file(
         elif current_user.role == "pmm":
             final_pmm_in_charge_id = current_user.id
         
+        # Map status from frontend format to database format
+        status_mapping = {
+            'draft': 'DRAFT',
+            'review': 'REVIEW',
+            'published': 'PUBLISHED',
+            'archived': 'ARCHIVED',
+        }
+        db_status = status_mapping.get(status.lower() if status else 'draft', 'DRAFT')
+        
         # Create material record (columns are String type, not enum, so no casting needed)
         material = Material(
             name=file.filename,
@@ -891,7 +928,7 @@ async def upload_material_file(
             file_size=file_size,
             owner_id=current_user.id,
             pmm_in_charge_id=final_pmm_in_charge_id,
-            status="DRAFT",
+            status=db_status,
             last_updated=last_updated_date
         )
         db.add(material)

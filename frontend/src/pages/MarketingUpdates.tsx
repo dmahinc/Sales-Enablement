@@ -1282,6 +1282,7 @@ function MarketingUpdateForm({
       onClose={() => setIsUploadModalOpen(false)}
       allowOptionalSorting={true}
       keepOpenOnSuccess={false}
+      defaultStatus="published"
       onUploadSuccess={(uploadedMaterial) => {
         setFormData({ ...formData, material_id: uploadedMaterial.id })
       }}
