@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-The **Product & Solutions Sales Enablement Platform** is a collaborative internal tool designed to serve as the single source of truth for OVHcloud's product and solution sales materials. It enables Product Marketing Managers (PMMs), Product teams, Sales teams, and Directors to work together in managing, organizing, and accessing sales content across all product universes (Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration).
+The **Product Enablement & Customer Engagement Platform** (formerly "Product & Solutions Sales Enablement Platform") is a collaborative internal tool designed to serve as the single source of truth for OVHcloud's product and solution sales materials. It enables Product Marketing Managers (PMMs), Product teams, Sales teams, Directors, and Customers to work together in managing, organizing, and accessing sales content across all product universes (Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration).
 
 ### Vision Statement
 > *"The collaborative single source of truth that empowers Sales and Product teams to deliver consistent, up-to-date product and solution messaging."*
@@ -224,6 +224,7 @@ US-2.11: As a Sales Rep, I want to manage only customers assigned to me or creat
   - Can edit customer information
   - Can delete customers
   - All shared materials data filtered to assigned/created customers only
+  - Cannot share internal materials with customers (only customer-facing materials can be shared)
 
 US-2.12: As a Customer, I want to access materials shared with me by OVHcloud personas.
   Acceptance Criteria:
@@ -515,6 +516,8 @@ The platform follows OVHcloud's design system with:
 3. **Progressive Disclosure** - Show essentials, reveal details on demand
 4. **Consistent Patterns** - Same interaction patterns across features
 5. **Feedback** - Clear loading states, success/error messages
+6. **Accessibility** - Dark mode/night mode support for reduced eye strain
+7. **Brand Consistency** - OVHcloud logo and branding throughout the platform
 
 ---
 
@@ -567,6 +570,13 @@ The platform follows OVHcloud's design system with:
 - ✅ Customer notifications
 - ✅ Dark mode / Night mode
 - ✅ Product Enablement & Customer Engagement Platform branding
+- ✅ Material status defaults (Published for batch uploads and Marketing updates)
+- ✅ Status dropdown in upload material modal
+- ✅ Sales deck default audience (customer-facing, cannot be internal)
+- ✅ Sales persona restrictions (cannot share internal materials)
+- ✅ OVHcloud logo integration in header
+- ✅ User account menu with logout functionality
+- ✅ Platform title "Product Enablement & Customer Engagement Platform"
 
 ### Phase 2: Enhancement (Q2 2026)
 - [ ] Content blocks (reusable components)
