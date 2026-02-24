@@ -71,14 +71,15 @@ export default function Layout() {
     { path: '/users', label: 'Users Management', icon: Users },
   ]
 
-  // PMM-specific navigation with section titles (same structure as Director, but no Material Sharing or Users)
+  // PMM-specific navigation with section titles (same structure as Director, but no Users Management)
   // Structure:
-  // - MONITORING & ANALYTICS: Dashboard, Usage Analytics
+  // - MONITORING & ANALYTICS: Dashboard, Material Sharing, Usage Analytics
   // - MATERIAL & ENABLEMENT: Manage Materials, Enablement Tracks
   // - NEWS: Latest Product Releases, Marketing Updates
   const pmmNavItems = [
     { type: 'section', label: 'MONITORING & ANALYTICS' },
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/sharing', label: 'Material Sharing', icon: Share2 },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Manage Materials', icon: FileText },
