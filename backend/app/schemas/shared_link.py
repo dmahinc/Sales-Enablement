@@ -11,6 +11,7 @@ class SharedLinkCreate(BaseModel):
     material_id: int
     customer_email: Optional[EmailStr] = None
     customer_name: Optional[str] = Field(None, max_length=255)
+    company_name: Optional[str] = Field(None, max_length=255)
     expires_in_days: int = Field(default=90, ge=1, le=365)
 
 
@@ -23,6 +24,7 @@ class SharedLinkResponse(BaseModel):
     shared_by_user_id: Optional[int] = None
     customer_email: Optional[str] = None
     customer_name: Optional[str] = None
+    company_name: Optional[str] = None
     expires_at: datetime
     is_active: bool
     access_count: int
@@ -45,6 +47,7 @@ class SharedLinkPublicResponse(BaseModel):
     material_name: Optional[str] = None
     customer_email: Optional[str] = None
     customer_name: Optional[str] = None
+    company_name: Optional[str] = None
     expires_at: datetime
     is_active: bool
     access_count: int
@@ -60,6 +63,7 @@ class SharedLinkUpdate(BaseModel):
     """Schema for updating a shared link"""
     customer_email: Optional[EmailStr] = None
     customer_name: Optional[str] = Field(None, max_length=255)
+    company_name: Optional[str] = Field(None, max_length=255)
     is_active: Optional[bool] = None
     expires_in_days: Optional[int] = Field(None, ge=1, le=365)
 

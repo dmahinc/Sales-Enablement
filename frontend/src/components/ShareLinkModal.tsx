@@ -14,6 +14,7 @@ interface ShareLinkModalProps {
 export default function ShareLinkModal({ materialId, materialName, isOpen, onClose }: ShareLinkModalProps) {
   const [customerEmail, setCustomerEmail] = useState('')
   const [customerName, setCustomerName] = useState('')
+  const [companyName, setCompanyName] = useState('')
   const [expiresInDays, setExpiresInDays] = useState(90)
   const [copied, setCopied] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
@@ -57,6 +58,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
       material_id: materialId,
       customer_email: customerEmail || null,
       customer_name: customerName || null,
+      company_name: companyName || null,
       expires_in_days: expiresInDays,
     })
   }
@@ -74,6 +76,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
     setShareLinkId(null)
     setCustomerEmail('')
     setCustomerName('')
+    setCompanyName('')
     setExpiresInDays(90)
     setCopied(false)
     setEmailSent(false)
@@ -137,7 +140,23 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 className="input-ovh pl-10"
-                placeholder="Customer Company Name"
+                placeholder="Customer Name"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Company Name (Optional)
+            </label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="input-ovh pl-10"
+                placeholder="Company Name"
               />
             </div>
           </div>
@@ -215,6 +234,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
                       material_id: materialId,
                       customer_email: customerEmail.trim() || null,
                       customer_name: customerName || null,
+                      company_name: companyName || null,
                       expires_in_days: expiresInDays,
                     })
                     

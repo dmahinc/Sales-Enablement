@@ -25,6 +25,7 @@ class SharedLink(BaseModel):
     # Customer information
     customer_email = Column(String(255), nullable=True, index=True)
     customer_name = Column(String(255), nullable=True)
+    company_name = Column(String(255), nullable=True)
     
     # Link management
     expires_at = Column(DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(days=90))

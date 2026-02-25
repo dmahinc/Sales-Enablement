@@ -104,6 +104,7 @@ async def create_shared_link(
         shared_by_user_id=current_user.id,
         customer_email=link_data.customer_email,
         customer_name=link_data.customer_name,
+        company_name=link_data.company_name,
         expires_at=expires_at,
         is_active=True
     )
@@ -127,6 +128,7 @@ async def create_shared_link(
         "shared_by_user_name": current_user.full_name or current_user.email,
         "customer_email": shared_link.customer_email,
         "customer_name": shared_link.customer_name,
+        "company_name": shared_link.company_name,
         "expires_at": shared_link.expires_at,
         "is_active": shared_link.is_active,
         "access_count": shared_link.access_count,
@@ -472,6 +474,7 @@ async def get_timeline(
                     "other_type_description": material.other_type_description,
                     "customer_email": link.customer_email,
                     "customer_name": link.customer_name,
+                    "company_name": link.company_name,
                     "shared_link_id": link.id
                 })
     
@@ -684,6 +687,7 @@ async def list_shared_links(
             "shared_by_user_name": link.shared_by_user.full_name if link.shared_by_user else None,
             "customer_email": link.customer_email,
             "customer_name": link.customer_name,
+            "company_name": link.company_name,
             "expires_at": link.expires_at,
             "is_active": link.is_active,
             "access_count": link.access_count,
@@ -726,6 +730,8 @@ async def update_shared_link(
         shared_link.customer_email = link_data.customer_email
     if link_data.customer_name is not None:
         shared_link.customer_name = link_data.customer_name
+    if link_data.company_name is not None:
+        shared_link.company_name = link_data.company_name
     
     db.commit()
     db.refresh(shared_link)
@@ -745,6 +751,7 @@ async def update_shared_link(
         "shared_by_user_name": shared_link.shared_by_user.full_name if shared_link.shared_by_user else None,
         "customer_email": shared_link.customer_email,
         "customer_name": shared_link.customer_name,
+        "company_name": shared_link.company_name,
         "expires_at": shared_link.expires_at,
         "is_active": shared_link.is_active,
         "access_count": shared_link.access_count,
