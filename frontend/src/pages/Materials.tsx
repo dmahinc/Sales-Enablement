@@ -1985,8 +1985,6 @@ export default function Materials() {
           />
         )}
 
-        )}
-
         {/* Active Links Warning Modal */}
         {activeLinksWarning && (
           <Modal
