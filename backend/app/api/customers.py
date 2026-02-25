@@ -250,7 +250,8 @@ async def get_customer_messages(
     if sales_contact_id:
         query = query.filter(CustomerMessage.sales_contact_id == sales_contact_id)
     
-    messages = query.order_by(CustomerMessage.created_at.desc()).all()
+    # Order by ascending (oldest first) for chronological display downward
+    messages = query.order_by(CustomerMessage.created_at.asc()).all()
     
     return messages
 
