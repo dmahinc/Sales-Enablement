@@ -963,8 +963,37 @@ export default function Materials() {
   }
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this material?')) {
+    // First ask for confirmation
+    if (!window.confirm('Are you sure you want to delete this material?')) {
+      return
+    }
+    
+    try {
+      // Check for active shared links
+      const activeLinksResponse = await api.get(`/materials/${id}/active-shared-links`)
+      const activeLinksData = activeLinksResponse.data
+      
+      if (activeLinksData.active_links_count > 0) {
+        // Show warning modal with active links details
+        setActiveLinksWarning({
+          materialId: id,
+          materialName: activeLinksData.material_name,
+          activeLinks: activeLinksData.active_links,
+          activeLinksCount: activeLinksData.active_links_count
+        })
+        return
+      }
+      
+      // No active links, proceed with deletion
       deleteMutation.mutate(id)
+    } catch (error: any) {
+      // If the check fails (e.g., material not found), still try to delete
+      if (error.response?.status === 404) {
+        deleteMutation.mutate(id)
+      } else {
+        console.error('Error checking active links:', error)
+        alert('Failed to check for active shared links. Please try again.')
+      }
     }
   }
 
@@ -1442,11 +1471,7 @@ export default function Materials() {
                   <Edit className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this material?')) {
-                      handleDelete(material.id)
-                    }
-                  }}
+                  onClick={() => handleDelete(material.id)}
                   className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                   title="Delete"
                 >
@@ -1952,10 +1977,8 @@ export default function Materials() {
               setPreviewMaterial(null)
             }}
             onDelete={(id) => {
-              if (window.confirm('Are you sure you want to delete this material?')) {
-                handleDelete(id)
-                setPreviewMaterial(null)
-              }
+              handleDelete(id)
+              setPreviewMaterial(null)
             }}
             canEditDelete={canEditDelete}
             isSales={isSales}
@@ -2399,10 +2422,8 @@ export default function Materials() {
               setPreviewMaterial(null)
             }}
             onDelete={(id) => {
-              if (window.confirm('Are you sure you want to delete this material?')) {
-                handleDelete(id)
-                setPreviewMaterial(null)
-              }
+              handleDelete(id)
+              setPreviewMaterial(null)
             }}
             canEditDelete={canEditDelete}
             isSales={isSales}
