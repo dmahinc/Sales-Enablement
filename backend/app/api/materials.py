@@ -143,6 +143,51 @@ def _check_existing_material(
     existing_materials = _check_existing_material_by_type(db, product_name, material_type, exclude_material_id)
     return existing_materials[0] if existing_materials else None
 
+@router.get("/{material_id}/active-shared-links")
+async def get_active_shared_links_for_material(
+    material_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get active (non-expired) shared links for a material"""
+    from app.models.shared_link import SharedLink
+    from datetime import datetime
+    
+    material = db.query(Material).filter(Material.id == material_id).first()
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+    
+    # Get active, non-expired shared links
+    now = datetime.utcnow()
+    active_links = db.query(SharedLink).filter(
+        SharedLink.material_id == material_id,
+        SharedLink.is_active == True,
+        SharedLink.expires_at > now
+    ).all()
+    
+    links_info = []
+    for link in active_links:
+        links_info.append({
+            "id": link.id,
+            "customer_email": link.customer_email,
+            "customer_name": link.customer_name,
+            "company_name": link.company_name,
+            "expires_at": link.expires_at.isoformat(),
+            "created_at": link.created_at.isoformat(),
+            "access_count": link.access_count,
+            "download_count": link.download_count
+        })
+    
+    return {
+        "material_id": material_id,
+        "material_name": material.name,
+        "active_links_count": len(active_links),
+        "active_links": links_info
+    }
+
 @router.get("", response_model=List[MaterialResponse])
 async def list_materials(
     material_type: Optional[str] = None,
@@ -675,51 +720,6 @@ async def update_material(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to update material: {str(e)}"
         )
-
-@router.get("/{material_id}/active-shared-links")
-async def get_active_shared_links_for_material(
-    material_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Get active (non-expired) shared links for a material"""
-    from app.models.shared_link import SharedLink
-    from datetime import datetime
-    
-    material = db.query(Material).filter(Material.id == material_id).first()
-    if not material:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Material not found"
-        )
-    
-    # Get active, non-expired shared links
-    now = datetime.utcnow()
-    active_links = db.query(SharedLink).filter(
-        SharedLink.material_id == material_id,
-        SharedLink.is_active == True,
-        SharedLink.expires_at > now
-    ).all()
-    
-    links_info = []
-    for link in active_links:
-        links_info.append({
-            "id": link.id,
-            "customer_email": link.customer_email,
-            "customer_name": link.customer_name,
-            "company_name": link.company_name,
-            "expires_at": link.expires_at.isoformat(),
-            "created_at": link.created_at.isoformat(),
-            "access_count": link.access_count,
-            "download_count": link.download_count
-        })
-    
-    return {
-        "material_id": material_id,
-        "material_name": material.name,
-        "active_links_count": len(active_links),
-        "active_links": links_info
-    }
 
 @router.delete("/{material_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_material(
