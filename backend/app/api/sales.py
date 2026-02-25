@@ -342,9 +342,6 @@ async def get_conversations(
                 )
             ).order_by(CustomerMessage.created_at.desc()).all()
             
-            if not messages:
-                continue  # Skip customers with no messages
-            
             # Count unread messages (messages sent by customer that sales hasn't read)
             unread_count = sum(1 for msg in messages if msg.sent_by_customer and not msg.is_read)
             
@@ -370,6 +367,7 @@ async def get_conversations(
                     sales_contact_name=current_user.full_name
                 )
             
+            # Include ALL customers, even if they have no messages yet
             conversations.append(ConversationSummary(
                 customer_id=customer.id,
                 customer_name=customer.full_name,
@@ -380,8 +378,11 @@ async def get_conversations(
                 last_activity_at=last_message.created_at if last_message else None
             ))
         
-        # Sort by last activity (most recent first)
-        conversations.sort(key=lambda x: x.last_activity_at or datetime.min, reverse=True)
+        # Sort by last activity (most recent first), then by customer name for those without messages
+        conversations.sort(key=lambda x: (
+            x.last_activity_at if x.last_activity_at else datetime.min,
+            x.customer_name.lower()
+        ), reverse=True)
         
         return conversations
         

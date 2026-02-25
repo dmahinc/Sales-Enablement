@@ -237,7 +237,7 @@ export default function SalesMessages() {
           ) : conversations.length === 0 ? (
             <div className="p-4 text-center text-slate-500">
               <MessageSquare className="h-12 w-12 mx-auto mb-2 text-slate-400" />
-              <p>No conversations yet</p>
+              <p>No customers assigned yet</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -275,13 +275,19 @@ export default function SalesMessages() {
                       </div>
                     </div>
                   </div>
-                  {conversation.last_message && (
+                  {conversation.last_message ? (
                     <div className="mt-2">
                       <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
                         {conversation.last_message.message}
                       </p>
                       <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                         {formatTime(conversation.last_activity_at || conversation.last_message.created_at)}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <p className="text-sm text-slate-400 dark:text-slate-500 italic">
+                        No messages yet
                       </p>
                     </div>
                   )}
