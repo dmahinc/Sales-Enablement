@@ -335,26 +335,31 @@ export default function CustomerEngagementTimeline({
     const date = new Date(timestamp)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
+    
+    // Calculate differences
     const diffMins = Math.floor(diffMs / 60000)
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    // Use minute granularity for events less than 1 hour old (1-59 minutes)
+    // Use minute granularity for events less than 1 hour old
+    // Less than 1 minute: "Just now"
     if (diffMins < 1) {
       return 'Just now'
     }
-    // Show minutes for 1-59 minutes
+    // 1-59 minutes: show minutes
     if (diffMins < 60) {
       return `${diffMins}m ago`
     }
-    // After 1 hour (60+ minutes), use hour granularity
+    // 60+ minutes (1+ hours): show hours
     if (diffHours < 24) {
       return `${diffHours}h ago`
     }
+    // 24+ hours: show days
     if (diffDays < 7) {
       return `${diffDays}d ago`
     }
     
+    // 7+ days: show date
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
