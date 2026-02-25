@@ -85,6 +85,28 @@ function RoleBasedDashboard() {
   }
 }
 
+function RoleBasedMessages() {
+  const { user, loading } = useAuth()
+  
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+  
+  if (user.role === 'sales') {
+    return <SalesMessages />
+  }
+  
+  if (user.role === 'customer') {
+    return <CustomerMessages />
+  }
+  
+  return <Navigate to="/" replace />
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -117,11 +139,7 @@ function AppRoutes() {
         <Route path="marketing-updates" element={<MarketingUpdates />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="my-customers" element={<MyCustomers />} />
-        <Route path="messages" element={
-          <ProtectedRoute>
-            {user?.role === 'sales' ? <SalesMessages /> : user?.role === 'customer' ? <CustomerMessages /> : <Navigate to="/" replace />}
-          </ProtectedRoute>
-        } />
+        <Route path="messages" element={<RoleBasedMessages />} />
       </Route>
     </Routes>
   )
