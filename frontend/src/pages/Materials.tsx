@@ -2146,8 +2146,13 @@ export default function Materials() {
               handleDelete(id)
               setPreviewMaterial(null)
             }}
+            onArchive={canArchive ? (id) => {
+              handleArchive(id)
+              setPreviewMaterial(null)
+            } : undefined}
             canEditDelete={canEditDelete}
             isSales={isSales}
+            canArchive={canArchive}
           />
         )}
 
@@ -2596,8 +2601,13 @@ export default function Materials() {
               handleDelete(id)
               setPreviewMaterial(null)
             }}
+            onArchive={canArchive ? (id) => {
+              handleArchive(id)
+              setPreviewMaterial(null)
+            } : undefined}
             canEditDelete={canEditDelete}
             isSales={isSales}
+            canArchive={canArchive}
           />
         )}
 
