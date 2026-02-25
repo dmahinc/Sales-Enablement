@@ -34,14 +34,35 @@ async def get_director_dashboard(
         (products_with_materials / total_products * 100) if total_products > 0 else 0
     )
     
-    # Get total materials count
-    total_materials = db.query(Material).count()
+    # Get excluded material IDs (attached to Product Releases or Marketing Updates)
+    from app.models.product_release import ProductRelease
+    from app.models.marketing_update import MarketingUpdate
+    excluded_material_ids = set()
+    product_release_material_ids = db.query(ProductRelease.material_id).filter(
+        ProductRelease.material_id.isnot(None)
+    ).distinct().all()
+    excluded_material_ids.update([row[0] for row in product_release_material_ids])
+    marketing_update_material_ids = db.query(MarketingUpdate.material_id).filter(
+        MarketingUpdate.material_id.isnot(None)
+    ).distinct().all()
+    excluded_material_ids.update([row[0] for row in marketing_update_material_ids])
     
-    # Get material counts by status
-    material_counts_by_status = db.query(
+    # Get total materials count (excluding attached materials)
+    material_query = db.query(Material)
+    if excluded_material_ids:
+        material_query = material_query.filter(~Material.id.in_(excluded_material_ids))
+    total_materials = material_query.count()
+    
+    # Get material counts by status (excluding attached materials)
+    material_counts_by_status_query = db.query(
         Material.status,
         func.count(Material.id).label('count')
-    ).group_by(Material.status).all()
+    )
+    if excluded_material_ids:
+        material_counts_by_status_query = material_counts_by_status_query.filter(
+            ~Material.id.in_(excluded_material_ids)
+        )
+    material_counts_by_status = material_counts_by_status_query.group_by(Material.status).all()
     
     # Convert to dictionary
     status_counts = {
@@ -59,11 +80,14 @@ async def get_director_dashboard(
     # Get team contributions (simplified - you may want to enhance this)
     team_contributions = []
     
-    # Get recent activity (materials uploaded in last 7 days)
+    # Get recent activity (materials uploaded in last 7 days, excluding attached materials)
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
-    materials_last_7_days = db.query(Material).filter(
+    recent_materials_query = db.query(Material).filter(
         Material.created_at >= seven_days_ago
-    ).count()
+    )
+    if excluded_material_ids:
+        recent_materials_query = recent_materials_query.filter(~Material.id.in_(excluded_material_ids))
+    materials_last_7_days = recent_materials_query.count()
     
     # Get total cumulative connection sessions for sales people
     # Count unique days when sales users had activity (MaterialUsage events)
@@ -111,14 +135,30 @@ async def get_sales_dashboard(
 ):
     """Get sales dashboard data"""
     
-    # Get all published materials
+    # Get excluded material IDs (attached to Product Releases or Marketing Updates)
+    from app.models.product_release import ProductRelease
+    from app.models.marketing_update import MarketingUpdate
+    excluded_material_ids = set()
+    product_release_material_ids = db.query(ProductRelease.material_id).filter(
+        ProductRelease.material_id.isnot(None)
+    ).distinct().all()
+    excluded_material_ids.update([row[0] for row in product_release_material_ids])
+    marketing_update_material_ids = db.query(MarketingUpdate.material_id).filter(
+        MarketingUpdate.material_id.isnot(None)
+    ).distinct().all()
+    excluded_material_ids.update([row[0] for row in marketing_update_material_ids])
+    
+    # Get all published materials (excluding attached materials)
     # Handle both enum and string status values
-    published_materials = db.query(Material).filter(
+    published_materials_query = db.query(Material).filter(
         or_(
             Material.status == MaterialStatus.PUBLISHED,
             Material.status == "published"
         )
-    ).all()
+    )
+    if excluded_material_ids:
+        published_materials_query = published_materials_query.filter(~Material.id.in_(excluded_material_ids))
+    published_materials = published_materials_query.all()
     
     # Calculate available materials by type
     materials_by_type = {}
@@ -128,14 +168,17 @@ async def get_sales_dashboard(
             materials_by_type[material_type] = 0
         materials_by_type[material_type] += 1
     
-    # Get popular materials (top 10 by usage_count)
-    popular_materials = db.query(Material).filter(
+    # Get popular materials (top 10 by usage_count, excluding attached materials)
+    popular_materials_query = db.query(Material).filter(
         or_(
             Material.status == MaterialStatus.PUBLISHED,
             Material.status == "published"
         ),
         Material.usage_count > 0
-    ).order_by(desc(Material.usage_count)).limit(10).all()
+    )
+    if excluded_material_ids:
+        popular_materials_query = popular_materials_query.filter(~Material.id.in_(excluded_material_ids))
+    popular_materials = popular_materials_query.order_by(desc(Material.usage_count)).limit(10).all()
     
     popular_materials_list = [
         {

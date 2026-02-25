@@ -93,8 +93,24 @@ async def get_health_dashboard(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get health dashboard data with detailed metrics"""
-    # Get all materials (not paginated for accurate metrics)
-    all_materials = db.query(Material).all()
+    # Get excluded material IDs (attached to Product Releases or Marketing Updates)
+    from app.models.product_release import ProductRelease
+    from app.models.marketing_update import MarketingUpdate
+    excluded_material_ids = set()
+    product_release_material_ids = db.query(ProductRelease.material_id).filter(
+        ProductRelease.material_id.isnot(None)
+    ).distinct().all()
+    excluded_material_ids.update([row[0] for row in product_release_material_ids])
+    marketing_update_material_ids = db.query(MarketingUpdate.material_id).filter(
+        MarketingUpdate.material_id.isnot(None)
+    ).distinct().all()
+    excluded_material_ids.update([row[0] for row in marketing_update_material_ids])
+    
+    # Get all materials (not paginated for accurate metrics, excluding attached materials)
+    material_query = db.query(Material)
+    if excluded_material_ids:
+        material_query = material_query.filter(~Material.id.in_(excluded_material_ids))
+    all_materials = material_query.all()
     
     # Calculate health scores and individual metrics
     freshness_scores = []

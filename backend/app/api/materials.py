@@ -24,6 +24,27 @@ from app.services.storage import storage_service
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
+def _get_excluded_material_ids(db: Session) -> set:
+    """
+    Get set of material IDs that are attached to Product Releases or Marketing Updates.
+    These materials should be excluded from general material listings and counts
+    as they are managed through their respective modals.
+    """
+    from app.models.product_release import ProductRelease
+    from app.models.marketing_update import MarketingUpdate
+    
+    product_release_material_ids = db.query(ProductRelease.material_id).filter(
+        ProductRelease.material_id.isnot(None)
+    ).distinct().all()
+    product_release_material_ids = [row[0] for row in product_release_material_ids]
+    
+    marketing_update_material_ids = db.query(MarketingUpdate.material_id).filter(
+        MarketingUpdate.material_id.isnot(None)
+    ).distinct().all()
+    marketing_update_material_ids = [row[0] for row in marketing_update_material_ids]
+    
+    return set(product_release_material_ids + marketing_update_material_ids)
+
 def _check_existing_material_by_name(
     db: Session,
     product_name: str,
@@ -134,8 +155,19 @@ async def list_materials(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """List all materials with optional filters"""
+    """List all materials with optional filters
+    
+    Excludes materials that are attached to Product Releases or Marketing Updates.
+    These materials are managed through their respective modals and should not appear
+    in the general Materials management page.
+    """
+    excluded_material_ids = _get_excluded_material_ids(db)
+    
     query = db.query(Material)
+    
+    # Exclude materials attached to Product Releases or Marketing Updates
+    if excluded_material_ids:
+        query = query.filter(~Material.id.in_(excluded_material_ids))
     
     if material_type:
         query = query.filter(Material.material_type == material_type)

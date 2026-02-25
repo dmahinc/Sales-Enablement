@@ -186,13 +186,32 @@ async def get_usage_stats(
     
     start_date = start
     
-    # Total materials
-    total_materials = db.query(Material).count()
+    # Get excluded material IDs (attached to Product Releases or Marketing Updates)
+    from app.models.product_release import ProductRelease
+    from app.models.marketing_update import MarketingUpdate
+    excluded_material_ids = set()
+    product_release_material_ids = db.query(ProductRelease.material_id).filter(
+        ProductRelease.material_id.isnot(None)
+    ).distinct().all()
+    excluded_material_ids.update([row[0] for row in product_release_material_ids])
+    marketing_update_material_ids = db.query(MarketingUpdate.material_id).filter(
+        MarketingUpdate.material_id.isnot(None)
+    ).distinct().all()
+    excluded_material_ids.update([row[0] for row in marketing_update_material_ids])
     
-    # Materials with usage
-    materials_with_usage = db.query(Material).filter(
+    # Total materials (excluding attached materials)
+    material_query = db.query(Material)
+    if excluded_material_ids:
+        material_query = material_query.filter(~Material.id.in_(excluded_material_ids))
+    total_materials = material_query.count()
+    
+    # Materials with usage (excluding attached materials)
+    materials_with_usage_query = db.query(Material).filter(
         Material.usage_count > 0
-    ).count()
+    )
+    if excluded_material_ids:
+        materials_with_usage_query = materials_with_usage_query.filter(~Material.id.in_(excluded_material_ids))
+    materials_with_usage = materials_with_usage_query.count()
     
     # Total downloads and views
     total_downloads = db.query(MaterialUsage).filter(
@@ -211,12 +230,15 @@ async def get_usage_stats(
         )
     ).count()
     
-    # Average usage per material
-    total_usage_count = db.query(func.sum(Material.usage_count)).scalar() or 0
+    # Average usage per material (excluding attached materials)
+    usage_query = db.query(func.sum(Material.usage_count))
+    if excluded_material_ids:
+        usage_query = usage_query.filter(~Material.id.in_(excluded_material_ids))
+    total_usage_count = usage_query.scalar() or 0
     average_usage = total_usage_count / total_materials if total_materials > 0 else 0
     
-    # Most used materials
-    most_used = db.query(
+    # Most used materials (excluding attached materials)
+    most_used_query = db.query(
         Material.id,
         Material.name,
         Material.material_type,
@@ -224,7 +246,10 @@ async def get_usage_stats(
         Material.usage_count
     ).filter(
         Material.usage_count > 0
-    ).order_by(
+    )
+    if excluded_material_ids:
+        most_used_query = most_used_query.filter(~Material.id.in_(excluded_material_ids))
+    most_used = most_used_query.order_by(
         Material.usage_count.desc()
     ).limit(10).all()
     
