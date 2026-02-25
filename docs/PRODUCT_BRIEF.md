@@ -232,12 +232,41 @@ US-2.11: As a Sales Rep, I want to manage only customers assigned to me or creat
   - All shared materials data filtered to assigned/created customers only
   - Cannot share internal materials with customers (only customer-facing materials can be shared)
 
-US-2.12: As a Customer, I want to access materials shared with me by OVHcloud personas.
+US-2.12: As a Sales Rep, I want to see customer engagement timeline filtered to only show activity for customers assigned to me or created by me, so I can focus on my customer relationships.
+
+US-2.13: As a Sales Rep, I want to communicate with my assigned customers through in-app messaging, so I can provide timely support and answer questions directly within the platform.
   Acceptance Criteria:
-  - Can view all materials shared with my email address
-  - Can bookmark/favorite materials for easy access
-  - Can receive notifications about new shared materials
-  - Can interact with sales contacts through messaging
+  - Can view all assigned customers in messaging interface, even without existing conversations
+  - Can send messages to assigned customers
+  - Can receive and respond to customer messages
+  - Messages display chronologically (oldest to newest)
+  - Can see customer engagement context (materials shared, views, downloads) while messaging
+  - Unread message count displayed in navigation badge
+  - Real-time message updates via polling
+
+US-2.14: As a Customer, I want to send messages to my sales contact through the platform, so I can ask questions and get support without leaving the application.
+  Acceptance Criteria:
+  - Can access messaging interface from navigation menu
+  - Can send messages to assigned sales contact
+  - Can receive messages from sales contact
+  - Messages display chronologically (oldest to newest)
+  - Unread message count displayed in navigation badge
+  - Real-time message updates via polling
+
+US-2.15: As a PMM or Director, I want to archive materials that are outdated, so they stop being shared while preserving active links for customers who already have access.
+  Acceptance Criteria:
+  - Archive button visible in Manage Materials for PMM and Director personas
+  - Archiving changes material status to "Archived"
+  - Archived materials cannot be used to create new shared links
+  - Existing active shared links continue to work until expiration
+  - Archive action requires confirmation
+
+US-2.16: As a PMM or Director, I want to see a warning when trying to delete a material with active shared links, so I understand the impact and can choose to archive instead.
+  Acceptance Criteria:
+  - Warning modal appears when attempting to delete material with active links
+  - Warning shows count of active links and details (customer name, email, expiry date)
+  - Suggests archiving as alternative to deletion
+  - Prevents deletion if active links exist
 ```
 
 ### Epic 3: Collaboration & Single Source of Truth
