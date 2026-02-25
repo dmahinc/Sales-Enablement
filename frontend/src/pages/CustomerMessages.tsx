@@ -65,6 +65,10 @@ export default function CustomerMessages() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       }, 100)
     },
+    onError: (error: any) => {
+      console.error('Error sending message:', error)
+      alert(error?.response?.data?.detail || 'Failed to send message. Please try again.')
+    },
   })
 
   // Mark as read mutation
