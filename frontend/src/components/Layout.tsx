@@ -117,9 +117,19 @@ export default function Layout() {
     { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
   ]
 
+  // Fetch unread messages count for customer users
+  const { data: customerUnreadData } = useQuery<{ unread_messages_count: number }>({
+    queryKey: ['customer-dashboard'],
+    queryFn: () => api.get('/customers/dashboard').then(res => res.data),
+    enabled: isCustomer,
+    refetchInterval: 30000, // Poll every 30 seconds
+    select: (data) => ({ unread_messages_count: data?.unread_messages_count || 0 }),
+  })
+
   // Customer-specific navigation (focused on material discovery)
   const customerNavItems = [
     { path: '/', label: 'My Shared Materials', icon: FileText },
+    { path: '/messages', label: 'Messages', icon: MessageSquare, badge: customerUnreadData?.unread_messages_count },
     { path: '/notifications', label: 'Notifications', icon: Bell },
   ]
 

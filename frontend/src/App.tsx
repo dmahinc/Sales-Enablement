@@ -22,6 +22,7 @@ import MarketingUpdates from './pages/MarketingUpdates'
 import Notifications from './pages/Notifications'
 import MyCustomers from './pages/MyCustomers'
 import SalesMessages from './pages/SalesMessages'
+import CustomerMessages from './pages/CustomerMessages'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 
@@ -116,7 +117,11 @@ function AppRoutes() {
         <Route path="marketing-updates" element={<MarketingUpdates />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="my-customers" element={<MyCustomers />} />
-        <Route path="messages" element={<SalesMessages />} />
+        <Route path="messages" element={
+          <ProtectedRoute>
+            {user?.role === 'sales' ? <SalesMessages /> : user?.role === 'customer' ? <CustomerMessages /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        } />
       </Route>
     </Routes>
   )
