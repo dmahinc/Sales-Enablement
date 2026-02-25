@@ -1528,7 +1528,7 @@ export default function Materials() {
             Please wait for the links to expire before deleting this material.
           </p>
           <p className="text-sm text-red-700 mt-2">
-            If this document is out of date, consider archiving it instead. This will stop sharing the document, and you can replace it with a refreshed version.
+            If this document is out of date, consider archiving it instead. Archiving will prevent creating new shared links for this document, but existing active links will continue to work until they expire. You can then replace the archived document with a refreshed version.
           </p>
         </div>
 
