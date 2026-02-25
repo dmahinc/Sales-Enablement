@@ -2554,5 +2554,6 @@ export default function Materials() {
           </div>
         )}
       </div>
+    </>
     )
   }
