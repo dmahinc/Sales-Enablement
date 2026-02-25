@@ -1985,6 +1985,93 @@ export default function Materials() {
           />
         )}
 
+        )}
+
+        {/* Active Links Warning Modal */}
+        {activeLinksWarning && (
+          <Modal
+            isOpen={!!activeLinksWarning}
+            onClose={() => setActiveLinksWarning(null)}
+            title="Cannot Delete Material"
+            size="lg"
+          >
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-800 font-medium">
+                  This material cannot be deleted because it has {activeLinksWarning.activeLinksCount} active shared link(s) that have not expired yet.
+                </p>
+                <p className="text-sm text-red-700 mt-2">
+                  Please wait for the links to expire before deleting this material.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                  Active Shared Links:
+                </h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {activeLinksWarning.activeLinks.map((link) => {
+                    const expiresAt = new Date(link.expires_at)
+                    const daysUntilExpiry = Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                    
+                    return (
+                      <div
+                        key={link.id}
+                        className="bg-slate-50 border border-slate-200 rounded-lg p-3"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              {link.customer_name && (
+                                <span className="text-sm font-medium text-slate-900">
+                                  {link.customer_name}
+                                </span>
+                              )}
+                              {link.customer_email && (
+                                <span className="text-sm text-slate-600">
+                                  ({link.customer_email})
+                                </span>
+                              )}
+                            </div>
+                            {link.company_name && (
+                              <p className="text-xs text-slate-500 mb-1">
+                                {link.company_name}
+                              </p>
+                            )}
+                            <div className="flex items-center space-x-4 text-xs text-slate-500">
+                              <span className="flex items-center">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Expires in {daysUntilExpiry} day{daysUntilExpiry !== 1 ? 's' : ''}
+                              </span>
+                              <span className="flex items-center">
+                                <Eye className="w-3 h-3 mr-1" />
+                                {link.access_count} view{link.access_count !== 1 ? 's' : ''}
+                              </span>
+                              <span className="flex items-center">
+                                <Download className="w-3 h-3 mr-1" />
+                                {link.download_count} download{link.download_count !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => setActiveLinksWarning(null)}
+                  className="btn-ovh-primary"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
         {/* Download Progress Modal */}
         {downloadingMaterial && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
