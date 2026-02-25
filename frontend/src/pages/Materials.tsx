@@ -970,29 +970,36 @@ export default function Materials() {
     
     try {
       // Check for active shared links
+      console.log('Checking for active links for material:', id)
       const activeLinksResponse = await api.get(`/materials/${id}/active-shared-links`)
+      console.log('Active links response:', activeLinksResponse.data)
       const activeLinksData = activeLinksResponse.data
       
-      if (activeLinksData.active_links_count > 0) {
+      if (activeLinksData && activeLinksData.active_links_count > 0) {
+        console.log('Found active links, showing warning modal')
         // Show warning modal with active links details
         setActiveLinksWarning({
           materialId: id,
           materialName: activeLinksData.material_name,
-          activeLinks: activeLinksData.active_links,
+          activeLinks: activeLinksData.active_links || [],
           activeLinksCount: activeLinksData.active_links_count
         })
         return
       }
       
+      console.log('No active links, proceeding with deletion')
       // No active links, proceed with deletion
       deleteMutation.mutate(id)
     } catch (error: any) {
+      console.error('Error checking active links:', error)
+      console.error('Error response:', error.response)
       // If the check fails (e.g., material not found), still try to delete
       if (error.response?.status === 404) {
+        console.log('Material not found, proceeding with deletion')
         deleteMutation.mutate(id)
       } else {
         console.error('Error checking active links:', error)
-        alert('Failed to check for active shared links. Please try again.')
+        alert(`Failed to check for active shared links: ${error.response?.data?.detail || error.message}. Please try again.`)
       }
     }
   }
