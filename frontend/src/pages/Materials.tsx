@@ -1442,7 +1442,11 @@ export default function Materials() {
                   <Edit className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={() => handleDelete(material.id)}
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to delete this material?')) {
+                      handleDelete(material.id)
+                    }
+                  }}
                   className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                   title="Delete"
                 >
