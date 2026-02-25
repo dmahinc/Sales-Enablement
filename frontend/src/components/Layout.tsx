@@ -2,11 +2,13 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../services/api'
 
 type NavItem = 
-  | { path: string; label: string; icon: LucideIcon }
+  | { path: string; label: string; icon: LucideIcon; badge?: number }
   | { type: 'section'; label: string }
 
 export default function Layout() {
@@ -89,10 +91,18 @@ export default function Layout() {
     { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
   ]
 
+  // Fetch unread messages count for sales users
+  const { data: unreadMessagesData } = useQuery<{ unread_count: number }>({
+    queryKey: ['sales-unread-count'],
+    queryFn: () => api.get('/sales/messages/unread-count').then(res => res.data),
+    enabled: isSales,
+    refetchInterval: 30000, // Poll every 30 seconds
+  })
+
   // Sales-specific navigation with section titles
   // Structure:
   // - MATERIAL & ENABLEMENT: Explore Materials, Enablement Tracks
-  // - CUSTOMER ENGAGEMENT: My Customers, My Shared Materials
+  // - CUSTOMER ENGAGEMENT: My Customers, Messages, My Shared Materials
   // - NEWS: Latest Product Releases, Marketing Updates
   const salesNavItems = [
     { type: 'section', label: 'MATERIAL & ENABLEMENT' },
@@ -100,6 +110,7 @@ export default function Layout() {
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
     { type: 'section', label: 'CUSTOMER ENGAGEMENT' },
     { path: '/my-customers', label: 'My Customers', icon: UserCircle },
+    { path: '/messages', label: 'Messages', icon: MessageSquare, badge: unreadMessagesData?.unread_count },
     { path: '/sharing', label: 'My Shared Materials', icon: Share2 },
     { type: 'section', label: 'NEWS' },
     { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
@@ -194,6 +205,7 @@ export default function Layout() {
               if ('path' in item && 'icon' in item) {
                 const Icon = item.icon
                 const isActive = location.pathname === item.path
+                const badge = 'badge' in item ? item.badge : undefined
                 return (
                   <Link
                     key={item.path}
@@ -205,7 +217,12 @@ export default function Layout() {
                     }`}
                   >
                     <Icon className={`w-5 h-5 mr-3 flex-shrink-0 ${isActive ? 'text-primary-500 dark:text-primary-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate flex-1">{item.label}</span>
+                    {badge !== undefined && badge > 0 && (
+                      <span className="ml-2 px-2 py-0.5 text-xs font-semibold text-white bg-primary-600 rounded-full">
+                        {badge}
+                      </span>
+                    )}
                   </Link>
                 )
               }
