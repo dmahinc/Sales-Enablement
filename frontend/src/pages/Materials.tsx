@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Clock, Calendar, Globe } from 'lucide-react'
+import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Clock, Calendar, Globe, Archive } from 'lucide-react'
 import Modal from '../components/Modal'
 import MaterialForm from '../components/MaterialForm'
 import FileUploadModal from '../components/FileUploadModal'
@@ -145,12 +145,14 @@ interface BrowseMaterialCardProps {
   onShare: (material: any) => void
   onEdit?: (material: any) => void
   onDelete?: (id: number) => void
+  onArchive?: (id: number) => void
   onPreview: (material: any) => void
   canEditDelete?: boolean
   isSales?: boolean
+  canArchive?: boolean
 }
 
-function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, onPreview, canEditDelete = false, isSales = false }: BrowseMaterialCardProps) {
+function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, onArchive, onPreview, canEditDelete = false, isSales = false, canArchive = false }: BrowseMaterialCardProps) {
   const colors = getMaterialTypeColors(material.material_type)
   const MaterialIcon = getMaterialTypeIcon(material.material_type)
   const freshness = getFreshnessInfo(material.last_updated)
@@ -289,6 +291,20 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
               <Edit className="h-5 w-5" />
             </button>
           )}
+          {canArchive && material.status !== 'archived' && onArchive && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (window.confirm(`Are you sure you want to archive "${material.name}"?`)) {
+                  onArchive(material.id)
+                }
+              }}
+              className="p-2 text-slate-600 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all"
+              title="Archive"
+            >
+              <Archive className="h-5 w-5" />
+            </button>
+          )}
           {canEditDelete && onDelete && (
             <button
               onClick={(e) => {
@@ -315,11 +331,13 @@ interface MaterialPreviewModalProps {
   onShare: (material: any) => void
   onEdit: (material: any) => void
   onDelete: (id: number) => void
+  onArchive?: (id: number) => void
   canEditDelete?: boolean
   isSales?: boolean
+  canArchive?: boolean
 }
 
-function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, onEdit, onDelete, canEditDelete = false, isSales = false }: MaterialPreviewModalProps) {
+function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, onEdit, onDelete, onArchive, canEditDelete = false, isSales = false, canArchive = false }: MaterialPreviewModalProps) {
   const [executiveSummary, setExecutiveSummary] = useState<string | null>(null)
   const [isLoadingSummary, setIsLoadingSummary] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -706,6 +724,20 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 <span>Download</span>
               </button>
             )}
+            {canArchive && material.status !== 'archived' && onArchive && (
+              <button
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to archive "${material.name}"?`)) {
+                    onArchive(material.id)
+                    onClose()
+                  }
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <Archive className="w-5 h-5" />
+                <span>Archive</span>
+              </button>
+            )}
             {canEditDelete && (
               <button
                 onClick={() => {
@@ -733,6 +765,7 @@ export default function Materials() {
   const isPMM = user?.role === 'pmm'
   const isSales = user?.role === 'sales'
   const canEditDelete = isDirector || isPMM || user?.is_superuser
+  const canArchive = isDirector || isPMM
   
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isBatchUploadModalOpen, setIsBatchUploadModalOpen] = useState(false)
@@ -854,6 +887,17 @@ export default function Materials() {
       queryClient.invalidateQueries({ queryKey: ['materials'] })
     },
   })
+
+  const archiveMutation = useMutation({
+    mutationFn: (id: number) => api.put(`/materials/${id}`, { status: 'archived' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['materials'] })
+    },
+  })
+
+  const handleArchive = (id: number) => {
+    archiveMutation.mutate(id)
+  }
 
   const filteredMaterials = useMemo(() => {
     return (materials || []).filter((m: any) => {
@@ -1475,6 +1519,19 @@ export default function Materials() {
                 <Download className="h-5 w-5" />
               </button>
             )}
+            {canArchive && material.status !== 'archived' && (
+              <button
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to archive "${material.name}"?`)) {
+                    handleArchive(material.id)
+                  }
+                }}
+                className="p-2 text-slate-600 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all"
+                title="Archive"
+              >
+                <Archive className="h-5 w-5" />
+              </button>
+            )}
             {canEditDelete && (
               <>
                 <button
@@ -1997,9 +2054,11 @@ export default function Materials() {
                             }}
                             onEdit={canEditDelete ? (material) => setEditingMaterial(material) : undefined}
                             onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
+                            onArchive={canArchive ? (id) => handleArchive(id) : undefined}
                             onPreview={(material) => setPreviewMaterial(material)}
                             canEditDelete={canEditDelete}
                             isSales={isSales}
+                            canArchive={canArchive}
                           />
                         ))}
                       </div>
@@ -2018,9 +2077,11 @@ export default function Materials() {
                         }}
                         onEdit={canEditDelete ? (material) => setEditingMaterial(material) : undefined}
                         onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
+                        onArchive={canArchive ? (id) => handleArchive(id) : undefined}
                         onPreview={(material) => setPreviewMaterial(material)}
                         canEditDelete={canEditDelete}
                         isSales={isSales}
+                        canArchive={canArchive}
                       />
                     ))}
                   </div>
