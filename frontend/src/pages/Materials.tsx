@@ -293,9 +293,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                if (window.confirm('Are you sure you want to delete this material?')) {
-                  onDelete(material.id)
-                }
+                onDelete(material.id)
               }}
               className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
               title="Delete"
@@ -760,6 +758,21 @@ export default function Materials() {
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
   const [downloadingMaterial, setDownloadingMaterial] = useState<any>(null)
   const [downloadProgress, setDownloadProgress] = useState(0)
+  const [activeLinksWarning, setActiveLinksWarning] = useState<{
+    materialId: number
+    materialName: string
+    activeLinks: Array<{
+      id: number
+      customer_email: string | null
+      customer_name: string | null
+      company_name: string | null
+      expires_at: string
+      created_at: string
+      access_count: number
+      download_count: number
+    }>
+    activeLinksCount: number
+  } | null>(null)
 
   const { data: materials, isLoading } = useQuery({
     queryKey: ['materials'],
@@ -949,7 +962,7 @@ export default function Materials() {
     }
   }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this material?')) {
       deleteMutation.mutate(id)
     }
