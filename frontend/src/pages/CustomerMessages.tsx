@@ -125,12 +125,21 @@ export default function CustomerMessages() {
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    // Use minute granularity for events less than 1 hour old (0-59 minutes)
-    if (diffMins < 1) return 'Just now'
-    if (diffMins >= 1 && diffMins < 60) return `${diffMins}m ago`
+    // Use minute granularity for events less than 1 hour old (1-59 minutes)
+    if (diffMins < 1) {
+      return 'Just now'
+    }
+    // Show minutes for 1-59 minutes
+    if (diffMins < 60) {
+      return `${diffMins}m ago`
+    }
     // After 1 hour (60+ minutes), use hour granularity
-    if (diffHours >= 1 && diffHours < 24) return `${diffHours}h ago`
-    if (diffDays >= 1 && diffDays < 7) return `${diffDays}d ago`
+    if (diffHours < 24) {
+      return `${diffHours}h ago`
+    }
+    if (diffDays < 7) {
+      return `${diffDays}d ago`
+    }
     return date.toLocaleDateString()
   }
 
