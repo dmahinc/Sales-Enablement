@@ -1527,6 +1527,9 @@ export default function Materials() {
           <p className="text-sm text-red-700 mt-2">
             Please wait for the links to expire before deleting this material.
           </p>
+          <p className="text-sm text-red-700 mt-2">
+            If this document is out of date, consider archiving it instead. This will stop sharing the document, and you can replace it with a refreshed version.
+          </p>
         </div>
 
         <div>
