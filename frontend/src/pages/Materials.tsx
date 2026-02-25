@@ -977,6 +977,12 @@ export default function Materials() {
       
       if (activeLinksData && activeLinksData.active_links_count > 0) {
         console.log('Found active links, showing warning modal')
+        console.log('Setting activeLinksWarning state:', {
+          materialId: id,
+          materialName: activeLinksData.material_name,
+          activeLinks: activeLinksData.active_links || [],
+          activeLinksCount: activeLinksData.active_links_count
+        })
         // Show warning modal with active links details
         setActiveLinksWarning({
           materialId: id,
@@ -984,6 +990,7 @@ export default function Materials() {
           activeLinks: activeLinksData.active_links || [],
           activeLinksCount: activeLinksData.active_links_count
         })
+        console.log('State set, modal should appear')
         return
       }
       
@@ -1993,13 +2000,18 @@ export default function Materials() {
         )}
 
         {/* Active Links Warning Modal */}
-        {activeLinksWarning && (
-          <Modal
-            isOpen={!!activeLinksWarning}
-            onClose={() => setActiveLinksWarning(null)}
-            title="Cannot Delete Material"
-            size="lg"
-          >
+        {activeLinksWarning && (() => {
+          console.log('Rendering Active Links Warning Modal', activeLinksWarning)
+          return (
+            <Modal
+              isOpen={!!activeLinksWarning}
+              onClose={() => {
+                console.log('Closing modal')
+                setActiveLinksWarning(null)
+              }}
+              title="Cannot Delete Material"
+              size="lg"
+            >
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-sm text-red-800 font-medium">
@@ -2075,7 +2087,8 @@ export default function Materials() {
               </div>
             </div>
           </Modal>
-        )}
+          )
+        })()}
 
         {/* Download Progress Modal */}
         {downloadingMaterial && (
