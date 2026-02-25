@@ -612,8 +612,8 @@ async def get_timeline(
                         
                         if event_key in existing_event_keys:
                             continue  # Skip duplicate view event
-                    
-                    existing_event_keys.add(event_key)
+                        
+                        existing_event_keys.add(event_key)
                     
                     events.append({
                         "event_type": "viewed" if usage.action == UsageAction.VIEW.value else "downloaded",
