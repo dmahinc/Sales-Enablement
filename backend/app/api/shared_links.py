@@ -414,32 +414,15 @@ async def get_timeline(
             end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
     
     # Get shared links - directors, admins, and PMMs see all links
-    # Sales see only links shared with customers assigned to them or created by them
+    # Sales see only links shared by them (with any customer, assigned or not)
     if current_user.role in ["director", "admin", "pmm"]:
         shared_links_query = db.query(SharedLink)
     elif current_user.role == "sales":
-        # Get customer emails assigned to or created by this sales person
-        assigned_customers = db.query(User).filter(
-            and_(
-                User.role == "customer",
-                or_(
-                    User.assigned_sales_id == current_user.id,
-                    User.created_by_id == current_user.id
-                )
-            )
-        ).all()
-        
-        customer_emails = [customer.email for customer in assigned_customers]
-        
-        if customer_emails:
-            shared_links_query = db.query(SharedLink).filter(
-                and_(
-                    SharedLink.shared_by_user_id == current_user.id,
-                    SharedLink.customer_email.in_(customer_emails)
-                )
-            )
-        else:
-            shared_links_query = db.query(SharedLink).filter(False)
+        # Sales see all links they shared (regardless of customer assignment)
+        # This ensures that if a sales person shares with a customer, it appears in their timeline
+        shared_links_query = db.query(SharedLink).filter(
+            SharedLink.shared_by_user_id == current_user.id
+        )
     else:
         shared_links_query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
     
