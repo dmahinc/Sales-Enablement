@@ -1,7 +1,7 @@
 # Sales Enablement Platform - Product Brief
 
-**Document Version:** 1.2  
-**Date:** February 23, 2026  
+**Document Version:** 1.3  
+**Date:** February 25, 2026  
 **Status:** Updated  
 **Owner:** Product Marketing Team
 
@@ -68,6 +68,8 @@ The **Product Enablement & Customer Engagement Platform** (formerly "Product & S
   - Track content health and usage
   - Collaborate with Sales teams on content needs
   - Create Sales Enablement Tracks for product training
+  - Archive outdated materials to prevent new sharing while preserving active links
+  - View all material sharing activity across the organization
 
 #### 2. Sales Representatives
 - **Count:** ~200-500 users
@@ -83,6 +85,8 @@ The **Product Enablement & Customer Engagement Platform** (formerly "Product & S
   - Follow Sales Enablement Tracks for product training
   - Collaborate with Product teams on content gaps
   - View customer engagement timeline for their assigned customers
+  - Communicate with assigned customers through in-app messaging
+  - View customer engagement context while messaging (materials shared, views, downloads)
 
 #### 3. Directors & Leadership
 - **Count:** ~5-10 users
@@ -94,6 +98,8 @@ The **Product Enablement & Customer Engagement Platform** (formerly "Product & S
   - Identify gaps in essential material coverage
   - Track team contributions and recent activity
   - Make strategic decisions based on completeness data
+  - Archive outdated materials to maintain content quality
+  - View all material sharing activity across the organization
 
 ### Secondary Users
 
@@ -389,6 +395,15 @@ CustomerFavorite (Customer Bookmarks)
 └── created_at
 
 CustomerMessage (Customer-Sales Communication)
+- customer_id (FK to users)
+- sales_contact_id (FK to users)
+- subject (optional)
+- message (text)
+- sent_by_customer (boolean)
+- is_read (boolean)
+- read_at (timestamp)
+- parent_message_id (FK for threading)
+- Supports bidirectional messaging with threading
 ├── id
 ├── customer_id (foreign key to User)
 ├── sales_user_id (foreign key to User)
@@ -577,8 +592,24 @@ The platform follows OVHcloud's design system with:
 - ✅ OVHcloud logo integration in header
 - ✅ User account menu with logout functionality
 - ✅ Platform title "Product Enablement & Customer Engagement Platform"
+- ✅ Material archive functionality for PMM and Director personas
+- ✅ In-app bidirectional messaging between Customers and Sales personas
+- ✅ Conversation view with customer context sidebar for Sales personas
+- ✅ Real-time message polling and unread message tracking
+- ✅ Material sharing integration in messaging interface
 
 ### Phase 2: Enhancement (Q2 2026)
+- [x] Enhanced customer messaging features (Phase 2: Enhanced UX)
+  - Bidirectional in-app messaging between Customers and Sales
+  - Conversation view with search functionality
+  - Customer context sidebar with engagement analytics
+  - Real-time message updates via polling
+  - Unread message tracking and badges
+  - Material sharing integration
+- [x] Material archive functionality
+  - Archive button for PMM and Director personas
+  - Archive status prevents new sharing while preserving active links
+  - Warning modal when deleting materials with active links
 - [ ] Content blocks (reusable components)
 - [ ] Advanced search with filters
 - [ ] Bulk operations (upload, edit, delete)
@@ -586,7 +617,6 @@ The platform follows OVHcloud's design system with:
 - [ ] Content expiration alerts
 - [ ] Completeness matrix export (CSV/Excel)
 - [ ] Historical completeness tracking
-- [ ] Enhanced customer messaging features
 - [ ] Customer engagement analytics dashboard
 
 ### Phase 3: Intelligence (Q3 2026)
@@ -632,6 +662,9 @@ The platform follows OVHcloud's design system with:
 | **Completeness Score** | Percentage of product-material type combinations that have at least one material |
 | **Age Distribution** | Categorization of materials by freshness: Fresh (0-30 days), Recent (31-90 days), Aging (91-180 days), Stale (181-365 days), Very Stale (>365 days) |
 | **Other Materials** | Materials that don't match the 4 essential types but are associated with a product |
+| **Archive** | Material status that prevents new sharing while preserving existing active links |
+| **In-App Messaging** | Bidirectional communication feature between Customers and Sales personas within the platform |
+| **Conversation View** | Chat-style interface displaying message threads chronologically with customer context |
 
 ### B. Related Documents
 
