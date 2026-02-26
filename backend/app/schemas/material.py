@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, validator, field_validator
 from typing import Optional, List
 from datetime import datetime
 from app.models.material import MaterialType, MaterialAudience, MaterialStatus
+from app.core.constants import VALID_UNIVERSES
 import json
 
 
@@ -103,12 +104,12 @@ class MaterialBase(BaseModel):
                 raise ValueError(f"status must be one of: {valid_statuses}")
         return v
 
-    @validator('universe_name')
+    @field_validator('universe_name')
+    @classmethod
     def validate_universe(cls, v):
         if v:
-            valid_universes = ["Public Cloud", "Private Cloud", "Bare Metal", "Hosting & Collaboration", "Cross-Universes"]
-            if v not in valid_universes:
-                raise ValueError(f"universe_name must be one of: {valid_universes}")
+            if v not in VALID_UNIVERSES:
+                raise ValueError(f"universe_name must be one of: {VALID_UNIVERSES}")
         return v
 
 
@@ -242,9 +243,9 @@ class MaterialUpload(BaseModel):
             raise ValueError(f"audience must be one of: {valid_audiences}")
         return v
 
-    @validator('universe_name')
+    @field_validator('universe_name')
+    @classmethod
     def validate_universe(cls, v):
-        valid_universes = ["Public Cloud", "Private Cloud", "Bare Metal", "Hosting & Collaboration", "Cross-Universes"]
-        if v not in valid_universes:
-            raise ValueError(f"universe_name must be one of: {valid_universes}")
+        if v not in VALID_UNIVERSES:
+            raise ValueError(f"universe_name must be one of: {VALID_UNIVERSES}")
         return v

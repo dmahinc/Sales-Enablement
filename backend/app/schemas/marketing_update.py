@@ -1,9 +1,10 @@
 """
 Pydantic schemas for MarketingUpdate model
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
+from app.core.constants import VALID_UNIVERSES
 
 
 class MarketingUpdateBase(BaseModel):
@@ -24,6 +25,14 @@ class MarketingUpdateBase(BaseModel):
     published_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     material_id: Optional[int] = Field(None, description="Optional attached material ID")
+    
+    @field_validator('universe_name')
+    @classmethod
+    def validate_universe(cls, v):
+        if v:
+            if v not in VALID_UNIVERSES:
+                raise ValueError(f"universe_name must be one of: {VALID_UNIVERSES}")
+        return v
 
 
 class MarketingUpdateCreate(MarketingUpdateBase):
@@ -49,6 +58,14 @@ class MarketingUpdateUpdate(BaseModel):
     published_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     material_id: Optional[int] = None
+    
+    @field_validator('universe_name')
+    @classmethod
+    def validate_universe(cls, v):
+        if v:
+            if v not in VALID_UNIVERSES:
+                raise ValueError(f"universe_name must be one of: {VALID_UNIVERSES}")
+        return v
 
 
 class MarketingUpdateResponse(MarketingUpdateBase):

@@ -13,8 +13,13 @@ class Settings(BaseSettings):
     APP_NAME: str = "Sales Enablement API"
     DEBUG: bool = True
     
-    # Database
-    DATABASE_URL: str = "postgresql://user:password@localhost/sales_enablement"
+    # Database - can be set via DATABASE_URL or individual POSTGRES_* vars
+    POSTGRES_HOST: str = Field(default="localhost", description="PostgreSQL host")
+    POSTGRES_PORT: int = Field(default=5432, description="PostgreSQL port")
+    POSTGRES_USER: str = Field(default="postgres", description="PostgreSQL user")
+    POSTGRES_PASSWORD: str = Field(default="postgres", description="PostgreSQL password")
+    POSTGRES_DB: str = Field(default="sales_enablement", description="PostgreSQL database name")
+    DATABASE_URL: str = Field(default="", description="Full database URL (auto-constructed if not provided)")
     
     # CORS
     CORS_ORIGINS: Union[List[str], str] = Field(default="http://localhost:3003", description="CORS allowed origins (comma-separated string or JSON array)")
@@ -92,5 +97,9 @@ if env_file_path.exists():
                         setattr(_settings, key, value)
                 elif key == "SECRET_KEY":
                     setattr(_settings, key, value)
+
+# Auto-construct DATABASE_URL from POSTGRES_* if not explicitly provided
+if not _settings.DATABASE_URL or _settings.DATABASE_URL == "" or "localhost" in _settings.DATABASE_URL:
+    _settings.DATABASE_URL = f"postgresql://{_settings.POSTGRES_USER}:{_settings.POSTGRES_PASSWORD}@{_settings.POSTGRES_HOST}:{_settings.POSTGRES_PORT}/{_settings.POSTGRES_DB}"
 
 settings = _settings

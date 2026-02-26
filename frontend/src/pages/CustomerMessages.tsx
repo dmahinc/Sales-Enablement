@@ -118,7 +118,18 @@ export default function CustomerMessages() {
   }
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+    // Ensure timestamp is parsed as UTC if it doesn't have timezone info
+    // Backend returns UTC timestamps without timezone suffix (e.g., "2026-02-25T22:10:51.786380")
+    // We need to explicitly treat them as UTC
+    let date: Date
+    if (dateString.includes('Z') || dateString.includes('+') || dateString.includes('-', 10)) {
+      // Already has timezone info
+      date = new Date(dateString)
+    } else {
+      // Naive datetime - assume UTC and append 'Z'
+      date = new Date(dateString + 'Z')
+    }
+    
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffMins = Math.floor(diffMs / 60000)

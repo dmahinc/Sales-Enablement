@@ -112,6 +112,7 @@ class TimelineEvent(BaseModel):
     other_type_description: Optional[str] = None
     customer_email: Optional[str] = None
     customer_name: Optional[str] = None
+    company_name: Optional[str] = None
     shared_link_id: int
 
 

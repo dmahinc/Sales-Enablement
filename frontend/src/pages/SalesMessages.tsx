@@ -81,49 +81,45 @@ export default function SalesMessages() {
     queryFn: async () => {
       if (!selectedCustomerId) return null
       try {
-        // Get customer info
-        const customerRes = await api.get(`/sales/customers`)
-        const customer = (customerRes.data as any[]).find((c: any) => c.id === selectedCustomerId)
-        
-        if (!customer) return null
-        
-        // Get shared links for this customer (by email)
-        let sharedLinks: any[] = []
+        // Use the new engagement endpoint that calculates from MaterialUsage events
+        const engagementRes = await api.get(`/sales/customers/${selectedCustomerId}/engagement`)
+        return engagementRes.data
+      } catch (e: any) {
+        console.error('Error fetching engagement data:', e?.response?.data || e?.message || e)
+        // Fallback: return basic customer info with zero engagement counts
+        // This ensures the UI still shows customer info even if engagement endpoint fails
         try {
-          const sharedLinksRes = await api.get(`/shared-links`, { 
-            params: { customer_email: customer.email } 
-          })
-          sharedLinks = sharedLinksRes.data || []
-        } catch (e) {
-          // If endpoint doesn't support customer_email filter, get all and filter client-side
+          const customerRes = await api.get(`/sales/customers`)
+          const customer = (customerRes.data as any[]).find((c: any) => c.id === selectedCustomerId)
+          
+          if (!customer) return null
+          
+          // Get shared links count for basic info
+          let sharedLinksCount = 0
           try {
-            const allLinksRes = await api.get(`/shared-links`)
-            sharedLinks = (allLinksRes.data || []).filter((link: any) => 
-              link.customer_email === customer.email
-            )
+            const sharedLinksRes = await api.get(`/shared-links`, { 
+              params: { customer_email: customer.email } 
+            })
+            sharedLinksCount = sharedLinksRes.data?.length || 0
           } catch (e2) {
-            // Ignore if endpoint doesn't exist
+            // Ignore if endpoint fails
           }
+          
+          return {
+            id: customer.id,
+            email: customer.email,
+            full_name: customer.full_name,
+            company_name: customer.company_name,
+            assigned_date: customer.created_at,
+            shared_materials_count: sharedLinksCount,
+            total_views: 0,
+            total_downloads: 0,
+            last_engagement: undefined
+          }
+        } catch (e2) {
+          console.error('Fallback also failed:', e2)
+          return null
         }
-        
-        return {
-          id: customer.id,
-          email: customer.email,
-          full_name: customer.full_name,
-          company_name: customer.company_name,
-          assigned_date: customer.created_at,
-          shared_materials_count: sharedLinks.length,
-          total_views: sharedLinks.reduce((sum: number, link: any) => sum + (link.access_count || 0), 0),
-          total_downloads: sharedLinks.reduce((sum: number, link: any) => sum + (link.download_count || 0), 0),
-          last_engagement: sharedLinks.length > 0 
-            ? sharedLinks.sort((a: any, b: any) => 
-                new Date(b.last_accessed_at || b.created_at).getTime() - 
-                new Date(a.last_accessed_at || a.created_at).getTime()
-              )[0]?.last_accessed_at || sharedLinks[0]?.created_at
-            : undefined
-        }
-      } catch (e) {
-        return null
       }
     },
     enabled: !!selectedCustomerId,
@@ -187,7 +183,18 @@ export default function SalesMessages() {
   }
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
+    // Ensure timestamp is parsed as UTC if it doesn't have timezone info
+    // Backend returns UTC timestamps without timezone suffix (e.g., "2026-02-25T22:10:51.786380")
+    // We need to explicitly treat them as UTC
+    let date: Date
+    if (dateString.includes('Z') || dateString.includes('+') || dateString.includes('-', 10)) {
+      // Already has timezone info
+      date = new Date(dateString)
+    } else {
+      // Naive datetime - assume UTC and append 'Z'
+      date = new Date(dateString + 'Z')
+    }
+    
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffMins = Math.floor(diffMs / 60000)

@@ -497,40 +497,12 @@ async def get_timeline(
                 })
     
     # Add "viewed" and "downloaded" events
-    # PRIMARY SOURCE: SharedLink tracking (last_accessed_at, last_downloaded_at)
-    # SECONDARY SOURCE: MaterialUsage events (for granular individual events if they exist)
+    # PRIMARY SOURCE: MaterialUsage events (granular individual events)
+    # We no longer use SharedLink.last_accessed_at/last_downloaded_at to avoid duplicates
+    # MaterialUsage events are created for each view/download and provide accurate tracking
     if not event_type or event_type in ["viewed", "downloaded"]:
-        # PRIMARY: Use SharedLink tracking - this is the most reliable source
-        for link in shared_links:
-            if customer_email and link.customer_email != customer_email:
-                continue
-            
-            material = material_by_id.get(link.material_id)
-            if not material:
-                continue
-            
-            # Add "viewed" events from last_accessed_at
-            if (not event_type or event_type == "viewed") and link.last_accessed_at:
-                if (not start_datetime or link.last_accessed_at >= start_datetime) and \
-                   (not end_datetime or link.last_accessed_at <= end_datetime):
-                    events.append({
-                        "event_type": "viewed",
-                        "timestamp": link.last_accessed_at,
-                        "material_id": link.material_id,
-                        "material_name": material.name,
-                        "product_name": material.product_name,
-                        "material_type": material.material_type,
-                        "other_type_description": material.other_type_description,
-                        "customer_email": link.customer_email,
-                        "customer_name": link.customer_name,
-                        "shared_link_id": link.id
-                    })
-            
-            # NOTE: We no longer add "downloaded" events from last_downloaded_at here
-            # Instead, we rely on MaterialUsage events below to show ALL individual download events
-            # This ensures we see every download, not just the last one
-        
-        # SECONDARY: Add MaterialUsage events as supplement (if they exist and aren't duplicates)
+        # Use MaterialUsage events as the primary source for all view/download tracking
+        # This avoids duplicates and provides accurate per-event tracking
         # IMPORTANT: Include MaterialUsage events for customer downloads/views via shared links
         # For downloads: Include events where user_id matches shared_by_user_id (customer downloads via shared link)
         # For views: Include events where user_id matches shared_by_user_id (customer views via shared link)
@@ -571,20 +543,11 @@ async def get_timeline(
             
             usage_events = usage_query.order_by(MaterialUsage.used_at.desc()).all()
             
-            # Track existing events to avoid duplicates
-            # For downloads, we want to show ALL MaterialUsage events, so we don't check against SharedLink events
-            # For views, we still check against SharedLink last_accessed_at to avoid duplicates
+            # Track existing events to avoid duplicates within MaterialUsage events
+            # Use a composite key (material_id, customer_email, action, rounded timestamp) to catch duplicates
             existing_event_keys = set()
-            for e in events:
-                if e.get("event_type") == "viewed":  # Only check viewed events, not downloaded
-                    existing_event_keys.add((
-                        e.get("material_id"),
-                        e.get("customer_email") or "",
-                        e.get("timestamp").isoformat() if hasattr(e.get("timestamp"), 'isoformat') else str(e.get("timestamp")),
-                        e.get("event_type")
-                    ))
             
-            # Add MaterialUsage events that don't duplicate SharedLink events
+            # Add MaterialUsage events - these are the primary source for view/download tracking
             # IMPORTANT: For sales persona, only match MaterialUsage events to links for assigned/created customers
             for usage in usage_events:
                 matching_links = material_to_links.get(usage.material_id, [])
@@ -621,21 +584,21 @@ async def get_timeline(
                     if usage.user_id != link.shared_by_user_id:
                         continue  # Skip if user_id doesn't match (not a customer action via this shared link)
                     
-                    # Check if this event already exists from SharedLink tracking
-                    # For downloads, we show ALL MaterialUsage events (no duplicate check)
-                    # For views, we check against SharedLink last_accessed_at to avoid duplicates
-                    if usage.action == UsageAction.VIEW.value:
-                        event_key = (
-                            usage.material_id,
-                            link.customer_email or "",
-                            usage.used_at.isoformat(),
-                            "viewed"
-                        )
-                        
-                        if event_key in existing_event_keys:
-                            continue  # Skip duplicate view event
-                        
-                        existing_event_keys.add(event_key)
+                    # Check for duplicates within MaterialUsage events
+                    # Use material_id, customer_email, action, and timestamp rounded to nearest second
+                    # This prevents showing the same event twice if it was tracked multiple times (e.g., same second)
+                    event_key = (
+                        usage.material_id,
+                        link.customer_email or "",
+                        usage.action,
+                        # Round timestamp to nearest second to catch events within same second
+                        usage.used_at.replace(microsecond=0).isoformat()
+                    )
+                    
+                    if event_key in existing_event_keys:
+                        continue  # Skip duplicate event
+                    
+                    existing_event_keys.add(event_key)
                     
                     events.append({
                         "event_type": "viewed" if usage.action == UsageAction.VIEW.value else "downloaded",
@@ -647,6 +610,7 @@ async def get_timeline(
                         "other_type_description": material.other_type_description,
                         "customer_email": link.customer_email,
                         "customer_name": link.customer_name,
+                        "company_name": link.company_name,
                         "shared_link_id": link.id
                     })
     
@@ -711,9 +675,14 @@ async def list_shared_links(
     
     shared_links = query.order_by(SharedLink.created_at.desc()).offset(skip).limit(limit).all()
     
+    # Build share URL - use PLATFORM_URL from settings (frontend URL) instead of backend URL
+    from app.core.config import settings
+    platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
+    
     result = []
     for link in shared_links:
         material = db.query(Material).filter(Material.id == link.material_id).first()
+        share_url = f"{platform_url.rstrip('/')}/share/{link.unique_token}"
         result.append({
             "id": link.id,
             "unique_token": link.unique_token,
@@ -728,8 +697,11 @@ async def list_shared_links(
             "is_active": link.is_active,
             "access_count": link.access_count,
             "last_accessed_at": link.last_accessed_at,
+            "download_count": link.download_count,
+            "last_downloaded_at": link.last_downloaded_at,
             "created_at": link.created_at,
-            "share_url": None  # Will be set by frontend
+            "updated_at": link.updated_at if hasattr(link, 'updated_at') else link.created_at,
+            "share_url": share_url
         })
     
     return result
@@ -886,10 +858,8 @@ async def send_shared_link_email(
     # Send email
     try:
         from app.core.email import send_share_link_notification
-        from app.core.config import settings
         
         shared_by_name = current_user.full_name or current_user.email
-        platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
         
         email_sent = send_share_link_notification(
             customer_email=email_to_send,
@@ -901,12 +871,21 @@ async def send_shared_link_email(
         )
         
         if not email_sent:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send email. Please check SMTP configuration."
-            )
+            # If SMTP is disabled, still return success but with a note
+            if not settings.SMTP_ENABLED:
+                return {
+                    "message": "Shared link created successfully. Email notification is disabled (SMTP not configured).",
+                    "email": email_to_send,
+                    "share_url": share_url,
+                    "email_sent": False
+                }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to send email. Please check SMTP configuration."
+                )
         
-        return {"message": "Email sent successfully", "email": email_to_send}
+        return {"message": "Email sent successfully", "email": email_to_send, "share_url": share_url}
         
     except ImportError:
         raise HTTPException(

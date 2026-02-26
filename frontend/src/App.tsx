@@ -14,6 +14,7 @@ import UsageAnalytics from './pages/UsageAnalytics'
 import Tracks from './pages/Tracks'
 import TrackDetail from './pages/TrackDetail'
 import Users from './pages/Users'
+import ProductHierarchy from './pages/ProductHierarchy'
 import ShareHistory from './pages/ShareHistory'
 import ShareView from './pages/ShareView'
 import Login from './pages/Login'
@@ -134,6 +135,7 @@ function AppRoutes() {
         <Route path="sharing" element={<ShareHistory />} />
         <Route path="tracks" element={<Tracks />} />
         <Route path="tracks/:id" element={<TrackDetail />} />
+        <Route path="product-hierarchy" element={<ProductHierarchy />} />
         <Route path="users" element={<Users />} />
         <Route path="product-releases" element={<ProductReleases />} />
         <Route path="marketing-updates" element={<MarketingUpdates />} />

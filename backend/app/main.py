@@ -194,7 +194,16 @@ async def health_check():
 
 # Import routers
 # Import routers - handle missing modules gracefully
-from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, notifications, customers
+from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, customers
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Try to import notifications (may fail if notification model doesn't exist)
+try:
+    from app.api import notifications
+except ImportError:
+    notifications = None
 
 # Challenge-response authentication endpoints
 from app.api import challenge as challenge_router
@@ -241,7 +250,11 @@ app.include_router(users.router)
 app.include_router(shared_links.router)
 app.include_router(product_releases.router)
 app.include_router(marketing_updates.router)
-app.include_router(notifications.router)
+try:
+    app.include_router(notifications.router)
+except (ImportError, AttributeError) as e:
+    logger.warning(f"Notifications router not available: {e}")
+    pass  # Notifications router is optional
 app.include_router(customers.router)
 try:
     from app.api import sales

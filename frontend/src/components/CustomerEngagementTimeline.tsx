@@ -35,6 +35,7 @@ interface TimelineEvent {
   other_type_description?: string | null
   customer_email?: string | null
   customer_name?: string | null
+  company_name?: string | null
   shared_link_id: number
 }
 
@@ -332,8 +333,19 @@ export default function CustomerEngagementTimeline({
   }
 
   const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const now = new Date()
+    // Backend returns UTC timestamps without timezone suffix (e.g., "2026-02-25T22:10:51.786380")
+    // CRITICAL: We MUST append 'Z' to force UTC parsing, otherwise browsers interpret as local time
+    let date: Date
+    if (timestamp.endsWith('Z') || timestamp.includes('+') || /-\d{2}:\d{2}$/.test(timestamp)) {
+      // Already has timezone info
+      date = new Date(timestamp)
+    } else {
+      // No timezone info - append 'Z' to force UTC parsing
+      // This ensures "2026-02-25T22:10:51.786380" is parsed as UTC, not local time
+      date = new Date(timestamp + 'Z')
+    }
+    
+    const now = new Date() // Current time in UTC milliseconds
     const diffMs = now.getTime() - date.getTime()
     
     // Calculate differences
@@ -464,11 +476,18 @@ export default function CustomerEngagementTimeline({
                             {/* Right side: Customer info */}
                             {event.customer_email && (
                               <div className="flex-shrink-0 text-right">
-                                <div className="flex items-center justify-end space-x-1 text-xs text-slate-600">
-                                  <User className="w-3.5 h-3.5" />
-                                  <span className="truncate max-w-[150px]">
-                                    {event.customer_name || event.customer_email}
-                                  </span>
+                                <div className="flex flex-col items-end space-y-0.5">
+                                  <div className="flex items-center justify-end space-x-1 text-xs text-slate-600">
+                                    <User className="w-3.5 h-3.5" />
+                                    <span className="truncate max-w-[150px]">
+                                      {event.customer_name || event.customer_email}
+                                    </span>
+                                  </div>
+                                  {event.company_name && (
+                                    <div className="text-xs text-slate-500 truncate max-w-[150px]">
+                                      {event.company_name}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}

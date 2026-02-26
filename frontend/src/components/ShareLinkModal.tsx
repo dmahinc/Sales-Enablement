@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Copy, Check, Mail, User, Calendar, Link as LinkIcon, AlertCircle, Send } from 'lucide-react'
+import { Copy, Check, Mail, User, Calendar, Link as LinkIcon, AlertCircle, Send, ChevronDown } from 'lucide-react'
 import Modal from './Modal'
+import { useAuth } from '../contexts/AuthContext'
 
 interface ShareLinkModalProps {
   materialId: number
@@ -11,7 +12,17 @@ interface ShareLinkModalProps {
   onClose: () => void
 }
 
+interface Customer {
+  id: number
+  email: string
+  full_name: string
+}
+
 export default function ShareLinkModal({ materialId, materialName, isOpen, onClose }: ShareLinkModalProps) {
+  const { user } = useAuth()
+  const isSales = user?.role === 'sales'
+  
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
   const [customerEmail, setCustomerEmail] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [companyName, setCompanyName] = useState('')
@@ -21,8 +32,35 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
   const [shareLinkId, setShareLinkId] = useState<number | null>(null)
   const [emailSent, setEmailSent] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [isManualEntry, setIsManualEntry] = useState(false)
 
   const queryClient = useQueryClient()
+
+  // Fetch customers for sales users
+  const { data: customers = [] } = useQuery<Customer[]>({
+    queryKey: ['sales-customers'],
+    queryFn: () => api.get('/sales/customers').then(res => res.data),
+    enabled: isSales && isOpen,
+  })
+
+  // When customer is selected from dropdown, populate fields
+  useEffect(() => {
+    if (selectedCustomerId && customers.length > 0) {
+      const customer = customers.find(c => c.id === selectedCustomerId)
+      if (customer) {
+        setCustomerEmail(customer.email)
+        setCustomerName(customer.full_name)
+        setIsManualEntry(false)
+      }
+    }
+  }, [selectedCustomerId, customers])
+
+  // When manually entering email, clear dropdown selection
+  useEffect(() => {
+    if (customerEmail && !selectedCustomerId) {
+      setIsManualEntry(true)
+    }
+  }, [customerEmail, selectedCustomerId])
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post('/shared-links', data),
@@ -52,8 +90,37 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
     },
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const assignCustomerMutation = useMutation({
+    mutationFn: (data: { email: string; full_name?: string; company_name?: string }) =>
+      api.post('/sales/customers/assign', data),
+    onSuccess: (response) => {
+      // Customer assigned/created successfully
+      queryClient.invalidateQueries({ queryKey: ['sales-customers'] })
+    },
+    onError: (error: any) => {
+      console.error('Error assigning customer:', error)
+      // Don't block sharing if assignment fails - just log it
+    },
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // If sales user and manually entered customer info, assign/create customer first
+    if (isSales && isManualEntry && customerEmail.trim()) {
+      try {
+        await assignCustomerMutation.mutateAsync({
+          email: customerEmail.trim(),
+          full_name: customerName.trim() || undefined,
+          company_name: companyName.trim() || undefined,
+        })
+      } catch (error) {
+        // Continue even if assignment fails - user might want to share without assignment
+        console.error('Failed to assign customer:', error)
+      }
+    }
+    
+    // Create shared link
     createMutation.mutate({
       material_id: materialId,
       customer_email: customerEmail || null,
@@ -74,6 +141,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
   const handleClose = () => {
     setShareUrl(null)
     setShareLinkId(null)
+    setSelectedCustomerId(null)
     setCustomerEmail('')
     setCustomerName('')
     setCompanyName('')
@@ -81,7 +149,28 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
     setCopied(false)
     setEmailSent(false)
     setSendingEmail(false)
+    setIsManualEntry(false)
     onClose()
+  }
+
+  const handleCustomerSelect = (customerId: number | null) => {
+    setSelectedCustomerId(customerId)
+    if (customerId === null) {
+      setCustomerEmail('')
+      setCustomerName('')
+      setCompanyName('')
+      setIsManualEntry(false)
+    }
+  }
+
+  const handleManualEmailChange = (email: string) => {
+    setCustomerEmail(email)
+    if (email) {
+      setSelectedCustomerId(null)
+      setIsManualEntry(true)
+    } else {
+      setIsManualEntry(false)
+    }
   }
 
   const handleSendEmail = () => {
@@ -109,23 +198,54 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
             </p>
           </div>
 
+          {/* Customer Selection - Only for Sales users */}
+          {isSales && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Select Customer (Optional)
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 z-10" />
+                <select
+                  value={selectedCustomerId || ''}
+                  onChange={(e) => handleCustomerSelect(e.target.value ? Number(e.target.value) : null)}
+                  className="input-ovh pl-10 appearance-none"
+                  disabled={sendingEmail || isManualEntry}
+                >
+                  <option value="">-- Select a customer --</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.full_name} ({customer.email})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Select from your assigned customers, or fill in the fields below to add a new customer.
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Customer Email (Optional)
+              Customer Email {isSales ? '(Fill to add new customer)' : '(Optional)'}
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="email"
                 value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
+                onChange={(e) => handleManualEmailChange(e.target.value)}
                 className="input-ovh pl-10"
                 placeholder="customer@example.com"
-                disabled={sendingEmail}
+                disabled={sendingEmail || (isSales && selectedCustomerId !== null)}
               />
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              Track which customer received this document. If provided, you can send the link by email.
+              {isSales 
+                ? 'If you fill this field, the customer will be automatically assigned to you.'
+                : 'Track which customer received this document. If provided, you can send the link by email.'}
             </p>
           </div>
 
@@ -141,6 +261,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
                 onChange={(e) => setCustomerName(e.target.value)}
                 className="input-ovh pl-10"
                 placeholder="Customer Name"
+                disabled={isSales && selectedCustomerId !== null}
               />
             </div>
           </div>
@@ -229,6 +350,21 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
                   setSendingEmail(true)
                   
                   try {
+                    // If sales user and manually entered customer info (not selected from dropdown), assign/create customer first
+                    if (isSales && isManualEntry && customerEmail.trim() && !selectedCustomerId) {
+                      try {
+                        await api.post('/sales/customers/assign', {
+                          email: customerEmail.trim(),
+                          full_name: customerName.trim() || undefined,
+                          company_name: companyName.trim() || undefined,
+                        })
+                        queryClient.invalidateQueries({ queryKey: ['sales-customers'] })
+                      } catch (error) {
+                        // Continue even if assignment fails
+                        console.error('Failed to assign customer:', error)
+                      }
+                    }
+                    
                     // Generate link first
                     const response = await api.post('/shared-links', {
                       material_id: materialId,

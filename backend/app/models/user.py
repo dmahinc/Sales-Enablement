@@ -41,7 +41,5 @@ class User(BaseModel):
     notifications = relationship("Notification", secondary="notification_recipients", back_populates="recipients")
     assigned_sales = relationship("User", foreign_keys=[assigned_sales_id], remote_side="User.id", backref="assigned_customers")
     creator = relationship("User", foreign_keys=[created_by_id], remote_side="User.id", backref="created_users")
-    # AICorrection relationship - conditionally defined
-    # Note: This will fail if AICorrection model doesn't exist and is accessed
-    # The relationship is defined but won't be used if the model doesn't exist
-    # ai_corrections = relationship("AICorrection", back_populates="user", lazy="dynamic")
+    # AICorrection relationship
+    ai_corrections = relationship("AICorrection", back_populates="user", lazy="dynamic")

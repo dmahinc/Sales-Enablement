@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
@@ -57,7 +57,7 @@ export default function Layout() {
   // - MONITORING & ANALYTICS: Dashboard, Material Sharing, Usage Analytics
   // - MATERIAL & ENABLEMENT: Manage Material, Enablement Tracks
   // - NEWS: Latest Product Releases, Marketing Updates
-  // - MANAGEMENT: Users Management
+  // - MANAGEMENT: Product Hierarchy, Users Management
   const directorNavItems = [
     { type: 'section', label: 'MONITORING & ANALYTICS' },
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -70,6 +70,7 @@ export default function Layout() {
     { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
     { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
     { type: 'section', label: 'MANAGEMENT' },
+    { path: '/product-hierarchy', label: 'Product Hierarchy & Icons', icon: Layers },
     { path: '/users', label: 'Users Management', icon: Users },
   ]
 
@@ -146,6 +147,7 @@ export default function Layout() {
     { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
     { path: '/marketing-updates', label: 'Marketing Updates', icon: Megaphone },
     { type: 'section', label: 'MANAGEMENT' },
+    { path: '/product-hierarchy', label: 'Product Hierarchy & Icons', icon: Layers },
     { path: '/users', label: 'Users Management', icon: Users },
   ]
 

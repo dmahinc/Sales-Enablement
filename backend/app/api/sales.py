@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
 from app.models.shared_link import SharedLink
+from app.models.usage import MaterialUsage, UsageAction
 from app.schemas.user import UserResponse, UserCreate, UserUpdate
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.exc import ProgrammingError, OperationalError
@@ -87,6 +88,111 @@ async def get_my_customers(
         })
     
     return result
+
+
+class CustomerAssignRequest(BaseModel):
+    """Request to assign/create a customer"""
+    email: EmailStr
+    full_name: Optional[str] = None
+    company_name: Optional[str] = None
+
+
+@router.post("/customers/assign", response_model=CustomerResponse, status_code=status.HTTP_200_OK)
+async def assign_or_create_customer(
+    customer_data: CustomerAssignRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Assign an existing customer to the current sales person, or create a new customer if they don't exist.
+    This endpoint is used when sharing materials - it ensures the customer is assigned to the sales person.
+    
+    If customer exists:
+    - If already assigned to this sales person: return existing customer
+    - If assigned to another sales person: reassign to this sales person (allows multiple assignments over time)
+    - If not assigned: assign to this sales person
+    
+    If customer doesn't exist:
+    - Create new customer account with a default password
+    - Assign to current sales person
+    """
+    if current_user.role != "sales":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available for sales users"
+        )
+    
+    # Check if customer exists
+    existing_customer = db.query(User).filter(User.email == customer_data.email).first()
+    
+    if existing_customer:
+        # Customer exists
+        if existing_customer.role != "customer":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email belongs to a non-customer account"
+            )
+        
+        # Assign to current sales person (update if needed)
+        if existing_customer.assigned_sales_id != current_user.id:
+            existing_customer.assigned_sales_id = current_user.id
+            # Update created_by_id if not set
+            if not existing_customer.created_by_id:
+                existing_customer.created_by_id = current_user.id
+            db.commit()
+            db.refresh(existing_customer)
+        
+        return {
+            "id": existing_customer.id,
+            "email": existing_customer.email,
+            "full_name": existing_customer.full_name,
+            "role": existing_customer.role,
+            "is_active": existing_customer.is_active,
+            "created_at": existing_customer.created_at.isoformat() if existing_customer.created_at else None,
+            "assigned_sales_id": existing_customer.assigned_sales_id,
+            "created_by_id": existing_customer.created_by_id,
+            "assigned_sales_name": existing_customer.assigned_sales.full_name if existing_customer.assigned_sales else None,
+            "created_by_name": existing_customer.creator.full_name if existing_customer.creator else None,
+        }
+    else:
+        # Customer doesn't exist - create new customer
+        if not customer_data.full_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="full_name is required when creating a new customer"
+            )
+        
+        # Generate a default password (customer will need to reset it)
+        import secrets
+        default_password = secrets.token_urlsafe(16)
+        
+        from app.core.security import get_password_hash
+        new_customer = User(
+            email=customer_data.email,
+            full_name=customer_data.full_name,
+            hashed_password=get_password_hash(default_password),
+            role="customer",
+            is_active=True,
+            assigned_sales_id=current_user.id,
+            created_by_id=current_user.id
+        )
+        
+        db.add(new_customer)
+        db.commit()
+        db.refresh(new_customer)
+        
+        return {
+            "id": new_customer.id,
+            "email": new_customer.email,
+            "full_name": new_customer.full_name,
+            "role": new_customer.role,
+            "is_active": new_customer.is_active,
+            "created_at": new_customer.created_at.isoformat() if new_customer.created_at else None,
+            "assigned_sales_id": new_customer.assigned_sales_id,
+            "created_by_id": new_customer.created_by_id,
+            "assigned_sales_name": new_customer.assigned_sales.full_name if new_customer.assigned_sales else None,
+            "created_by_name": new_customer.creator.full_name if new_customer.creator else None,
+        }
 
 
 @router.post("/customers", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
@@ -253,6 +359,165 @@ async def delete_customer(
     db.commit()
     
     return None
+
+
+class CustomerEngagementResponse(BaseModel):
+    """Response model for customer engagement stats"""
+    id: int
+    email: str
+    full_name: str
+    company_name: Optional[str] = None
+    assigned_date: Optional[str] = None
+    shared_materials_count: int = 0
+    total_views: int = 0
+    total_downloads: int = 0
+    last_engagement: Optional[str] = None
+
+
+@router.get("/customers/{customer_id}/engagement", response_model=CustomerEngagementResponse)
+async def get_customer_engagement(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get engagement statistics for a specific customer
+    Uses MaterialUsage events for accurate view/download counts
+    """
+    try:
+        if current_user.role != "sales":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This endpoint is only available for sales users"
+            )
+        
+        # Verify customer is assigned to this sales person
+        customer = db.query(User).filter(
+            and_(
+                User.id == customer_id,
+                User.role == "customer",
+                or_(
+                    User.assigned_sales_id == current_user.id,
+                    User.created_by_id == current_user.id
+                )
+            )
+        ).first()
+        
+        if not customer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Customer not found or not assigned to you"
+            )
+        
+        # Get shared links for this customer
+        shared_links = db.query(SharedLink).filter(
+            and_(
+                SharedLink.customer_email == customer.email,
+                SharedLink.shared_by_user_id == current_user.id
+            )
+        ).all()
+        
+        shared_materials_count = len(shared_links)
+        
+        # Get material IDs from shared links
+        material_ids = [link.material_id for link in shared_links] if shared_links else []
+        
+        # Get user_ids from shared links (these represent customer actions via shared links)
+        shared_link_user_ids = list(set([link.shared_by_user_id for link in shared_links if link.shared_by_user_id])) if shared_links else []
+        
+        # Count views and downloads from MaterialUsage events
+        total_views = 0
+        total_downloads = 0
+        last_engagement = None
+        
+        if material_ids and shared_link_user_ids:
+            # Count views
+            try:
+                views_query = db.query(MaterialUsage).filter(
+                    MaterialUsage.material_id.in_(material_ids),
+                    MaterialUsage.user_id.in_(shared_link_user_ids),
+                    MaterialUsage.action == UsageAction.VIEW.value
+                )
+                total_views = views_query.count()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error counting views: {str(e)}")
+                total_views = 0
+            
+            # Count downloads
+            try:
+                downloads_query = db.query(MaterialUsage).filter(
+                    MaterialUsage.material_id.in_(material_ids),
+                    MaterialUsage.user_id.in_(shared_link_user_ids),
+                    MaterialUsage.action == UsageAction.DOWNLOAD.value
+                )
+                total_downloads = downloads_query.count()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error counting downloads: {str(e)}")
+                total_downloads = 0
+            
+            # Get last engagement (most recent MaterialUsage event)
+            try:
+                last_event = db.query(MaterialUsage).filter(
+                    MaterialUsage.material_id.in_(material_ids),
+                    MaterialUsage.user_id.in_(shared_link_user_ids),
+                    MaterialUsage.action.in_([UsageAction.VIEW.value, UsageAction.DOWNLOAD.value])
+                ).order_by(MaterialUsage.used_at.desc()).first()
+                
+                if last_event:
+                    last_engagement = last_event.used_at.isoformat()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error getting last engagement: {str(e)}")
+        
+        # Fallback to SharedLink last_accessed_at if no MaterialUsage events
+        if not last_engagement and shared_links:
+            try:
+                last_accessed_links = [link for link in shared_links if link.last_accessed_at]
+                if last_accessed_links:
+                    last_accessed_links.sort(key=lambda x: x.last_accessed_at, reverse=True)
+                    last_engagement = last_accessed_links[0].last_accessed_at.isoformat()
+                elif shared_links:
+                    shared_links.sort(key=lambda x: x.created_at, reverse=True)
+                    last_engagement = shared_links[0].created_at.isoformat()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error getting fallback last engagement: {str(e)}")
+        
+        # Get company_name from shared links if available, otherwise None
+        company_name = None
+        if shared_links:
+            # Try to get company_name from the most recent shared link
+            company_names = [link.company_name for link in shared_links if link.company_name]
+            if company_names:
+                company_name = company_names[0]  # Use first available company name
+        
+        return {
+            "id": customer.id,
+            "email": customer.email,
+            "full_name": customer.full_name,
+            "company_name": company_name,
+            "assigned_date": customer.created_at.isoformat() if customer.created_at else None,
+            "shared_materials_count": shared_materials_count,
+            "total_views": total_views,
+            "total_downloads": total_downloads,
+            "last_engagement": last_engagement
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in get_customer_engagement: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching engagement data: {str(e)}"
+        )
 
 
 # ========== MESSAGING ENDPOINTS ==========

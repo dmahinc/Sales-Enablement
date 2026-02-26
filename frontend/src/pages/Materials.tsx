@@ -459,10 +459,14 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
           let errorMessage = 'Failed to generate executive summary'
           if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
             errorMessage = 'Request timed out after 35 seconds. Check backend logs: docker logs -f sales-enablement-backend'
+          } else if (error.response?.status === 404) {
+            errorMessage = error.response?.data?.detail || 'File not found on server. The material file may have been moved or deleted.'
           } else if (error.response?.status === 503) {
-            errorMessage = 'AI service is temporarily unavailable. Check backend logs for details.'
+            errorMessage = error.response?.data?.detail || 'AI service is temporarily unavailable. Check backend logs for details.'
+          } else if (error.response?.status === 400) {
+            errorMessage = error.response?.data?.detail || 'Could not extract text from document. The file format may not be supported.'
           } else if (error.response?.status === 500) {
-            errorMessage = `Server error: ${error.response?.data?.detail || 'Check backend logs'}`
+            errorMessage = error.response?.data?.detail || 'Server error. Check backend logs for details.'
           } else if (error.response?.data?.detail) {
             errorMessage = error.response.data.detail
           }

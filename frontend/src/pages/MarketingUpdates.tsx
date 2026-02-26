@@ -7,6 +7,7 @@ import MultiSelect from '../components/MultiSelect'
 import FileUploadModal from '../components/FileUploadModal'
 import { useAuth } from '../contexts/AuthContext'
 import DOMPurify from 'dompurify'
+import ProductIcon from '../components/ProductIcon'
 
 // Ensure DOMPurify is available (for SSR compatibility)
 const sanitizeHTML = (html: string) => {
@@ -520,12 +521,15 @@ export default function MarketingUpdates() {
                       {getCategoryLabel(update.category)}
                     </span>
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2 line-clamp-2">
-                    {update.title}
-                  </h3>
+                  <div className="flex items-center space-x-4 mb-2">
+                    <ProductIcon productName={update.product_name || null} size={32} showFallback={true} />
+                    <h3 className="text-lg font-semibold text-slate-900 line-clamp-2 flex-1">
+                      {update.title}
+                    </h3>
+                  </div>
                   {update.subcategory && (
                     <p className="text-xs text-slate-500 mb-2">
-                      <Tag className="w-3 h-3 inline mr-1" />
+                      <Tag className="w-4 h-4 inline mr-2" />
                       {update.subcategory}
                     </p>
                   )}
@@ -563,13 +567,13 @@ export default function MarketingUpdates() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <div className="flex items-center space-x-4 text-xs text-slate-500">
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-3 h-3" />
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4" />
                     <span>{formatDate(update.published_at || update.created_at)}</span>
                   </div>
                   {update.created_by_name && (
-                    <div className="flex items-center space-x-1">
-                      <User className="w-3 h-3" />
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4" />
                       <span>{update.created_by_name}</span>
                     </div>
                   )}
@@ -694,7 +698,7 @@ function MarketingUpdateViewModal({ update, isOpen, onClose }: MarketingUpdateVi
           </span>
           {update.subcategory && (
             <span className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700">
-              <Tag className="w-3 h-3 inline mr-1" />
+              <Tag className="w-4 h-4 inline mr-2" />
               {update.subcategory}
             </span>
           )}
@@ -707,12 +711,12 @@ function MarketingUpdateViewModal({ update, isOpen, onClose }: MarketingUpdateVi
 
         {/* Metadata */}
         <div className="flex items-center space-x-4 text-sm text-slate-500 pb-4 border-b border-slate-200">
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2">
             <Calendar className="w-4 h-4" />
             <span>{formatDate(update.published_at || update.created_at)}</span>
           </div>
           {update.created_by_name && (
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-2">
               <User className="w-4 h-4" />
               <span>{update.created_by_name}</span>
             </div>

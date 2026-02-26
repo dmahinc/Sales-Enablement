@@ -7,7 +7,25 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from datetime import datetime
 from typing import Optional, List
-from app.schemas.errors import ErrorResponse, ErrorDetail
+try:
+    from app.schemas.errors import ErrorResponse, ErrorDetail
+except ImportError:
+    try:
+        from app.schemas.error import ErrorResponse, ErrorDetail
+    except ImportError:
+        # Fallback if neither exists
+        from pydantic import BaseModel
+        class ErrorDetail(BaseModel):
+            field: str = None
+            message: str = None
+        class ErrorResponse(BaseModel):
+            success: bool = False
+            error: str = "Error"
+            message: str = "An error occurred"
+            status_code: int = 500
+            details: list = []
+            timestamp: str = None
+            path: str = None
 
 
 class AppException(Exception):

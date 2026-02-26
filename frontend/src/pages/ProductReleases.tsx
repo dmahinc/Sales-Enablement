@@ -7,6 +7,7 @@ import MultiSelect from '../components/MultiSelect'
 import FileUploadModal from '../components/FileUploadModal'
 import { useAuth } from '../contexts/AuthContext'
 import DOMPurify from 'dompurify'
+import ProductIcon from '../components/ProductIcon'
 
 // Ensure DOMPurify is available (for SSR compatibility)
 const sanitizeHTML = (html: string) => {
@@ -389,15 +390,18 @@ export default function ProductReleases() {
               {/* Card Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2 line-clamp-2">
-                    {release.title}
-                    {release.phase && (
-                      <>
-                        <span className="text-slate-400 mx-2">•</span>
-                        <span className="font-semibold uppercase">{release.phase}</span>
-                      </>
-                    )}
-                  </h3>
+                  <div className="flex items-center space-x-4 mb-2">
+                    <ProductIcon productName={release.product_name || null} size={32} showFallback={true} />
+                    <h3 className="text-lg font-semibold text-slate-900 line-clamp-2 flex-1">
+                      {release.title}
+                      {release.phase && (
+                        <>
+                          <span className="text-slate-400 mx-2">•</span>
+                          <span className="font-semibold uppercase">{release.phase}</span>
+                        </>
+                      )}
+                    </h3>
+                  </div>
                   <p className="text-xs text-slate-500 mb-2">
                     {getHierarchyPath(release)}
                   </p>
@@ -432,13 +436,13 @@ export default function ProductReleases() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <div className="flex items-center space-x-4 text-xs text-slate-500">
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-3 h-3" />
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4" />
                     <span>{formatDate(release.published_at || release.created_at)}</span>
                   </div>
                   {release.created_by_name && (
-                    <div className="flex items-center space-x-1">
-                      <User className="w-3 h-3" />
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4" />
                       <span>{release.created_by_name}</span>
                     </div>
                   )}
@@ -545,12 +549,12 @@ function ProductReleaseViewModal({ release, isOpen, onClose }: ProductReleaseVie
 
         {/* Metadata */}
         <div className="flex items-center space-x-4 text-sm text-slate-500 pb-4 border-b border-slate-200">
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-2">
             <Calendar className="w-4 h-4" />
             <span>{formatDate(release.published_at || release.created_at)}</span>
           </div>
           {release.created_by_name && (
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-2">
               <User className="w-4 h-4" />
               <span>{release.created_by_name}</span>
             </div>
