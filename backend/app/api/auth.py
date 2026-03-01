@@ -194,3 +194,21 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
     - Current user object with profile information
     """
     return current_user
+
+@router.get(
+    "/v2/me",
+    response_model=UserResponse,
+    summary="Get Current User (v2)",
+    description="Get information about the currently authenticated user (v2 endpoint for frontend compatibility)",
+    responses={
+        200: {"description": "User information retrieved successfully"},
+        401: {"description": "Authentication required"}
+    }
+)
+async def read_users_me_v2(current_user: User = Depends(get_current_active_user)):
+    """
+    Get current user information (v2 endpoint).
+    
+    Same as /me but with v2 prefix for frontend compatibility.
+    """
+    return current_user

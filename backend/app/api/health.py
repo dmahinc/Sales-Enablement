@@ -1,9 +1,11 @@
 """
 Material Health Dashboard API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from datetime import datetime, timedelta
 import statistics
 from app.models.material import Material, MaterialStatus
@@ -12,6 +14,10 @@ from app.models.product import Product, Universe, Category
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
+
+
+class AcknowledgeFreshnessRequest(BaseModel):
+    note: Optional[str] = None
 
 router = APIRouter(prefix="/api/health", tags=["health"])
 
@@ -335,6 +341,113 @@ async def get_quarterly_review(
             "needs_update_count": len([h for h in health_data if h["status"] == "needs_update"])
         }
     }
+
+@router.get("/my-materials")
+async def get_my_materials_for_freshness(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Return materials the current user is allowed to acknowledge freshness for.
+    - admin / director: all non-archived materials
+    - pmm: only materials they own or are assigned to as pmm_in_charge
+    """
+    if current_user.role not in ["admin", "director", "pmm"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    query = db.query(Material).filter(Material.status != MaterialStatus.ARCHIVED)
+
+    if current_user.role == "pmm":
+        query = query.filter(
+            or_(
+                Material.owner_id == current_user.id,
+                Material.pmm_in_charge_id == current_user.id
+            )
+        )
+
+    materials = query.order_by(Material.last_updated.asc().nullsfirst()).all()
+
+    result = []
+    for m in materials:
+        freshness_score = calculate_freshness_score(m)
+        result.append({
+            "id": m.id,
+            "name": m.name,
+            "material_type": m.material_type,
+            "other_type_description": m.other_type_description,
+            "product_name": m.product_name,
+            "universe_name": m.universe_name,
+            "status": m.status,
+            "last_updated": m.last_updated.isoformat() if m.last_updated else None,
+            "freshness_score": freshness_score,
+            "health_score": calculate_health_score(m),
+            "owner_id": m.owner_id,
+            "pmm_in_charge_id": m.pmm_in_charge_id,
+        })
+
+    return result
+
+
+@router.post("/material/{material_id}/acknowledge-freshness")
+async def acknowledge_material_freshness(
+    material_id: int,
+    body: AcknowledgeFreshnessRequest = AcknowledgeFreshnessRequest(),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Acknowledge that a material is still current by resetting its last_updated date to now.
+    - admin / director: can acknowledge any material
+    - pmm: only materials they own or are assigned to as pmm_in_charge
+    """
+    if current_user.role not in ["admin", "director", "pmm"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    material = db.query(Material).filter(Material.id == material_id).first()
+    if not material:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found")
+
+    # PMMs may only touch their own materials
+    if current_user.role == "pmm":
+        if material.owner_id != current_user.id and material.pmm_in_charge_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only manage freshness of materials you own or are assigned to"
+            )
+
+    # Stamp freshness
+    now = datetime.utcnow()
+    material.last_updated = now
+
+    # Recalculate and persist health score
+    new_freshness_score = calculate_freshness_score(material)
+    new_health_score = calculate_health_score(material)
+    material.health_score = new_health_score
+
+    # Record a health history snapshot so the change is auditable
+    health_record = MaterialHealthHistory(
+        material_id=material_id,
+        freshness_score=new_freshness_score,
+        completeness_score=material.completeness_score or 0,
+        usage_score=min(100, (material.usage_count or 0) * 2),
+        performance_score=0,
+        overall_health_score=new_health_score,
+        recorded_at=now
+    )
+    db.add(health_record)
+    db.commit()
+    db.refresh(material)
+
+    return {
+        "material_id": material.id,
+        "name": material.name,
+        "last_updated": material.last_updated.isoformat(),
+        "freshness_score": new_freshness_score,
+        "health_score": new_health_score,
+        "acknowledged_by": current_user.full_name or current_user.email,
+        "note": body.note,
+    }
+
 
 @router.get("/completeness-matrix")
 async def get_completeness_matrix(

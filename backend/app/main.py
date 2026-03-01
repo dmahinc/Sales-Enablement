@@ -25,6 +25,7 @@ from app.models.marketing_update import MarketingUpdate  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.shared_link import SharedLink  # noqa: F401
 from app.models.customer_message import CustomerMessage  # noqa: F401
+from app.models.material_request import MaterialRequest  # noqa: F401
 # AICorrection model may not exist in all deployments
 try:
     from app.models.ai_correction import AICorrection  # noqa: F401
@@ -194,7 +195,7 @@ async def health_check():
 
 # Import routers
 # Import routers - handle missing modules gracefully
-from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, customers
+from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, customers, material_requests
 import logging
 
 logger = logging.getLogger(__name__)
@@ -256,6 +257,7 @@ except (ImportError, AttributeError) as e:
     logger.warning(f"Notifications router not available: {e}")
     pass  # Notifications router is optional
 app.include_router(customers.router)
+app.include_router(material_requests.router)
 try:
     from app.api import sales
     app.include_router(sales.router)

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Copy, Check, Mail, User, Calendar, Link as LinkIcon, AlertCircle, Send, ChevronDown } from 'lucide-react'
+import { Copy, Check, Mail, User, Calendar, Link as LinkIcon, AlertCircle, Send, ChevronDown, Plus, X } from 'lucide-react'
 import Modal from './Modal'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -33,6 +33,15 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
   const [emailSent, setEmailSent] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [isManualEntry, setIsManualEntry] = useState(false)
+  const [showCreateCustomerModal, setShowCreateCustomerModal] = useState(false)
+  const [createCustomerData, setCreateCustomerData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    company_name: '',
+    password: '',
+    send_welcome_email: false,
+  })
 
   const queryClient = useQueryClient()
 
@@ -50,17 +59,17 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
       if (customer) {
         setCustomerEmail(customer.email)
         setCustomerName(customer.full_name)
+        // Company name is stored in SharedLink, not User, so we'll leave it empty
+        // It will be set when creating the shared link if needed
         setIsManualEntry(false)
       }
+    } else if (!selectedCustomerId && isSales) {
+      // Clear fields when no customer selected (for sales users)
+      setCustomerEmail('')
+      setCustomerName('')
+      setCompanyName('')
     }
-  }, [selectedCustomerId, customers])
-
-  // When manually entering email, clear dropdown selection
-  useEffect(() => {
-    if (customerEmail && !selectedCustomerId) {
-      setIsManualEntry(true)
-    }
-  }, [customerEmail, selectedCustomerId])
+  }, [selectedCustomerId, customers, isSales])
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post('/shared-links', data),
@@ -91,7 +100,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
   })
 
   const assignCustomerMutation = useMutation({
-    mutationFn: (data: { email: string; full_name?: string; company_name?: string }) =>
+    mutationFn: (data: { email: string; first_name?: string; last_name?: string; full_name?: string; company_name?: string }) =>
       api.post('/sales/customers/assign', data),
     onSuccess: (response) => {
       // Customer assigned/created successfully
@@ -103,20 +112,56 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
     },
   })
 
+  const createCustomerMutation = useMutation({
+    mutationFn: (data: { email: string; first_name: string; last_name: string; company_name?: string; password: string; send_welcome_email: boolean }) =>
+      api.post('/sales/customers/assign', data),
+    onSuccess: (response, variables) => {
+      // Customer created successfully
+      queryClient.invalidateQueries({ queryKey: ['sales-customers'] })
+      // Populate the form with the new customer
+      setCustomerEmail(response.data.email)
+      setCustomerName(response.data.full_name)
+      // Company name will be stored in SharedLink when creating the link
+      if (variables.company_name) {
+        setCompanyName(variables.company_name)
+      }
+      setSelectedCustomerId(response.data.id)
+      setIsManualEntry(false)
+      setShowCreateCustomerModal(false)
+      
+      // Show password if email was not sent
+      if (response.data.password) {
+        alert(`Customer created successfully!\n\nEmail: ${response.data.email}\nPassword: ${response.data.password}\n\nPlease share these credentials with the customer manually.`)
+      } else if (response.data.email_sent) {
+        alert('Customer created successfully! Welcome email has been sent.')
+      }
+      
+      // Reset create form
+      setCreateCustomerData({
+        first_name: '',
+        last_name: '',
+        email: '',
+        company_name: '',
+        password: '',
+        send_welcome_email: false,
+      })
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.detail || 'Failed to create customer'
+      alert(`Error: ${errorMessage}`)
+    },
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // If sales user and manually entered customer info, assign/create customer first
-    if (isSales && isManualEntry && customerEmail.trim()) {
-      try {
-        await assignCustomerMutation.mutateAsync({
-          email: customerEmail.trim(),
-          full_name: customerName.trim() || undefined,
-          company_name: companyName.trim() || undefined,
-        })
-      } catch (error) {
-        // Continue even if assignment fails - user might want to share without assignment
-        console.error('Failed to assign customer:', error)
+    // For sales users, get customer info from selected customer
+    if (isSales && selectedCustomerId) {
+      const selectedCustomer = customers.find(c => c.id === selectedCustomerId)
+      if (selectedCustomer) {
+        setCustomerEmail(selectedCustomer.email)
+        setCustomerName(selectedCustomer.full_name)
+        // Company name will be retrieved from SharedLink later
       }
     }
     
@@ -165,12 +210,8 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
 
   const handleManualEmailChange = (email: string) => {
     setCustomerEmail(email)
-    if (email) {
-      setSelectedCustomerId(null)
-      setIsManualEntry(true)
-    } else {
-      setIsManualEntry(false)
-    }
+    // For sales users, manual entry is not used anymore (only dropdown)
+    // This is kept for non-sales users
   }
 
   const handleSendEmail = () => {
@@ -188,6 +229,26 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
     sendEmailMutation.mutate({ linkId: shareLinkId, email: customerEmail.trim() })
   }
 
+  const handleCreateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!createCustomerData.first_name || !createCustomerData.last_name || !createCustomerData.email || !createCustomerData.password) {
+      alert('Please fill in all required fields (First Name, Last Name, Email, Password)')
+      return
+    }
+    if (createCustomerData.password.length < 8) {
+      alert('Password must be at least 8 characters long')
+      return
+    }
+    createCustomerMutation.mutate({
+      email: createCustomerData.email.trim(),
+      first_name: createCustomerData.first_name.trim(),
+      last_name: createCustomerData.last_name.trim(),
+      company_name: createCustomerData.company_name.trim() || undefined,
+      password: createCustomerData.password,
+      send_welcome_email: createCustomerData.send_welcome_email,
+    })
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Share Document" size="lg">
       {!shareUrl ? (
@@ -201,16 +262,26 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
           {/* Customer Selection - Only for Sales users */}
           {isSales && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Select Customer (Optional)
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Select Customer (Optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateCustomerModal(true)}
+                  className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center space-x-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Create Customer</span>
+                </button>
+              </div>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 z-10" />
                 <select
                   value={selectedCustomerId || ''}
                   onChange={(e) => handleCustomerSelect(e.target.value ? Number(e.target.value) : null)}
                   className="input-ovh pl-10 appearance-none"
-                  disabled={sendingEmail || isManualEntry}
+                  disabled={sendingEmail}
                 >
                   <option value="">-- Select a customer --</option>
                   {customers.map((customer) => (
@@ -222,65 +293,33 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
                 <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                Select from your assigned customers, or fill in the fields below to add a new customer.
+                Select from your assigned customers, or create a new one.
               </p>
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Customer Email {isSales ? '(Fill to add new customer)' : '(Optional)'}
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="email"
-                value={customerEmail}
-                onChange={(e) => handleManualEmailChange(e.target.value)}
-                className="input-ovh pl-10"
-                placeholder="customer@example.com"
-                disabled={sendingEmail || (isSales && selectedCustomerId !== null)}
-              />
+          {/* Customer Email for non-sales users */}
+          {!isSales && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Customer Email (Optional)
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => handleManualEmailChange(e.target.value)}
+                  className="input-ovh pl-10"
+                  placeholder="customer@example.com"
+                  disabled={sendingEmail}
+                />
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Track which customer received this document. If provided, you can send the link by email.
+              </p>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
-              {isSales 
-                ? 'If you fill this field, the customer will be automatically assigned to you.'
-                : 'Track which customer received this document. If provided, you can send the link by email.'}
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Customer Name (Optional)
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="input-ovh pl-10"
-                placeholder="Customer Name"
-                disabled={isSales && selectedCustomerId !== null}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Company Name (Optional)
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                className="input-ovh pl-10"
-                placeholder="Company Name"
-              />
-            </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -353,9 +392,15 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
                     // If sales user and manually entered customer info (not selected from dropdown), assign/create customer first
                     if (isSales && isManualEntry && customerEmail.trim() && !selectedCustomerId) {
                       try {
+                        // Split customerName into first_name and last_name if provided
+                        const nameParts = customerName.trim().split(/\s+/)
+                        const first_name = nameParts[0] || undefined
+                        const last_name = nameParts.slice(1).join(' ') || undefined
+                        
                         await api.post('/sales/customers/assign', {
                           email: customerEmail.trim(),
-                          full_name: customerName.trim() || undefined,
+                          first_name: first_name,
+                          last_name: last_name,
                           company_name: companyName.trim() || undefined,
                         })
                         queryClient.invalidateQueries({ queryKey: ['sales-customers'] })
@@ -530,6 +575,151 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
             <button onClick={handleClose} className="btn-ovh-primary">
               Done
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Create Customer Modal */}
+      {showCreateCustomerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                  Create Customer
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowCreateCustomerModal(false)
+                    setCreateCustomerData({
+                      first_name: '',
+                      last_name: '',
+                      email: '',
+                      company_name: '',
+                      password: '',
+                      send_welcome_email: false,
+                    })
+                  }}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleCreateCustomer} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={createCustomerData.first_name}
+                      onChange={(e) => setCreateCustomerData({ ...createCustomerData, first_name: e.target.value })}
+                      className="input-ovh w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={createCustomerData.last_name}
+                      onChange={(e) => setCreateCustomerData({ ...createCustomerData, last_name: e.target.value })}
+                      className="input-ovh w-full"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={createCustomerData.email}
+                    onChange={(e) => setCreateCustomerData({ ...createCustomerData, email: e.target.value })}
+                    className="input-ovh w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Company Name
+                  </label>
+                  <input
+                    type="text"
+                    value={createCustomerData.company_name}
+                    onChange={(e) => setCreateCustomerData({ ...createCustomerData, company_name: e.target.value })}
+                    className="input-ovh w-full"
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={createCustomerData.password}
+                    onChange={(e) => setCreateCustomerData({ ...createCustomerData, password: e.target.value })}
+                    className="input-ovh w-full"
+                    placeholder="Minimum 8 characters"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Sales will set the initial password for the customer
+                  </p>
+                </div>
+
+                <div>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={createCustomerData.send_welcome_email}
+                      onChange={(e) => setCreateCustomerData({ ...createCustomerData, send_welcome_email: e.target.checked })}
+                      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-slate-700 dark:text-slate-300">
+                      Send customer a welcome email
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateCustomerModal(false)
+                      setCreateCustomerData({
+                        first_name: '',
+                        last_name: '',
+                        email: '',
+                        company_name: '',
+                        password: '',
+                        send_welcome_email: false,
+                      })
+                    }}
+                    className="btn-ovh-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createCustomerMutation.isPending}
+                    className="btn-ovh-primary"
+                  >
+                    {createCustomerMutation.isPending ? 'Creating...' : 'Create Customer'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

@@ -12,8 +12,9 @@ from app.models.user import User
 from app.models.shared_link import SharedLink
 from app.models.usage import MaterialUsage, UsageAction
 from app.schemas.user import UserResponse, UserCreate, UserUpdate
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.exc import ProgrammingError, OperationalError
+import secrets
 
 # Try to import CustomerMessage - it may not exist if table hasn't been created yet
 try:
@@ -38,6 +39,10 @@ class CustomerResponse(BaseModel):
     created_by_id: Optional[int]
     assigned_sales_name: Optional[str]
     created_by_name: Optional[str]
+    company_name: Optional[str] = None
+    password: Optional[str] = None  # Only included if email was not sent
+    email_sent: Optional[bool] = None  # Whether welcome email was sent
+    message: Optional[str] = None  # Message about email sending status
     
     class Config:
         from_attributes = True
@@ -74,6 +79,23 @@ async def get_my_customers(
     
     result = []
     for customer in customers:
+        # Get company_name from the most recent shared link for this customer
+        company_name = None
+        try:
+            latest_link = db.query(SharedLink).filter(
+                and_(
+                    SharedLink.customer_email == customer.email,
+                    SharedLink.shared_by_user_id == current_user.id,
+                    SharedLink.company_name.isnot(None)
+                )
+            ).order_by(SharedLink.created_at.desc()).first()
+            
+            if latest_link:
+                company_name = latest_link.company_name
+        except Exception:
+            # If there's an error, just continue without company_name
+            pass
+        
         result.append({
             "id": customer.id,
             "email": customer.email,
@@ -85,16 +107,35 @@ async def get_my_customers(
             "created_by_id": customer.created_by_id,
             "assigned_sales_name": customer.assigned_sales.full_name if customer.assigned_sales else None,
             "created_by_name": customer.creator.full_name if customer.creator else None,
+            "company_name": company_name,
+            "password": None,  # Never return password in list endpoint
+            "email_sent": None,
+            "message": None,
         })
     
     return result
 
 
-class CustomerAssignRequest(BaseModel):
-    """Request to assign/create a customer"""
+class CustomerCreateRequest(BaseModel):
+    """Request to create a customer (from My Customers page)"""
     email: EmailStr
-    full_name: Optional[str] = None
+    first_name: str
+    last_name: str
+    password: str = Field(..., min_length=8)
     company_name: Optional[str] = None
+    is_active: bool = True
+    send_welcome_email: bool = False
+
+
+class CustomerAssignRequest(BaseModel):
+    """Request to assign/create a customer (from Share modal)"""
+    email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: Optional[str] = None  # For backward compatibility
+    company_name: Optional[str] = None
+    password: Optional[str] = Field(None, min_length=8)  # Required when creating new customer
+    send_welcome_email: bool = False
 
 
 @router.post("/customers/assign", response_model=CustomerResponse, status_code=status.HTTP_200_OK)
@@ -156,21 +197,35 @@ async def assign_or_create_customer(
         }
     else:
         # Customer doesn't exist - create new customer
-        if not customer_data.full_name:
+        # Build full_name from first_name and last_name, or use full_name if provided
+        full_name = None
+        if customer_data.first_name and customer_data.last_name:
+            full_name = f"{customer_data.first_name} {customer_data.last_name}".strip()
+        elif customer_data.full_name:
+            full_name = customer_data.full_name
+        elif customer_data.first_name:
+            full_name = customer_data.first_name
+        elif customer_data.last_name:
+            full_name = customer_data.last_name
+        
+        if not full_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="full_name is required when creating a new customer"
+                detail="first_name and last_name (or full_name) are required when creating a new customer"
             )
         
-        # Generate a default password (customer will need to reset it)
-        import secrets
-        default_password = secrets.token_urlsafe(16)
+        # Password is required when creating a new customer
+        if not customer_data.password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="password is required when creating a new customer"
+            )
         
         from app.core.security import get_password_hash
         new_customer = User(
             email=customer_data.email,
-            full_name=customer_data.full_name,
-            hashed_password=get_password_hash(default_password),
+            full_name=full_name,
+            hashed_password=get_password_hash(customer_data.password),
             role="customer",
             is_active=True,
             assigned_sales_id=current_user.id,
@@ -181,7 +236,20 @@ async def assign_or_create_customer(
         db.commit()
         db.refresh(new_customer)
         
-        return {
+        # Send welcome email if requested
+        email_sent = False
+        if customer_data.send_welcome_email:
+            from app.core.email import send_user_creation_notification
+            from app.core.config import settings
+            email_sent = send_user_creation_notification(
+                user_email=new_customer.email,
+                user_name=new_customer.full_name,
+                user_password=customer_data.password,
+                user_role="customer",
+                platform_url=settings.PLATFORM_URL
+            )
+        
+        response_data = {
             "id": new_customer.id,
             "email": new_customer.email,
             "full_name": new_customer.full_name,
@@ -193,11 +261,22 @@ async def assign_or_create_customer(
             "assigned_sales_name": new_customer.assigned_sales.full_name if new_customer.assigned_sales else None,
             "created_by_name": new_customer.creator.full_name if new_customer.creator else None,
         }
+        
+        # If email was not sent (SMTP disabled or failed), include password in response
+        # so sales person can share it manually
+        if not email_sent:
+            response_data["password"] = customer_data.password
+            response_data["email_sent"] = False
+            response_data["message"] = "Welcome email could not be sent. Please share the password with the customer manually."
+        else:
+            response_data["email_sent"] = True
+        
+        return response_data
 
 
 @router.post("/customers", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
 async def create_customer(
-    customer_data: UserCreate,
+    customer_data: CustomerCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -211,13 +290,6 @@ async def create_customer(
             detail="This endpoint is only available for sales users"
         )
     
-    # Ensure role is customer
-    if customer_data.role != "customer":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This endpoint can only create customer accounts"
-        )
-    
     # Check if user exists
     existing_user = db.query(User).filter(User.email == customer_data.email).first()
     if existing_user:
@@ -226,14 +298,17 @@ async def create_customer(
             detail="Email already registered"
         )
     
+    # Build full_name from first_name and last_name
+    full_name = f"{customer_data.first_name} {customer_data.last_name}".strip()
+    
     # Create customer
     from app.core.security import get_password_hash
     customer = User(
         email=customer_data.email,
-        full_name=customer_data.full_name,
+        full_name=full_name,
         hashed_password=get_password_hash(customer_data.password),
         role="customer",
-        is_active=True,
+        is_active=customer_data.is_active,
         assigned_sales_id=current_user.id,  # Assign to current sales person
         created_by_id=current_user.id  # Track creator
     )
@@ -242,7 +317,20 @@ async def create_customer(
     db.commit()
     db.refresh(customer)
     
-    return {
+    # Send welcome email if requested
+    email_sent = False
+    if customer_data.send_welcome_email:
+        from app.core.email import send_user_creation_notification
+        from app.core.config import settings
+        email_sent = send_user_creation_notification(
+            user_email=customer.email,
+            user_name=customer.full_name,
+            user_password=customer_data.password,
+            user_role="customer",
+            platform_url=settings.PLATFORM_URL
+        )
+    
+    response_data = {
         "id": customer.id,
         "email": customer.email,
         "full_name": customer.full_name,
@@ -253,7 +341,19 @@ async def create_customer(
         "created_by_id": customer.created_by_id,
         "assigned_sales_name": customer.assigned_sales.full_name if customer.assigned_sales else None,
         "created_by_name": customer.creator.full_name if customer.creator else None,
+        "company_name": None,  # Company name is stored in SharedLink, not User
     }
+    
+    # If email was not sent (SMTP disabled or failed), include password in response
+    # so sales person can share it manually
+    if not email_sent:
+        response_data["password"] = customer_data.password
+        response_data["email_sent"] = False
+        response_data["message"] = "Welcome email could not be sent. Please share the password with the customer manually."
+    else:
+        response_data["email_sent"] = True
+    
+    return response_data
 
 
 @router.put("/customers/{customer_id}", response_model=CustomerResponse)

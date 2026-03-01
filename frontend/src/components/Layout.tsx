@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers, ClipboardList } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
@@ -86,6 +86,7 @@ export default function Layout() {
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Manage Materials', icon: FileText },
+    { path: '/material-requests', label: 'Request for Materials', icon: ClipboardList },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
     { type: 'section', label: 'NEWS' },
     { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },
@@ -142,6 +143,7 @@ export default function Layout() {
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Manage Material', icon: FileText },
+    { path: '/material-requests', label: 'Requests for Materials', icon: ClipboardList },
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
     { type: 'section', label: 'NEWS' },
     { path: '/product-releases', label: 'Latest Product Releases', icon: Newspaper },

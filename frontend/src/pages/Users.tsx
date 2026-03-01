@@ -86,8 +86,10 @@ export default function Users() {
           >
             <option value="">All Roles</option>
             <option value="admin">Admin</option>
+            <option value="director">Director</option>
             <option value="pmm">PMM</option>
             <option value="sales">Sales</option>
+            <option value="customer">Customer</option>
           </select>
           {roleFilter && (
             <button
@@ -144,6 +146,8 @@ export default function Users() {
                       <span className={`badge-ovh ${
                         user.role === 'admin' ? 'badge-ovh-warning' :
                         user.role === 'pmm' ? 'badge-ovh-success' :
+                        user.role === 'director' ? 'badge-ovh-primary' :
+                        user.role === 'customer' ? 'badge-ovh-info' :
                         'badge-ovh-gray'
                       }`}>
                         {user.role}

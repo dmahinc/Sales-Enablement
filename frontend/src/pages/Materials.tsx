@@ -6,6 +6,7 @@ import Modal from '../components/Modal'
 import MaterialForm from '../components/MaterialForm'
 import FileUploadModal from '../components/FileUploadModal'
 import BatchUploadModal from '../components/BatchUploadModal'
+import RequestMaterialModal from '../components/RequestMaterialModal'
 import ShareLinkModal from '../components/ShareLinkModal'
 import MultiSelect from '../components/MultiSelect'
 import { useAuth } from '../contexts/AuthContext'
@@ -773,6 +774,7 @@ export default function Materials() {
   
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [isBatchUploadModalOpen, setIsBatchUploadModalOpen] = useState(false)
+  const [isRequestMaterialModalOpen, setIsRequestMaterialModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [sharingMaterial, setSharingMaterial] = useState<any>(null)
   const [editingMaterial, setEditingMaterial] = useState<any>(null)
@@ -1690,21 +1692,33 @@ export default function Materials() {
                 <span>Browse</span>
               </button>
             </div>
-            <button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="btn-ovh-secondary"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Material
-            </button>
-            {(isDirector || isPMM) && (
+            {isSales ? (
               <button
-                onClick={() => setIsBatchUploadModalOpen(true)}
-                className="btn-ovh-primary flex items-center gap-2"
+                onClick={() => setIsRequestMaterialModalOpen(true)}
+                className="btn-ovh-primary"
               >
-                <Sparkles className="w-4 h-4" />
-                Batch Upload with AI
+                <FileText className="w-4 h-4 mr-2" />
+                Request Material
               </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="btn-ovh-secondary"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Material
+                </button>
+                {(isDirector || isPMM) && (
+                  <button
+                    onClick={() => setIsBatchUploadModalOpen(true)}
+                    className="btn-ovh-primary flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Batch Upload with AI
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -2106,16 +2120,25 @@ export default function Materials() {
           <MaterialForm material={editingMaterial} onClose={() => setEditingMaterial(null)} />
         </Modal>
 
-        <FileUploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-        />
-
-        {(isDirector || isPMM) && (
-          <BatchUploadModal
-            isOpen={isBatchUploadModalOpen}
-            onClose={() => setIsBatchUploadModalOpen(false)}
+        {isSales ? (
+          <RequestMaterialModal
+            isOpen={isRequestMaterialModalOpen}
+            onClose={() => setIsRequestMaterialModalOpen(false)}
           />
+        ) : (
+          <>
+            <FileUploadModal
+              isOpen={isUploadModalOpen}
+              onClose={() => setIsUploadModalOpen(false)}
+            />
+
+            {(isDirector || isPMM) && (
+              <BatchUploadModal
+                isOpen={isBatchUploadModalOpen}
+                onClose={() => setIsBatchUploadModalOpen(false)}
+              />
+            )}
+          </>
         )}
 
         {sharingMaterial && (
@@ -2221,21 +2244,33 @@ export default function Materials() {
                   <span>Browse</span>
                 </button>
               </div>
-              <button
-                onClick={() => setIsUploadModalOpen(true)}
-                className="btn-ovh-secondary"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Material
-              </button>
-              {(isDirector || isPMM) && (
+              {isSales ? (
                 <button
-                  onClick={() => setIsBatchUploadModalOpen(true)}
-                  className="btn-ovh-primary flex items-center gap-2"
+                  onClick={() => setIsRequestMaterialModalOpen(true)}
+                  className="btn-ovh-primary"
                 >
-                  <Sparkles className="w-4 h-4" />
-                  Batch Upload with AI
+                  <FileText className="w-4 h-4 mr-2" />
+                  Request Material
                 </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className="btn-ovh-secondary"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Material
+                  </button>
+                  {(isDirector || isPMM) && (
+                    <button
+                      onClick={() => setIsBatchUploadModalOpen(true)}
+                      className="btn-ovh-primary flex items-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Batch Upload with AI
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -2540,13 +2575,23 @@ export default function Materials() {
                   : 'Get started by uploading your first material'}
               </p>
               <div className="mt-6 flex justify-center space-x-3">
-                <button
-                  onClick={() => setIsUploadModalOpen(true)}
-                  className="btn-ovh-primary"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Material
-                </button>
+                {isSales ? (
+                  <button
+                    onClick={() => setIsRequestMaterialModalOpen(true)}
+                    className="btn-ovh-primary"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Request Material
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className="btn-ovh-primary"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Material
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -2561,16 +2606,25 @@ export default function Materials() {
           <MaterialForm material={editingMaterial} onClose={() => setEditingMaterial(null)} />
         </Modal>
 
-        <FileUploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-        />
-
-        {(isDirector || isPMM) && (
-          <BatchUploadModal
-            isOpen={isBatchUploadModalOpen}
-            onClose={() => setIsBatchUploadModalOpen(false)}
+        {isSales ? (
+          <RequestMaterialModal
+            isOpen={isRequestMaterialModalOpen}
+            onClose={() => setIsRequestMaterialModalOpen(false)}
           />
+        ) : (
+          <>
+            <FileUploadModal
+              isOpen={isUploadModalOpen}
+              onClose={() => setIsUploadModalOpen(false)}
+            />
+
+            {(isDirector || isPMM) && (
+              <BatchUploadModal
+                isOpen={isBatchUploadModalOpen}
+                onClose={() => setIsBatchUploadModalOpen(false)}
+              />
+            )}
+          </>
         )}
 
         {sharingMaterial && (

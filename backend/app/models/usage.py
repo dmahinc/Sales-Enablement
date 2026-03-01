@@ -34,6 +34,9 @@ class MaterialUsage(BaseModel):
     # Timestamp
     used_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     
+    # Link to the shared link that triggered this event (for customer actions via public share URLs)
+    shared_link_id = Column(Integer, ForeignKey("shared_links.id", ondelete="SET NULL"), nullable=True, index=True)
+    
     # Additional metadata
     ip_address = Column(String(45))  # IPv4 or IPv6
     user_agent = Column(String(500))  # Browser/client info

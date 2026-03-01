@@ -207,15 +207,14 @@ async def get_shared_link_by_token(
     shared_link.access_count += 1
     shared_link.last_accessed_at = datetime.utcnow()
     
-    # Track view event in MaterialUsage for timeline (individual view events)
-    # Use shared_by_user_id to identify this as a customer action via shared link
-    # This allows the timeline to match these events to the correct shared link
+    # Track view event in MaterialUsage for timeline
     try:
         usage_event = MaterialUsage(
             material_id=material.id,
-            user_id=shared_link.shared_by_user_id,  # Use creator's ID to identify customer action via shared link
+            user_id=shared_link.shared_by_user_id,
             action=UsageAction.VIEW.value,
             used_at=datetime.utcnow(),
+            shared_link_id=shared_link.id,
             ip_address=request.client.host if request.client else None,
             user_agent=request.headers.get("user-agent")
         )
@@ -327,14 +326,13 @@ async def download_shared_material(
     shared_link.last_downloaded_at = datetime.utcnow()
     
     # Track download usage
-    # Use shared_by_user_id to identify this as a customer action via shared link
-    # This allows the timeline to match these events to the correct shared link
     try:
         usage_event = MaterialUsage(
             material_id=material.id,
-            user_id=shared_link.shared_by_user_id,  # Use creator's ID to identify customer action via shared link
+            user_id=shared_link.shared_by_user_id,
             action=UsageAction.DOWNLOAD.value,
             used_at=datetime.utcnow(),
+            shared_link_id=shared_link.id,
             ip_address=request.client.host if request.client else None,
             user_agent=request.headers.get("user-agent")
         )
@@ -496,17 +494,8 @@ async def get_timeline(
                     "shared_link_id": link.id
                 })
     
-    # Add "viewed" and "downloaded" events
-    # PRIMARY SOURCE: MaterialUsage events (granular individual events)
-    # We no longer use SharedLink.last_accessed_at/last_downloaded_at to avoid duplicates
-    # MaterialUsage events are created for each view/download and provide accurate tracking
+    # Add "viewed" and "downloaded" events from MaterialUsage
     if not event_type or event_type in ["viewed", "downloaded"]:
-        # Use MaterialUsage events as the primary source for all view/download tracking
-        # This avoids duplicates and provides accurate per-event tracking
-        # IMPORTANT: Include MaterialUsage events for customer downloads/views via shared links
-        # For downloads: Include events where user_id matches shared_by_user_id (customer downloads via shared link)
-        # For views: Include events where user_id matches shared_by_user_id (customer views via shared link)
-        # Exclude internal tracking actions (browse, search, preview) which are for sales session tracking only
         action_filter = []
         if not event_type or event_type == "viewed":
             action_filter.append(UsageAction.VIEW.value)
@@ -514,25 +503,23 @@ async def get_timeline(
             action_filter.append(UsageAction.DOWNLOAD.value)
         
         if action_filter and shared_material_ids:
-            # Get user_ids from shared links (these represent customer actions via shared links)
+            shared_link_ids = [link.id for link in shared_links]
             shared_link_user_ids = list(set([link.shared_by_user_id for link in shared_links if link.shared_by_user_id]))
             
-            # Query MaterialUsage events
-            # Include events where user_id matches shared_by_user_id (customer actions via shared links)
-            # OR user_id == 0 if we have an anonymous user (for future compatibility)
+            # Query MaterialUsage events that have a shared_link_id pointing to one
+            # of the relevant shared links, OR legacy events (shared_link_id IS NULL)
+            # that match by user_id + material_id.
             usage_query = db.query(MaterialUsage).filter(
                 MaterialUsage.action.in_(action_filter),
-                MaterialUsage.material_id.in_(shared_material_ids)
-            )
-            
-            # Filter by user_ids from shared links (customer actions)
-            if shared_link_user_ids:
-                usage_query = usage_query.filter(
-                    MaterialUsage.user_id.in_(shared_link_user_ids)
+                MaterialUsage.material_id.in_(shared_material_ids),
+                or_(
+                    MaterialUsage.shared_link_id.in_(shared_link_ids),
+                    and_(
+                        MaterialUsage.shared_link_id.is_(None),
+                        MaterialUsage.user_id.in_(shared_link_user_ids) if shared_link_user_ids else False
+                    )
                 )
-            else:
-                # If no shared_link_user_ids, skip MaterialUsage events
-                usage_query = usage_query.filter(False)
+            )
             
             if material_id:
                 usage_query = usage_query.filter(MaterialUsage.material_id == material_id)
@@ -543,61 +530,22 @@ async def get_timeline(
             
             usage_events = usage_query.order_by(MaterialUsage.used_at.desc()).all()
             
-            # Track existing events to avoid duplicates within MaterialUsage events
-            # Use a composite key (material_id, customer_email, action, rounded timestamp) to catch duplicates
             existing_event_keys = set()
             
-            # Add MaterialUsage events - these are the primary source for view/download tracking
-            # IMPORTANT: For sales persona, only match MaterialUsage events to links for assigned/created customers
             for usage in usage_events:
-                matching_links = material_to_links.get(usage.material_id, [])
-                if not matching_links:
-                    continue
-                
                 material = material_by_id.get(usage.material_id)
                 if not material:
                     continue
                 
-                # For sales persona, filter to only links for assigned/created customers
-                # This prevents showing events from other customers
-                links_to_check = matching_links
-                if current_user.role == "sales":
-                    # Get customer emails assigned to or created by this sales person
-                    assigned_customers = db.query(User).filter(
-                        and_(
-                            User.role == "customer",
-                            or_(
-                                User.assigned_sales_id == current_user.id,
-                                User.created_by_id == current_user.id
-                            )
-                        )
-                    ).all()
-                    assigned_customer_emails = {customer.email for customer in assigned_customers}
-                    links_to_check = [link for link in matching_links if link.customer_email in assigned_customer_emails]
-                
-                for link in links_to_check:
+                # If the event has a shared_link_id, match it directly to that link
+                if usage.shared_link_id and usage.shared_link_id in link_by_id:
+                    link = link_by_id[usage.shared_link_id]
                     if customer_email and link.customer_email != customer_email:
                         continue
                     
-                    # Match MaterialUsage events to shared links by user_id
-                    # MaterialUsage events with user_id matching shared_by_user_id are customer actions via shared links
-                    if usage.user_id != link.shared_by_user_id:
-                        continue  # Skip if user_id doesn't match (not a customer action via this shared link)
-                    
-                    # Check for duplicates within MaterialUsage events
-                    # Use material_id, customer_email, action, and timestamp rounded to nearest second
-                    # This prevents showing the same event twice if it was tracked multiple times (e.g., same second)
-                    event_key = (
-                        usage.material_id,
-                        link.customer_email or "",
-                        usage.action,
-                        # Round timestamp to nearest second to catch events within same second
-                        usage.used_at.replace(microsecond=0).isoformat()
-                    )
-                    
+                    event_key = (usage.id,)
                     if event_key in existing_event_keys:
-                        continue  # Skip duplicate event
-                    
+                        continue
                     existing_event_keys.add(event_key)
                     
                     events.append({
@@ -613,6 +561,52 @@ async def get_timeline(
                         "company_name": link.company_name,
                         "shared_link_id": link.id
                     })
+                    continue
+                
+                # Legacy fallback for events without shared_link_id:
+                # Pick the single best-matching shared link instead of emitting
+                # one event per link. Prefer the link whose created_at is closest
+                # to (but before) the usage timestamp.
+                matching_links = material_to_links.get(usage.material_id, [])
+                if not matching_links:
+                    continue
+                
+                candidates = [
+                    l for l in matching_links
+                    if l.shared_by_user_id == usage.user_id
+                    and (not customer_email or l.customer_email == customer_email)
+                    and l.created_at <= usage.used_at
+                ]
+                if not candidates:
+                    candidates = [
+                        l for l in matching_links
+                        if l.shared_by_user_id == usage.user_id
+                        and (not customer_email or l.customer_email == customer_email)
+                    ]
+                if not candidates:
+                    continue
+                
+                # Pick the link created most recently before the event
+                best_link = max(candidates, key=lambda l: l.created_at)
+                
+                event_key = (usage.id,)
+                if event_key in existing_event_keys:
+                    continue
+                existing_event_keys.add(event_key)
+                
+                events.append({
+                    "event_type": "viewed" if usage.action == UsageAction.VIEW.value else "downloaded",
+                    "timestamp": usage.used_at,
+                    "material_id": usage.material_id,
+                    "material_name": material.name,
+                    "product_name": material.product_name,
+                    "material_type": material.material_type,
+                    "other_type_description": material.other_type_description,
+                    "customer_email": best_link.customer_email,
+                    "customer_name": best_link.customer_name,
+                    "company_name": best_link.company_name,
+                    "shared_link_id": best_link.id
+                })
     
     # Sort all events by timestamp (most recent first)
     events.sort(key=lambda x: x["timestamp"], reverse=True)

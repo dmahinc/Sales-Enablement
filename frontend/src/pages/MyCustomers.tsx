@@ -14,6 +14,7 @@ interface Customer {
   created_by_id?: number
   assigned_sales_name?: string
   created_by_name?: string
+  company_name?: string
 }
 
 export default function MyCustomers() {
@@ -39,7 +40,8 @@ export default function MyCustomers() {
     const query = searchQuery.toLowerCase()
     return (
       customer.full_name.toLowerCase().includes(query) ||
-      customer.email.toLowerCase().includes(query)
+      customer.email.toLowerCase().includes(query) ||
+      (customer.company_name && customer.company_name.toLowerCase().includes(query))
     )
   })
 
@@ -140,6 +142,9 @@ export default function MyCustomers() {
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Company
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -169,6 +174,11 @@ export default function MyCustomers() {
                       <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
                         <Mail className="h-4 w-4 mr-2" />
                         {customer.email}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-600 dark:text-slate-400">
+                        {customer.company_name || <span className="text-slate-400 dark:text-slate-500 italic">—</span>}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -237,17 +247,50 @@ interface CustomerModalProps {
 }
 
 function CustomerModal({ customer, onClose, onSuccess }: CustomerModalProps) {
+  // Split full_name into first_name and last_name for editing
+  const splitName = (fullName: string) => {
+    if (!fullName) return { first: '', last: '' }
+    const parts = fullName.trim().split(/\s+/)
+    if (parts.length === 1) return { first: parts[0], last: '' }
+    const last = parts.pop() || ''
+    const first = parts.join(' ')
+    return { first, last }
+  }
+
+  const nameParts = customer?.full_name ? splitName(customer.full_name) : { first: '', last: '' }
+
   const [formData, setFormData] = useState({
     email: customer?.email || '',
-    full_name: customer?.full_name || '',
+    first_name: nameParts.first,
+    last_name: nameParts.last,
     password: '',
+    company_name: customer?.company_name || '',
     is_active: customer?.is_active ?? true,
+    send_welcome_email: false,
   })
+  const [duplicateEmailError, setDuplicateEmailError] = useState<string | null>(null)
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.post('/sales/customers', { ...data, role: 'customer' }),
-    onSuccess: () => {
+    mutationFn: (data: any) => api.post('/sales/customers', data),
+    onSuccess: (response) => {
+      setDuplicateEmailError(null)
+      
+      // Show password if email was not sent
+      if (response.data.password) {
+        alert(`Customer created successfully!\n\nEmail: ${response.data.email}\nPassword: ${response.data.password}\n\nPlease share these credentials with the customer manually.`)
+      } else if (response.data.email_sent) {
+        alert('Customer created successfully! Welcome email has been sent.')
+      }
+      
       onSuccess()
+    },
+    onError: (error: any) => {
+      if (error.response?.status === 400 && error.response?.data?.detail === "Email already registered") {
+        setDuplicateEmailError(error.response.data.detail)
+      } else {
+        const errorMessage = error.response?.data?.detail || 'Failed to create customer'
+        alert(`Error: ${errorMessage}`)
+      }
     },
   })
 
@@ -260,17 +303,32 @@ function CustomerModal({ customer, onClose, onSuccess }: CustomerModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const submitData = { ...formData }
-    if (!submitData.password && customer) {
-      delete submitData.password
-    }
     
     if (customer) {
+      // For updates, combine first_name and last_name into full_name
+      const submitData: any = {
+        email: formData.email,
+        full_name: `${formData.first_name} ${formData.last_name}`.trim(),
+        is_active: formData.is_active,
+      }
+      if (formData.password) {
+        submitData.password = formData.password
+      }
       updateMutation.mutate(submitData)
     } else {
-      if (!submitData.password) {
+      // For creation, send first_name, last_name, password, company_name
+      if (!formData.password) {
         alert('Password is required for new customers')
         return
+      }
+      const submitData = {
+        email: formData.email,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        password: formData.password,
+        company_name: formData.company_name || undefined,
+        is_active: formData.is_active,
+        send_welcome_email: formData.send_welcome_email,
       }
       createMutation.mutate(submitData)
     }
@@ -285,17 +343,31 @@ function CustomerModal({ customer, onClose, onSuccess }: CustomerModalProps) {
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Full Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="input-ovh w-full"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  className="input-ovh w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  className="input-ovh w-full"
+                />
+              </div>
             </div>
 
             <div>
@@ -309,6 +381,19 @@ function CustomerModal({ customer, onClose, onSuccess }: CustomerModalProps) {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="input-ovh w-full"
                 disabled={!!customer}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Company Name
+              </label>
+              <input
+                type="text"
+                value={formData.company_name}
+                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                className="input-ovh w-full"
+                placeholder="Optional"
               />
             </div>
 
@@ -333,9 +418,71 @@ function CustomerModal({ customer, onClose, onSuccess }: CustomerModalProps) {
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                   className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                 />
-                <span className="text-sm text-slate-700 dark:text-slate-300">Active</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300">
+                  Active
+                  <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
+                    (Uncheck to disable customer login)
+                  </span>
+                </span>
               </label>
             </div>
+
+            {!customer && (
+              <div>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.send_welcome_email}
+                    onChange={(e) => setFormData({ ...formData, send_welcome_email: e.target.checked })}
+                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">
+                    Send customer a welcome email
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {duplicateEmailError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                      Email Already Registered
+                    </h3>
+                    <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                      <p>This email address is already registered in the system.</p>
+                      <p className="mt-2">You can either:</p>
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>Change the email address</li>
+                        <li>Close this modal and assign the existing customer to yourself</li>
+                      </ul>
+                    </div>
+                    <div className="mt-4 flex space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => setDuplicateEmailError(null)}
+                        className="text-sm text-red-800 dark:text-red-200 hover:text-red-900 dark:hover:text-red-100 font-medium"
+                      >
+                        Change Email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-sm text-red-800 dark:text-red-200 hover:text-red-900 dark:hover:text-red-100 font-medium"
+                      >
+                        Close Modal
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-end space-x-3 pt-4">
               <button

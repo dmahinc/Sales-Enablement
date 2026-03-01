@@ -1,13 +1,21 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown, RefreshCw, Calendar } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown, Leaf, Calendar } from 'lucide-react'
 import ProductCompletenessMatrix from '../components/ProductCompletenessMatrix'
+import ManageFreshnessModal from '../components/ManageFreshnessModal'
 
 export default function HealthDashboard() {
-  const { data: healthData, isLoading, refetch } = useQuery({
+  const { user } = useAuth()
+  const [showFreshnessModal, setShowFreshnessModal] = useState(false)
+
+  const { data: healthData, isLoading } = useQuery({
     queryKey: ['health-dashboard'],
     queryFn: () => api.get('/health/dashboard').then(res => res.data),
   })
+
+  const canManageFreshness = user?.role === 'admin' || user?.role === 'director' || user?.role === 'pmm'
 
   if (isLoading) {
     return (
@@ -58,13 +66,15 @@ export default function HealthDashboard() {
           <h1 className="text-2xl font-semibold text-primary-700">Health Dashboard</h1>
           <p className="mt-1 text-slate-500">Detailed health metrics for sales materials</p>
         </div>
-        <button 
-          onClick={() => refetch()}
-          className="btn-ovh-secondary mt-4 sm:mt-0"
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh Data
-        </button>
+        {canManageFreshness && (
+          <button
+            onClick={() => setShowFreshnessModal(true)}
+            className="btn-ovh-primary mt-4 sm:mt-0"
+          >
+            <Leaf className="w-4 h-4 mr-2" />
+            Manage Freshness
+          </button>
+        )}
       </div>
 
       {/* Overall Health Score - Only for Directors */}
@@ -270,6 +280,11 @@ export default function HealthDashboard() {
 
       {/* Product-Material Type Completeness Matrix */}
       <ProductCompletenessMatrix />
+
+      {/* Manage Freshness Modal */}
+      {showFreshnessModal && (
+        <ManageFreshnessModal onClose={() => setShowFreshnessModal(false)} />
+      )}
     </div>
   )
 }

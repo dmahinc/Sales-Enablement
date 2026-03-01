@@ -24,6 +24,7 @@ import Notifications from './pages/Notifications'
 import MyCustomers from './pages/MyCustomers'
 import SalesMessages from './pages/SalesMessages'
 import CustomerMessages from './pages/CustomerMessages'
+import MaterialRequests from './pages/MaterialRequests'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 
@@ -123,6 +124,7 @@ function AppRoutes() {
       >
         <Route index element={<RoleBasedDashboard />} />
         <Route path="materials" element={<Materials />} />
+        <Route path="material-requests" element={<MaterialRequests />} />
         <Route path="health" element={<HealthDashboard />} />
         <Route 
           path="analytics" 

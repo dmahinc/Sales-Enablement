@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { CheckCircle, XCircle, RefreshCw, Search, Filter, ChevronDown, ChevronUp } from 'lucide-react'
+import { CheckCircle, XCircle, Search, Filter, ChevronDown, ChevronUp, Leaf } from 'lucide-react'
 import ProductIcon from './ProductIcon'
+import { useAuth } from '../contexts/AuthContext'
+import ManageFreshnessModal from './ManageFreshnessModal'
 
 interface MaterialTypeStatus {
   has_material: boolean
@@ -81,11 +83,15 @@ const MATERIAL_TYPE_SHORT: Record<string, string> = {
 }
 
 export default function ProductCompletenessMatrix() {
+  const { user } = useAuth()
+  const [showFreshnessModal, setShowFreshnessModal] = useState(false)
   const [selectedUniverse, setSelectedUniverse] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false)
   const [expandedUniverses, setExpandedUniverses] = useState<Set<number>>(new Set())
+
+  const canManageFreshness = user?.role === 'admin' || user?.role === 'director' || user?.role === 'pmm'
 
   const { data, isLoading, error, refetch } = useQuery<CompletenessMatrixData>({
     queryKey: ['completeness-matrix', selectedUniverse, selectedCategory],
@@ -224,14 +230,19 @@ export default function ProductCompletenessMatrix() {
               Coverage of essential materials across products
             </p>
           </div>
-          <button
-            onClick={() => refetch()}
-            className="btn-ovh-secondary mt-4 md:mt-0"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </button>
+          {canManageFreshness && (
+            <button
+              onClick={() => setShowFreshnessModal(true)}
+              className="btn-ovh-primary mt-4 md:mt-0"
+            >
+              <Leaf className="w-4 h-4 mr-2" />
+              Manage Freshness
+            </button>
+          )}
         </div>
+        {showFreshnessModal && (
+          <ManageFreshnessModal onClose={() => setShowFreshnessModal(false)} />
+        )}
 
         {/* Overall Score */}
           <div className="flex items-center space-x-6">

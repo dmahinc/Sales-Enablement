@@ -20,6 +20,7 @@ from app.models.usage import MaterialUsage
 from app.models.track import Track, TrackMaterial, TrackProgress
 from app.models.shared_link import SharedLink
 from app.models.associations import material_persona, material_segment
+from app.models.material_request import MaterialRequest
 from app.core.config import settings
 
 # this is the Alembic Config object

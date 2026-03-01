@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt* ./
 RUN if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; else pip install --no-cache-dir fastapi uvicorn sqlalchemy psycopg2-binary pydantic pydantic-settings python-jose[cryptography] bcrypt python-multipart alembic httpx PyPDF2 python-docx python-pptx; fi
 
-# Copy application code
+# Copy application code (.env is excluded via .dockerignore; mounted at runtime)
 COPY . .
 
 # Create storage directory

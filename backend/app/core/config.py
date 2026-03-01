@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     OVH_AI_CONFIDENCE_THRESHOLD: float = Field(default=0.9, description="Confidence threshold for auto-apply (0.0-1.0)")
     
     class Config:
-        env_file = ".env"
+        env_file = "/app/.env"  # Use absolute path for container
         env_file_encoding = "utf-8"
         case_sensitive = False
 
@@ -79,8 +79,19 @@ class Settings(BaseSettings):
 _settings = Settings()
 
 # Override with .env file values (prioritize .env over environment variables)
-env_file_path = Path(".env")
-if env_file_path.exists():
+# Try multiple possible locations for .env file
+env_file_path = None
+possible_paths = [
+    Path("/app/.env"),  # Absolute path in container (most reliable)
+    Path(".env"),  # Current directory
+    Path(__file__).parent.parent.parent / ".env",  # Relative to this file
+]
+for path in possible_paths:
+    if path.exists():
+        env_file_path = path
+        break
+
+if env_file_path and env_file_path.exists():
     with open(env_file_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -88,14 +99,27 @@ if env_file_path.exists():
                 key, value = line.split("=", 1)
                 key = key.strip()
                 value = value.strip().strip('"').strip("'")
-                # Force override with .env values for OVH_AI settings and other config
+                # Force override with .env values for OVH_AI settings, SMTP settings, SECRET_KEY, and other config
                 if key.startswith("OVH_AI_"):
                     # Handle boolean values
                     if key == "OVH_AI_ENABLED":
                         setattr(_settings, key, value.lower() in ("true", "1", "yes"))
                     else:
                         setattr(_settings, key, value)
-                elif key == "SECRET_KEY":
+                elif key.startswith("SMTP_"):
+                    # Handle boolean values for SMTP_ENABLED
+                    if key == "SMTP_ENABLED":
+                        setattr(_settings, key, value.lower() in ("true", "1", "yes"))
+                    elif key == "SMTP_PORT":
+                        try:
+                            setattr(_settings, key, int(value))
+                        except ValueError:
+                            pass  # Keep default if invalid
+                    elif key == "SMTP_USE_TLS":
+                        setattr(_settings, key, value.lower() in ("true", "1", "yes"))
+                    else:
+                        setattr(_settings, key, value)
+                elif key == "SECRET_KEY" or key == "PLATFORM_URL":
                     setattr(_settings, key, value)
 
 # Auto-construct DATABASE_URL from POSTGRES_* if not explicitly provided

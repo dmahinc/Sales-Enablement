@@ -4,16 +4,11 @@ User model - represents PMMs and other users
 from sqlalchemy import Column, String, Boolean, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
-from typing import TYPE_CHECKING
-
 # Import notification_recipients table to ensure it's available for relationship
 try:
     from app.models.notification import notification_recipients  # noqa: F401
 except ImportError:
     pass
-
-if TYPE_CHECKING:
-    from app.models.ai_correction import AICorrection
 
 class User(BaseModel):
     """User model"""
@@ -41,5 +36,3 @@ class User(BaseModel):
     notifications = relationship("Notification", secondary="notification_recipients", back_populates="recipients")
     assigned_sales = relationship("User", foreign_keys=[assigned_sales_id], remote_side="User.id", backref="assigned_customers")
     creator = relationship("User", foreign_keys=[created_by_id], remote_side="User.id", backref="created_users")
-    # AICorrection relationship
-    ai_corrections = relationship("AICorrection", back_populates="user", lazy="dynamic")
