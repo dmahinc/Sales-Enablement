@@ -1,12 +1,98 @@
 """
-OVHcloud AI Endpoint service for generating executive summaries
+OVHcloud AI Endpoint service for generating executive summaries and in-app help chat
 """
 import httpx
 import logging
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+async def chat_completion(
+    messages: List[Dict[str, str]],
+    system_prompt: str,
+    max_tokens: int = 800,
+    temperature: float = 0.6
+) -> Optional[str]:
+    """
+    Generic chat completion using OVHcloud AI Endpoint.
+    
+    Args:
+        messages: List of {"role": "user"|"assistant", "content": "..."}
+        system_prompt: System message defining assistant behavior
+        max_tokens: Maximum tokens in response
+        temperature: Sampling temperature (0.0-1.0)
+        
+    Returns:
+        Assistant response text or None if generation fails
+    """
+    if not settings.OVH_AI_ENABLED:
+        logger.warning("OVHcloud AI is not enabled in configuration")
+        return None
+
+    if not settings.OVH_AI_ENDPOINT_URL or not settings.OVH_AI_API_KEY:
+        logger.warning("OVHcloud AI endpoint URL or API key not configured")
+        return None
+
+    try:
+        payload_messages = [{"role": "system", "content": system_prompt}]
+        for m in messages:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            if content:
+                payload_messages.append({"role": role, "content": content})
+
+        payload = {
+            "model": settings.OVH_AI_MODEL,
+            "messages": payload_messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature
+        }
+
+        headers = {
+            "Authorization": f"Bearer {settings.OVH_AI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.post(
+                settings.OVH_AI_ENDPOINT_URL,
+                json=payload,
+                headers=headers
+            )
+
+            if response.status_code == 200:
+                content_type = response.headers.get("content-type", "").lower()
+                if "application/json" not in content_type:
+                    logger.error(f"Unexpected content type: {content_type}")
+                    return None
+
+                try:
+                    result = response.json()
+                except Exception as e:
+                    logger.error(f"Failed to parse JSON: {str(e)}")
+                    return None
+
+                if "choices" in result and len(result["choices"]) > 0:
+                    choice = result["choices"][0]
+                    message = choice.get("message", {})
+                    content = message.get("content", "").strip()
+                    if content:
+                        return content
+                elif "text" in result:
+                    return result.get("text", "").strip()
+            else:
+                logger.error(f"AI endpoint returned status {response.status_code}")
+
+    except httpx.TimeoutException:
+        logger.error("Timeout while calling OVHcloud AI Endpoint")
+    except httpx.RequestError as e:
+        logger.error(f"Request error while calling OVHcloud AI Endpoint: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error in chat_completion: {str(e)}", exc_info=True)
+
+    return None
 
 
 async def generate_executive_summary(document_text: str, material_name: str = "") -> Optional[str]:

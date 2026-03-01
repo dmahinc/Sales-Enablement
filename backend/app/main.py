@@ -195,7 +195,7 @@ async def health_check():
 
 # Import routers
 # Import routers - handle missing modules gracefully
-from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, customers, material_requests
+from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, customers, material_requests, help
 import logging
 
 logger = logging.getLogger(__name__)
@@ -258,6 +258,7 @@ except (ImportError, AttributeError) as e:
     pass  # Notifications router is optional
 app.include_router(customers.router)
 app.include_router(material_requests.router)
+app.include_router(help.router)
 try:
     from app.api import sales
     app.include_router(sales.router)
