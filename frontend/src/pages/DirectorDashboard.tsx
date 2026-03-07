@@ -38,7 +38,7 @@ export default function DirectorDashboard() {
   if (error) {
     return (
       <div className="card-ovh p-6 text-center">
-        <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500" />
+        <AlertTriangle className="mx-auto h-12 w-12 text-amber-500" />
         <h3 className="mt-2 text-sm font-medium text-slate-900">Error loading dashboard</h3>
         <p className="mt-1 text-sm text-slate-500">Please try refreshing the page.</p>
       </div>
@@ -68,8 +68,8 @@ export default function DirectorDashboard() {
       name: 'Total Sales Sessions',
       value: data?.total_sales_sessions || 0,
       icon: LogIn,
-      color: 'bg-violet-500',
-      bgColor: 'bg-violet-50',
+      color: 'bg-primary-500',
+      bgColor: 'bg-primary-50',
       description: 'Cumulative connection sessions'
     },
     {

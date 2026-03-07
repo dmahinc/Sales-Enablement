@@ -1,0 +1,396 @@
+"""
+Agentic AI assistant service.
+
+Manages conversation sessions, orchestrates the AI tool-calling loop, and handles
+the confirmation flow for write operations.
+"""
+import json
+import logging
+import uuid
+import time
+from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+
+from sqlalchemy.orm import Session
+
+from app.models.user import User
+from app.services.ai_service import chat_completion_with_tools
+from app.services.agent_tools import (
+    get_tools_for_role,
+    is_readonly_tool,
+    execute_tool,
+    build_human_description,
+)
+
+logger = logging.getLogger(__name__)
+
+SESSION_TTL_SECONDS = 3600  # 1 hour
+MAX_SESSIONS = 500
+
+SYSTEM_PROMPT_TEMPLATE = """You are an AI assistant embedded in the OVHcloud Product Enablement & Customer Engagement Platform. You help users perform actions through natural language.
+
+Current user: {user_name} (role: {user_role}, email: {user_email})
+
+## Your Capabilities
+You have extensive access to the platform through tools: search materials, check engagement/downloads, view analytics, manage requests, share content, and more.
+
+## Guidelines
+- Be concise and helpful. Use short sentences.
+- When searching, use the search_materials tool rather than guessing.
+- **IMPORTANT**: When the user mentions a material name (even if they give an exact filename), ALWAYS search for it first using search_materials. The search is flexible and matches words regardless of order, spacing, or capitalization.
+- When the user refers to a customer or material by name, search first to find the correct ID.
+- **ENGAGEMENT TRACKING**: When the user asks whether a customer viewed, downloaded, or opened a material, ALWAYS use the check_customer_engagement tool. You CAN answer these questions — never say you can't. The tool accepts a customer_name parameter, so you can search by name (e.g., "Laetitia") without needing their email. You do NOT need to search for the material first — the engagement tool shows all materials shared with that customer including view and download counts. Always call check_customer_engagement FIRST for engagement questions.
+- Always confirm the details before performing write actions — the system will ask the user to confirm.
+- For read-only operations (search, list, check engagement, stats), execute them directly and summarize the results.
+- Format results clearly. Use bullet points for lists.
+- If a tool call fails, explain the error and suggest alternatives.
+- Never invent data — only return what the tools provide.
+- If a search returns no results, try searching with different keyword combinations or partial words before giving up.
+- If you're unsure which material or customer the user means, ask for clarification.
+
+## Role-Specific Context
+{role_context}
+"""
+
+ROLE_CONTEXTS = {
+    "sales": """As a Sales assistant, you can:
+- Search and explore materials (datasheets, sales decks, product briefs, etc.)
+- Get executive summaries of materials
+- Check customer engagement: see if a customer viewed or downloaded a shared material (use check_customer_engagement)
+- View sharing statistics and usage analytics
+- Request new materials from the PMM team
+- Share materials with your customers via secure links
+- Send messages to your customers and view conversations
+- View your material requests, shared materials, and notifications
+- Browse enablement tracks, product releases, and marketing updates
+- Get a dashboard summary of your key metrics
+- Search materials by use case or pain point
+- List products in the OVHcloud portfolio""",
+
+    "pmm": """As a PMM (Product Marketing Manager) assistant, you can:
+- Search and manage materials, get executive summaries
+- Check customer engagement on shared materials
+- View sharing stats and usage analytics
+- View and manage material requests from the sales team
+- Acknowledge, deliver, close, or reopen requests
+- List PMM users for request assignment
+- Check material health and freshness
+- View notifications, product releases, and marketing updates
+- Get a dashboard summary""",
+
+    "director": """As a Director assistant, you have all PMM capabilities plus:
+- Share materials with customers
+- Full oversight of all material requests
+- Assign requests to any PMM user""",
+
+    "admin": """As an Admin assistant, you have full access to all platform capabilities.""",
+}
+
+
+@dataclass
+class PendingAction:
+    action_id: str
+    tool_name: str
+    tool_call_id: str
+    parameters: Dict[str, Any]
+    description: str
+    ai_messages_snapshot: List[Dict[str, Any]]
+
+
+@dataclass
+class AgentSession:
+    session_id: str
+    user_id: int
+    messages: List[Dict[str, Any]] = field(default_factory=list)
+    pending_action: Optional[PendingAction] = None
+    last_active: float = field(default_factory=time.time)
+
+
+_sessions: Dict[str, AgentSession] = {}
+
+
+def _cleanup_expired():
+    now = time.time()
+    expired = [sid for sid, s in _sessions.items() if now - s.last_active > SESSION_TTL_SECONDS]
+    for sid in expired:
+        del _sessions[sid]
+    if len(_sessions) > MAX_SESSIONS:
+        sorted_sessions = sorted(_sessions.items(), key=lambda x: x[1].last_active)
+        for sid, _ in sorted_sessions[: len(_sessions) - MAX_SESSIONS]:
+            del _sessions[sid]
+
+
+def get_or_create_session(session_id: str, user_id: int) -> AgentSession:
+    _cleanup_expired()
+    session = _sessions.get(session_id)
+    if session and session.user_id == user_id:
+        session.last_active = time.time()
+        return session
+    session = AgentSession(session_id=session_id, user_id=user_id)
+    _sessions[session_id] = session
+    return session
+
+
+def clear_session(session_id: str):
+    _sessions.pop(session_id, None)
+
+
+def _build_system_prompt(user: User) -> str:
+    role = user.role or "user"
+    return SYSTEM_PROMPT_TEMPLATE.format(
+        user_name=user.full_name or user.email,
+        user_role=role,
+        user_email=user.email,
+        role_context=ROLE_CONTEXTS.get(role, "You have basic access."),
+    )
+
+
+async def process_message(
+    session_id: str,
+    user_message: str,
+    user: User,
+    db: Session,
+) -> Dict[str, Any]:
+    """
+    Process a user message through the agentic loop.
+
+    Returns dict with keys: message, pending_action (optional), session_id
+    """
+    session = get_or_create_session(session_id, user.id)
+
+    if session.pending_action:
+        return {
+            "message": (
+                "You have a pending action awaiting confirmation. "
+                "Please confirm or cancel it before sending a new request."
+            ),
+            "pending_action": {
+                "action_id": session.pending_action.action_id,
+                "tool_name": session.pending_action.tool_name,
+                "description": session.pending_action.description,
+                "parameters": session.pending_action.parameters,
+            },
+            "session_id": session_id,
+        }
+
+    session.messages.append({"role": "user", "content": user_message})
+
+    # Keep history bounded (last 30 messages)
+    if len(session.messages) > 30:
+        session.messages = session.messages[-30:]
+
+    system_prompt = _build_system_prompt(user)
+    tools = get_tools_for_role(user.role or "user")
+
+    ai_response = await chat_completion_with_tools(
+        messages=session.messages,
+        system_prompt=system_prompt,
+        tools=tools,
+        max_tokens=1024,
+        temperature=0.3,
+    )
+
+    if ai_response is None:
+        fallback = "I'm sorry, the AI service is currently unavailable. Please try again later."
+        session.messages.append({"role": "assistant", "content": fallback})
+        return {"message": fallback, "pending_action": None, "session_id": session_id}
+
+    tool_calls = ai_response.get("tool_calls")
+    text_content = ai_response.get("content") or ""
+
+    if not tool_calls:
+        session.messages.append({"role": "assistant", "content": text_content})
+        return {"message": text_content, "pending_action": None, "session_id": session_id}
+
+    # Process tool calls
+    # Add the assistant message with tool_calls to history
+    session.messages.append({
+        "role": "assistant",
+        "content": text_content or None,
+        "tool_calls": tool_calls,
+    })
+
+    # Process each tool call — execute read-only ones, queue write ones for confirmation
+    for tc in tool_calls:
+        fn_name = tc["function"]["name"]
+        try:
+            fn_params = json.loads(tc["function"]["arguments"])
+        except (json.JSONDecodeError, KeyError):
+            fn_params = {}
+        tc_id = tc.get("id", str(uuid.uuid4()))
+
+        if is_readonly_tool(fn_name):
+            success, result_text = execute_tool(fn_name, fn_params, user, db)
+            session.messages.append({
+                "role": "tool",
+                "tool_call_id": tc_id,
+                "name": fn_name,
+                "content": result_text,
+            })
+        else:
+            # Write operation — pause and ask for confirmation
+            desc = build_human_description(fn_name, fn_params, user, db)
+            session.pending_action = PendingAction(
+                action_id=str(uuid.uuid4()),
+                tool_name=fn_name,
+                tool_call_id=tc_id,
+                parameters=fn_params,
+                description=desc,
+                ai_messages_snapshot=list(session.messages),
+            )
+
+            confirmation_msg = text_content or f"I'd like to: **{desc}**"
+            return {
+                "message": confirmation_msg,
+                "pending_action": {
+                    "action_id": session.pending_action.action_id,
+                    "tool_name": fn_name,
+                    "description": desc,
+                    "parameters": fn_params,
+                },
+                "session_id": session_id,
+            }
+
+    # All tool calls were read-only — get the AI's final response
+    final_response = await chat_completion_with_tools(
+        messages=session.messages,
+        system_prompt=system_prompt,
+        tools=tools,
+        max_tokens=1024,
+        temperature=0.3,
+    )
+
+    if final_response:
+        final_text = final_response.get("content") or "Done."
+        # Check if the AI wants to call more tools
+        more_tool_calls = final_response.get("tool_calls")
+        if more_tool_calls:
+            session.messages.append({
+                "role": "assistant",
+                "content": final_text or None,
+                "tool_calls": more_tool_calls,
+            })
+            for tc in more_tool_calls:
+                fn_name = tc["function"]["name"]
+                try:
+                    fn_params = json.loads(tc["function"]["arguments"])
+                except (json.JSONDecodeError, KeyError):
+                    fn_params = {}
+                tc_id = tc.get("id", str(uuid.uuid4()))
+
+                if is_readonly_tool(fn_name):
+                    success, result_text = execute_tool(fn_name, fn_params, user, db)
+                    session.messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc_id,
+                        "name": fn_name,
+                        "content": result_text,
+                    })
+                else:
+                    desc = build_human_description(fn_name, fn_params, user, db)
+                    session.pending_action = PendingAction(
+                        action_id=str(uuid.uuid4()),
+                        tool_name=fn_name,
+                        tool_call_id=tc_id,
+                        parameters=fn_params,
+                        description=desc,
+                        ai_messages_snapshot=list(session.messages),
+                    )
+                    return {
+                        "message": final_text or f"I'd like to: **{desc}**",
+                        "pending_action": {
+                            "action_id": session.pending_action.action_id,
+                            "tool_name": fn_name,
+                            "description": desc,
+                            "parameters": fn_params,
+                        },
+                        "session_id": session_id,
+                    }
+
+            # Get yet another response after processing these tool calls
+            final_response2 = await chat_completion_with_tools(
+                messages=session.messages,
+                system_prompt=system_prompt,
+                tools=tools,
+                max_tokens=1024,
+                temperature=0.3,
+            )
+            if final_response2:
+                final_text = final_response2.get("content") or "Done."
+
+        session.messages.append({"role": "assistant", "content": final_text})
+    else:
+        final_text = "I processed your request but couldn't generate a summary."
+        session.messages.append({"role": "assistant", "content": final_text})
+
+    return {"message": final_text, "pending_action": None, "session_id": session_id}
+
+
+async def confirm_action(
+    session_id: str,
+    action_id: str,
+    user: User,
+    db: Session,
+) -> Dict[str, Any]:
+    """Execute a confirmed pending action and return the AI's follow-up response."""
+    session = _sessions.get(session_id)
+    if not session or session.user_id != user.id:
+        return {"message": "Session not found or expired.", "session_id": session_id}
+
+    pa = session.pending_action
+    if not pa or pa.action_id != action_id:
+        return {"message": "No matching pending action found.", "session_id": session_id}
+
+    success, result_text = execute_tool(pa.tool_name, pa.parameters, user, db)
+
+    session.messages.append({
+        "role": "tool",
+        "tool_call_id": pa.tool_call_id,
+        "name": pa.tool_name,
+        "content": result_text,
+    })
+    session.pending_action = None
+
+    system_prompt = _build_system_prompt(user)
+    tools = get_tools_for_role(user.role or "user")
+
+    final_response = await chat_completion_with_tools(
+        messages=session.messages,
+        system_prompt=system_prompt,
+        tools=tools,
+        max_tokens=1024,
+        temperature=0.3,
+    )
+
+    if final_response:
+        final_text = final_response.get("content") or result_text
+    else:
+        final_text = result_text
+
+    session.messages.append({"role": "assistant", "content": final_text})
+    return {"message": final_text, "session_id": session_id}
+
+
+async def cancel_action(
+    session_id: str,
+    action_id: str,
+    user: User,
+) -> Dict[str, Any]:
+    """Cancel a pending action."""
+    session = _sessions.get(session_id)
+    if not session or session.user_id != user.id:
+        return {"message": "Session not found or expired.", "session_id": session_id}
+
+    pa = session.pending_action
+    if not pa or pa.action_id != action_id:
+        return {"message": "No matching pending action found.", "session_id": session_id}
+
+    # Remove the tool_calls message from history so we don't confuse the AI
+    if session.messages and session.messages[-1].get("tool_calls"):
+        session.messages.pop()
+
+    session.pending_action = None
+
+    cancel_msg = "Understood, I've cancelled the action. How else can I help?"
+    session.messages.append({"role": "assistant", "content": cancel_msg})
+    return {"message": cancel_msg, "session_id": session_id}

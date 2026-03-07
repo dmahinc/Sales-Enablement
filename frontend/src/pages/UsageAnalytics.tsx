@@ -263,13 +263,13 @@ export default function UsageAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-500">Avg Usage/Material</p>
-                <p className="mt-2 text-3xl font-semibold text-violet-700">{usageStats.average_usage_per_material}</p>
+                <p className="mt-2 text-3xl font-semibold text-primary-700">{usageStats.average_usage_per_material}</p>
                 <p className="mt-1 text-xs text-slate-400">
                   Per material average
                 </p>
               </div>
-              <div className="bg-violet-50 p-3 rounded-xl">
-                <BarChart3 className="h-6 w-6 text-violet-500" />
+              <div className="bg-primary-50 p-3 rounded-xl">
+                <BarChart3 className="h-6 w-6 text-primary-500" />
               </div>
             </div>
           </div>

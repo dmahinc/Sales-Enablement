@@ -1,283 +1,265 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Sans+Pro:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* OVHcloud Design System Variables - Light Mode */
+/* Warm Minimal Design System — Light Mode */
 :root {
   --ovh-primary: #0050d7;
   --ovh-primary-dark: #00185e;
   --ovh-primary-light: #007bff;
-  --ovh-secondary: #4d5693;
-  --ovh-accent: #bef1ff;
+  --ovh-secondary: #0d9488;
+  --ovh-accent: #e6f0ff;
   --ovh-white: #ffffff;
-  --ovh-black: #000000;
-  --ovh-gray-100: #f8fafc;
-  --ovh-gray-200: #e2e8f0;
-  --ovh-gray-300: #dcdcdc;
-  --ovh-gray-400: #cccccc;
-  --ovh-gray-500: #4d5693;
-  --ovh-border: #dcdcdc;
-  --ovh-shadow: 0 2px 8px rgba(0, 24, 94, 0.08);
-  --ovh-radius: 8px;
-  --ovh-bg: #f8fafc;
+  --ovh-black: #1a1a1a;
+  --ovh-gray-100: #fafaf8;
+  --ovh-gray-200: #f5f3f0;
+  --ovh-gray-300: #ebe8e4;
+  --ovh-gray-400: #d6d3ce;
+  --ovh-gray-500: #78716c;
+  --ovh-border: #ebe8e4;
+  --ovh-shadow: 0 1px 3px rgba(28, 25, 23, 0.04), 0 0 0 1px rgba(28, 25, 23, 0.02);
+  --ovh-radius: 10px;
+  --ovh-bg: #fafaf8;
   --ovh-bg-card: #ffffff;
-  --ovh-text: #00185e;
-  --ovh-text-secondary: #4d5693;
+  --ovh-text: #1c1917;
+  --ovh-text-secondary: #78716c;
 }
 
-/* OVHcloud Design System Variables - Dark Mode */
+/* Warm Minimal Design System — Dark Mode */
 .dark {
   --ovh-primary: #66b8ff;
   --ovh-primary-dark: #99d6ff;
   --ovh-primary-light: #3399ff;
-  --ovh-secondary: #94a3b8;
-  --ovh-accent: #0050d7;
+  --ovh-secondary: #2dd4bf;
+  --ovh-accent: #3a1f18;
   --ovh-white: #ffffff;
-  --ovh-black: #000000;
-  --ovh-gray-100: #0f172a;
-  --ovh-gray-200: #1e293b;
-  --ovh-gray-300: #334155;
-  --ovh-gray-400: #475569;
-  --ovh-gray-500: #64748b;
-  --ovh-border: #334155;
-  --ovh-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --ovh-gray-600: #64748b;
-  --ovh-radius: 8px;
-  --ovh-bg: #0f172a;
-  --ovh-bg-card: #1e293b;
-  --ovh-text: #f1f5f9;
-  --ovh-text-secondary: #cbd5e1;
+  --ovh-black: #1a1a1a;
+  --ovh-gray-100: #1c1917;
+  --ovh-gray-200: #292524;
+  --ovh-gray-300: #44403c;
+  --ovh-gray-400: #57534e;
+  --ovh-gray-500: #a8a29e;
+  --ovh-border: #44403c;
+  --ovh-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --ovh-gray-600: #a8a29e;
+  --ovh-radius: 10px;
+  --ovh-bg: #1c1917;
+  --ovh-bg-card: #292524;
+  --ovh-text: #fafaf8;
+  --ovh-text-secondary: #d6d3ce;
 }
 
-/* Base Styles */
+/* Base */
 html {
   font-size: 16px;
 }
 
 body {
   margin: 0;
-  font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Inter', 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Helvetica Neue', 'Arial', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--ovh-bg);
   color: var(--ovh-text);
   transition: background-color 0.3s ease, color 0.3s ease;
+  letter-spacing: -0.011em;
 }
 
-/* Typography */
 h1, h2, h3, h4, h5, h6 {
   color: var(--ovh-text);
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-/* OVHcloud Component Classes */
 @layer components {
   /* Buttons */
   .btn-ovh-primary {
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white rounded-md transition-all duration-200;
     background-color: var(--ovh-primary);
-    border: 2px solid var(--ovh-primary);
+    border: 1.5px solid var(--ovh-primary);
   }
-  
   .btn-ovh-primary:hover {
     background-color: var(--ovh-primary-dark);
     border-color: var(--ovh-primary-dark);
+    transform: translateY(-0.5px);
+    box-shadow: 0 2px 8px rgba(0, 80, 215, 0.25);
   }
-  
   .btn-ovh-primary:focus {
     @apply outline-none ring-2 ring-offset-2;
     ring-color: var(--ovh-primary);
   }
-  
+  .btn-ovh-primary:active {
+    transform: translateY(0);
+  }
+
   .btn-ovh-secondary {
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-all duration-200;
     background-color: var(--ovh-bg-card);
-    color: var(--ovh-primary);
-    border: 2px solid var(--ovh-primary);
+    color: var(--ovh-text);
+    border: 1.5px solid var(--ovh-border);
   }
-  
   .btn-ovh-secondary:hover {
+    border-color: var(--ovh-primary);
+    color: var(--ovh-primary);
     background-color: var(--ovh-accent);
-    color: var(--ovh-white);
   }
-  
   .dark .btn-ovh-secondary {
-    background-color: var(--ovh-gray-300);
+    background-color: var(--ovh-gray-200);
+    color: var(--ovh-text);
+    border-color: var(--ovh-border);
+  }
+  .dark .btn-ovh-secondary:hover {
+    border-color: var(--ovh-primary);
     color: var(--ovh-primary);
   }
-  
-  .dark .btn-ovh-secondary:hover {
-    background-color: var(--ovh-primary);
-    color: var(--ovh-white);
-  }
-  
+
   /* Cards */
   .card-ovh {
-    @apply rounded-lg transition-colors duration-300;
+    @apply rounded-lg transition-all duration-300;
     background-color: var(--ovh-bg-card);
     box-shadow: var(--ovh-shadow);
     border: 1px solid var(--ovh-border);
   }
-  
+  .card-ovh:hover {
+    box-shadow: 0 4px 12px rgba(28, 25, 23, 0.08);
+  }
+
   /* Navigation */
   .nav-ovh {
     @apply transition-colors duration-300;
     background-color: var(--ovh-bg-card);
-    box-shadow: var(--ovh-shadow);
     border-bottom: 1px solid var(--ovh-border);
   }
-  
   .nav-link-ovh {
     @apply px-3 py-2 text-sm font-medium transition-colors duration-200;
-    color: var(--ovh-secondary);
+    color: var(--ovh-text-secondary);
   }
-  
   .nav-link-ovh:hover {
     color: var(--ovh-primary);
   }
-  
   .nav-link-ovh.active {
     color: var(--ovh-primary);
     border-bottom: 2px solid var(--ovh-primary);
   }
-  
+
   /* Inputs */
   .input-ovh {
     @apply w-full px-3 py-2 text-sm rounded-md transition-all duration-200;
     background-color: var(--ovh-bg-card);
-    border: 1px solid var(--ovh-border);
+    border: 1.5px solid var(--ovh-border);
     color: var(--ovh-text);
   }
-  
   .input-ovh:focus {
     @apply outline-none ring-2;
     border-color: var(--ovh-primary);
-    ring-color: rgba(0, 80, 215, 0.2);
+    ring-color: rgba(0, 80, 215, 0.15);
   }
-  
   .input-ovh::placeholder {
     color: var(--ovh-gray-400);
   }
-  
+
   /* Sidebar */
   .sidebar-ovh {
     @apply transition-colors duration-300;
     background-color: var(--ovh-bg-card);
     border-right: 1px solid var(--ovh-border);
   }
-  
   .sidebar-item-ovh {
     @apply flex items-center px-4 py-3 text-sm font-medium rounded-md transition-all duration-200;
-    color: var(--ovh-secondary);
+    color: var(--ovh-text-secondary);
   }
-  
   .sidebar-item-ovh:hover {
-    background-color: var(--ovh-accent);
-    color: var(--ovh-primary);
+    background-color: var(--ovh-gray-200);
+    color: var(--ovh-text);
   }
-  
   .sidebar-item-ovh.active {
     background-color: var(--ovh-accent);
     color: var(--ovh-primary);
     border-left: 3px solid var(--ovh-primary);
   }
-  
+
   /* Badge */
   .badge-ovh {
     @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
   }
-  
   .badge-ovh-primary {
     background-color: var(--ovh-accent);
     color: var(--ovh-primary);
   }
-  
   .badge-ovh-success {
-    @apply bg-green-100 text-green-800;
+    @apply bg-emerald-50 text-emerald-700;
   }
-  
   .badge-ovh-warning {
-    @apply bg-yellow-100 text-yellow-800;
+    @apply bg-amber-50 text-amber-700;
   }
-  
   .badge-ovh-gray {
-    @apply bg-gray-100 text-gray-600;
+    @apply bg-stone-100 text-stone-600;
   }
-  
   .badge-ovh-info {
-    @apply bg-blue-100 text-blue-800;
+    @apply bg-teal-50 text-teal-700;
   }
-  
+
   /* Table */
   .table-ovh {
     @apply w-full;
   }
-  
   .table-ovh th {
     @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider;
     background-color: var(--ovh-gray-100);
     color: var(--ovh-text-secondary);
     border-bottom: 1px solid var(--ovh-border);
   }
-  
   .table-ovh td {
     @apply px-4 py-4;
     border-bottom: 1px solid var(--ovh-border);
     color: var(--ovh-text);
   }
-  
   .table-ovh tr:hover td {
     background-color: var(--ovh-gray-100);
   }
 }
 
-/* Scrollbar Styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: var(--ovh-bg);
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: var(--ovh-gray-400);
-  border-radius: 4px;
+  background: var(--ovh-gray-300);
+  border-radius: 100px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ovh-secondary);
+  background: var(--ovh-gray-400);
 }
-
 .dark ::-webkit-scrollbar-thumb {
-  background: var(--ovh-gray-600);
+  background: var(--ovh-gray-400);
 }
-
 .dark ::-webkit-scrollbar-thumb:hover {
   background: var(--ovh-gray-500);
 }
 
 /* Selection */
 ::selection {
-  background-color: var(--ovh-accent);
+  background-color: rgba(0, 80, 215, 0.15);
   color: var(--ovh-text);
 }
-
 .dark ::selection {
-  background-color: var(--ovh-primary);
+  background-color: rgba(102, 184, 255, 0.3);
   color: var(--ovh-white);
 }
 
 /* Code */
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
-  background-color: var(--ovh-gray-100);
+  font-family: 'JetBrains Mono', 'Fira Code', source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  background-color: var(--ovh-gray-200);
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.875em;
-  color: var(--ovh-text);
+  font-size: 0.85em;
+  color: var(--ovh-primary);
 }

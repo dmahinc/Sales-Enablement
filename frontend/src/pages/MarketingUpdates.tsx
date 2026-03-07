@@ -102,7 +102,7 @@ const getPriorityBadgeColor = (priority?: string) => {
       return 'bg-orange-100 text-orange-800'
     case 'informational':
     default:
-      return 'bg-blue-100 text-blue-800'
+      return 'bg-teal-100 text-teal-800'
   }
 }
 
@@ -1116,7 +1116,7 @@ function MarketingUpdateForm({
                   onClick={() => setIsUploadModalOpen(true)}
                   className="btn-ovh-secondary text-sm"
                 >
-                  <Upload className="w-4 h-4 mr-2" />
+                  <Upload className="h-5 w-5 mr-2" />
                   Upload Material
                 </button>
               )}

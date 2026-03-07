@@ -50,7 +50,7 @@ export default function Segments() {
           onClick={() => setIsCreateModalOpen(true)}
           className="btn-ovh-primary mt-4 sm:mt-0"
         >
-          <Plus className="w-4 h-4 mr-2" />
+            <Plus className="h-5 w-5 mr-2" />
           Create Segment
         </button>
       </div>
@@ -61,14 +61,14 @@ export default function Segments() {
           {segments.map((segment: any) => (
             <div key={segment.id} className="card-ovh overflow-hidden group">
               {/* Header */}
-              <div className="bg-gradient-to-r from-violet-500 to-violet-600 p-4">
+              <div className="bg-gradient-to-r from-primary-500 to-violet-600 p-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
                     <Target className="h-6 w-6 text-white" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-white">{segment.name}</h3>
-                    <p className="text-sm text-violet-100">{segment.industry || 'All Industries'}</p>
+                    <p className="text-sm text-primary-100">{segment.industry || 'All Industries'}</p>
                   </div>
                 </div>
               </div>
@@ -127,8 +127,8 @@ export default function Segments() {
         </div>
       ) : (
         <div className="card-ovh p-12 text-center">
-          <div className="bg-violet-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Target className="h-8 w-8 text-violet-500" />
+          <div className="bg-primary-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Target className="h-8 w-8 text-primary-500" />
           </div>
           <h3 className="text-lg font-medium text-slate-900">No segments yet</h3>
           <p className="mt-2 text-sm text-slate-500">
@@ -138,7 +138,7 @@ export default function Segments() {
             onClick={() => setIsCreateModalOpen(true)}
             className="btn-ovh-primary mt-6"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="h-5 w-5 mr-2" />
             Create Your First Segment
           </button>
         </div>

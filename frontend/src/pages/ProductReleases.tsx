@@ -895,7 +895,7 @@ function ProductReleaseForm({
                 onClick={() => setIsUploadModalOpen(true)}
                 className="btn-ovh-secondary text-sm"
               >
-                <Upload className="w-4 h-4 mr-2" />
+                <Upload className="h-5 w-5 mr-2" />
                 Upload Material
               </button>
             )}

@@ -1293,7 +1293,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    <Upload className="w-4 h-4 mr-2" />
+                    <Upload className="h-5 w-5 mr-2" />
                     Upload
                   </div>
                 )}

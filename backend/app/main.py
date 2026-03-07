@@ -260,6 +260,11 @@ app.include_router(customers.router)
 app.include_router(material_requests.router)
 app.include_router(help.router)
 try:
+    from app.api import agent
+    app.include_router(agent.router)
+except ImportError:
+    logger.warning("Agent router not available")
+try:
     from app.api import sales
     app.include_router(sales.router)
 except ImportError:

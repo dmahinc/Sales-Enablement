@@ -209,8 +209,8 @@ export default function CustomerDashboard() {
                 {unreadCount}
               </p>
             </div>
-            <div className="bg-violet-100 dark:bg-violet-900 p-3 rounded-lg">
-              <MessageSquare className="h-8 w-8 text-violet-600 dark:text-violet-400" />
+            <div className="bg-primary-100 dark:bg-primary-900 p-3 rounded-lg">
+              <MessageSquare className="h-8 w-8 text-primary-600 dark:text-primary-400" />
             </div>
           </div>
         </div>

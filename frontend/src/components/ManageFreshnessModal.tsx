@@ -142,7 +142,7 @@ export default function ManageFreshnessModal({ onClose }: Props) {
         <div className="flex items-start justify-between px-6 py-5 border-b border-slate-200">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-50 p-2.5 rounded-xl">
-              <Leaf className="w-5 h-5 text-emerald-600" />
+              <Leaf className="h-6 w-6 text-emerald-600" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Manage Freshness</h2>

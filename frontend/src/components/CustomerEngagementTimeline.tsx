@@ -311,7 +311,7 @@ export default function CustomerEngagementTimeline({
       case 'shared':
         return 'bg-primary-500 text-white'
       case 'viewed':
-        return 'bg-violet-500 text-white'
+        return 'bg-primary-500 text-white'
       case 'downloaded':
         return 'bg-emerald-500 text-white'
       default:

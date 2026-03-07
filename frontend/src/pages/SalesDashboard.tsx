@@ -112,8 +112,8 @@ export default function SalesDashboard() {
       name: 'Recently Viewed',
       value: data?.recently_viewed?.length || 0,
       icon: Eye,
-      color: 'bg-violet-500',
-      bgColor: 'bg-violet-50',
+      color: 'bg-primary-500',
+      bgColor: 'bg-primary-50',
       link: '/materials'
     },
     {
@@ -388,8 +388,8 @@ export default function SalesDashboard() {
               data.recently_viewed.map((material: any) => (
                 <div key={material.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
                   <div className="flex items-center space-x-4">
-                    <div className="bg-violet-50 p-2 rounded-lg">
-                      <Eye className="h-5 w-5 text-violet-500" />
+                    <div className="bg-primary-50 p-2 rounded-lg">
+                      <Eye className="h-5 w-5 text-primary-500" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 truncate">{material.name}</p>

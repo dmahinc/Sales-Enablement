@@ -76,10 +76,10 @@ const MATERIAL_TYPE_LABELS: Record<string, string> = {
 
 // Material type short labels for table headers
 const MATERIAL_TYPE_SHORT: Record<string, string> = {
-  PRODUCT_BRIEF: 'Brief',
-  PRODUCT_SALES_ENABLEMENT_DECK: 'Enable',
-  PRODUCT_SALES_DECK: 'Sales',
-  PRODUCT_DATASHEET: 'Data'
+  PRODUCT_BRIEF: 'PRODUCT BRIEF',
+  PRODUCT_SALES_ENABLEMENT_DECK: 'SALES ENABLEMENT DECK',
+  PRODUCT_SALES_DECK: 'SALES DECK',
+  PRODUCT_DATASHEET: 'DATASHEET'
 }
 
 export default function ProductCompletenessMatrix() {
@@ -294,7 +294,7 @@ export default function ProductCompletenessMatrix() {
                 }
                 const ageColors = {
                   fresh: 'bg-emerald-500',
-                  recent: 'bg-blue-500',
+                  recent: 'bg-teal-500',
                   aging: 'bg-amber-500',
                   stale: 'bg-orange-500',
                   very_stale: 'bg-red-500'
@@ -420,21 +420,16 @@ export default function ProductCompletenessMatrix() {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider sticky left-0 bg-slate-50 z-10">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider sticky left-0 bg-slate-50 z-10 min-w-[200px]">
                   Product
                 </th>
                 {materialTypeKeys.map(type => (
                   <th
                     key={type}
-                    className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider min-w-[100px]"
+                    className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider min-w-[120px]"
                     title={MATERIAL_TYPE_LABELS[type]}
                   >
-                    <div className="flex flex-col items-center">
-                      <span>{MATERIAL_TYPE_SHORT[type]}</span>
-                      <span className="text-[10px] text-slate-500 font-normal mt-1">
-                        {MATERIAL_TYPE_LABELS[type]}
-                      </span>
-                    </div>
+                    <span className="whitespace-nowrap">{MATERIAL_TYPE_SHORT[type]}</span>
                   </th>
                 ))}
                 <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase tracking-wider min-w-[80px]">
@@ -488,7 +483,7 @@ export default function ProductCompletenessMatrix() {
                       const rowColorClasses = getScoreColorClasses(row.product_completeness)
                       return (
                         <tr key={row.product_id} className="hover:bg-slate-50">
-                          <td className="px-4 py-3 sticky left-0 bg-white z-10">
+                          <td className="px-4 py-3 sticky left-0 bg-white z-10 min-w-[200px]">
                             <div className="flex items-center space-x-4">
                               <div className="flex-shrink-0">
                                 <ProductIcon 
@@ -498,9 +493,9 @@ export default function ProductCompletenessMatrix() {
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="font-medium text-slate-900">{row.product_display_name}</div>
+                                <div className="font-medium text-slate-900 whitespace-nowrap">{row.product_display_name}</div>
                                 {row.category_name && (
-                                  <div className="text-xs text-slate-500">{row.category_name}</div>
+                                  <div className="text-xs text-slate-500 whitespace-nowrap">{row.category_name}</div>
                                 )}
                               </div>
                             </div>
@@ -519,13 +514,13 @@ export default function ProductCompletenessMatrix() {
                               >
                                 {status.has_material ? (
                                   <div className="flex flex-col items-center">
-                                    <CheckCircle className="w-5 h-5 text-emerald-500" />
+                                    <CheckCircle className="w-6 h-6 text-emerald-600" />
                                     {status.material_count > 1 && (
                                       <span className="text-xs text-slate-500 mt-1">{status.material_count}</span>
                                     )}
                                   </div>
                                 ) : (
-                                  <XCircle className="w-5 h-5 text-slate-300 mx-auto" />
+                                  <XCircle className="w-6 h-6 text-red-400 mx-auto" />
                                 )}
                               </td>
                             )
@@ -566,11 +561,11 @@ export default function ProductCompletenessMatrix() {
       <div className="card-ovh p-4">
         <div className="flex items-center gap-6 text-sm">
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-500" />
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
             <span className="text-slate-600">Has material</span>
           </div>
           <div className="flex items-center gap-2">
-            <XCircle className="w-4 h-4 text-slate-300" />
+            <XCircle className="w-5 h-5 text-red-400" />
             <span className="text-slate-600">Missing material</span>
           </div>
           <div className="text-slate-500">

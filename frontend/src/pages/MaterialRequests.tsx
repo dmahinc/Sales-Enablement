@@ -14,7 +14,8 @@ import {
   FileText,
   X,
   Search,
-  Filter
+  Filter,
+  RotateCw
 } from 'lucide-react'
 import Modal from '../components/Modal'
 
@@ -109,9 +110,9 @@ export default function MaterialRequests() {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: Clock },
-      acknowledged: { bg: 'bg-blue-100', text: 'text-blue-800', icon: CheckCircle },
-      delivered: { bg: 'bg-green-100', text: 'text-green-800', icon: Package },
+      pending: { bg: 'bg-amber-100', text: 'text-amber-800', icon: Clock },
+      acknowledged: { bg: 'bg-teal-100', text: 'text-teal-800', icon: CheckCircle },
+      delivered: { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: Package },
       closed: { bg: 'bg-gray-100', text: 'text-gray-800', icon: XCircle },
     }
     const badge = badges[status as keyof typeof badges] || badges.pending
@@ -127,8 +128,8 @@ export default function MaterialRequests() {
   const getPriorityBadge = (priority: string) => {
     const badges = {
       high: 'bg-red-100 text-red-800',
-      medium: 'bg-yellow-100 text-yellow-800',
-      low: 'bg-green-100 text-green-800',
+      medium: 'bg-amber-100 text-amber-800',
+      low: 'bg-emerald-100 text-emerald-800',
     }
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badges[priority as keyof typeof badges] || badges.medium}`}>
@@ -256,40 +257,46 @@ export default function MaterialRequests() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(request)
-                            setActionModal('acknowledge')
-                          }}
-                          disabled={request.status !== 'pending'}
-                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Acknowledge"
-                        >
-                          <CheckCircle className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(request)
-                            setActionModal('close')
-                          }}
-                          disabled={request.status === 'delivered'}
-                          className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Close"
-                        >
-                          <XCircle className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(request)
-                            setActionModal('deliver')
-                          }}
-                          disabled={request.status === 'delivered' || request.status === 'closed'}
-                          className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Mark as Delivered"
-                        >
-                          <Package className="h-5 w-5" />
-                        </button>
+                      <div className="flex items-center space-x-3">
+                        {request.status === 'closed' ? (
+                          <ReopenButton requestId={request.id} />
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedRequest(request)
+                                setActionModal('acknowledge')
+                              }}
+                              disabled={request.status !== 'pending'}
+                              className="p-3 text-teal-600 hover:text-teal-800 hover:bg-teal-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Acknowledge"
+                            >
+                              <CheckCircle className="h-6 w-6" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedRequest(request)
+                                setActionModal('close')
+                              }}
+                              disabled={request.status === 'delivered'}
+                              className="p-3 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Close"
+                            >
+                              <XCircle className="h-6 w-6" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedRequest(request)
+                                setActionModal('deliver')
+                              }}
+                              disabled={request.status === 'delivered' || request.status === 'closed'}
+                              className="p-3 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Mark as Delivered"
+                            >
+                              <Package className="h-6 w-6" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -619,6 +626,39 @@ function CloseModal({
         </div>
       </form>
     </Modal>
+  )
+}
+
+// Reopen Button Component
+function ReopenButton({ requestId }: { requestId: number }) {
+  const queryClient = useQueryClient()
+
+  const reopenMutation = useMutation({
+    mutationFn: () => api.post(`/material-requests/${requestId}/reopen`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['material-requests'] })
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.detail || 'Failed to reopen request'
+      alert(`Reopen failed: ${errorMessage}`)
+    },
+  })
+
+  const handleReopen = () => {
+    if (window.confirm('Are you sure you want to reopen this request? It will be set back to pending status.')) {
+      reopenMutation.mutate()
+    }
+  }
+
+  return (
+    <button
+      onClick={handleReopen}
+      disabled={reopenMutation.isPending}
+      className="p-3 text-primary-600 hover:text-primary-800 hover:bg-primary-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      title="Reopen Request"
+    >
+      <RotateCw className="h-6 w-6" />
+    </button>
   )
 }
 

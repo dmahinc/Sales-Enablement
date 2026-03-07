@@ -300,7 +300,7 @@ export default function ProductForm({ onClose, onSuccess }: ProductFormProps) {
                     onClick={() => setShowCategoryForm(true)}
                     className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
                   >
-                    <FolderPlus className="h-4 w-4" />
+                    <FolderPlus className="h-5 w-5" />
                     Create New Category
                   </button>
                 )}
@@ -505,7 +505,7 @@ export default function ProductForm({ onClose, onSuccess }: ProductFormProps) {
                 </>
               ) : (
                 <>
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-5 w-5" />
                   Create Product
                 </>
               )}

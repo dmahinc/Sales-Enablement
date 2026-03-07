@@ -169,7 +169,7 @@ export default function Tracks() {
             onClick={() => setIsCreateModalOpen(true)}
             className="mt-6 btn-ovh-primary"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="h-5 w-5 mr-2" />
             Create Track
           </button>
         </div>

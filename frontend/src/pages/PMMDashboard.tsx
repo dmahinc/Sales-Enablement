@@ -56,8 +56,8 @@ export default function PMMDashboard() {
       name: 'Products Contributed',
       value: data?.user_stats?.products_contributed_to || 0,
       icon: Target,
-      color: 'bg-violet-500',
-      bgColor: 'bg-violet-50',
+      color: 'bg-primary-500',
+      bgColor: 'bg-primary-50',
       link: '/materials'
     },
     {
@@ -82,7 +82,7 @@ export default function PMMDashboard() {
           to="/materials"
           className="btn-ovh-primary mt-4 sm:mt-0"
         >
-          <Upload className="w-4 h-4 mr-2" />
+          <Upload className="h-5 w-5 mr-2" />
           Upload Material
         </Link>
       </div>

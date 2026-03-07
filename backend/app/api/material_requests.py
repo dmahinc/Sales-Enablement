@@ -279,6 +279,42 @@ async def deliver_material_request(
     return _build_response(request, db)
 
 
+@router.post("/{request_id}/reopen", response_model=MaterialRequestResponse)
+async def reopen_material_request(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_pmm_or_director)
+):
+    """Reopen a closed material request"""
+    request = db.query(MaterialRequest).filter(MaterialRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material request not found"
+        )
+    
+    if request.status != MaterialRequestStatus.CLOSED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only reopen closed requests"
+        )
+    
+    # Reset status to pending and clear close-related fields
+    request.status = MaterialRequestStatus.PENDING
+    request.closed_at = None
+    request.close_reason = None
+    request.close_reason_details = None
+    request.existing_material_id = None
+    request.planned_date = None
+    # Keep assignment and acknowledgment info, but reset acknowledged_at if needed
+    # Actually, let's keep the assignment - they can still work on it
+    
+    db.commit()
+    db.refresh(request)
+    
+    return _build_response(request, db)
+
+
 def _build_response(request: MaterialRequest, db: Session) -> MaterialRequestResponse:
     """Build response with related data"""
     requester = db.query(User).filter(User.id == request.requester_id).first()

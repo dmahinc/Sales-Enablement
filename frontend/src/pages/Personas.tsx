@@ -50,7 +50,7 @@ export default function Personas() {
           onClick={() => setIsCreateModalOpen(true)}
           className="btn-ovh-primary mt-4 sm:mt-0"
         >
-          <Plus className="w-4 h-4 mr-2" />
+            <Plus className="h-5 w-5 mr-2" />
           Create Persona
         </button>
       </div>
@@ -137,7 +137,7 @@ export default function Personas() {
             onClick={() => setIsCreateModalOpen(true)}
             className="btn-ovh-primary mt-6"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="h-5 w-5 mr-2" />
             Create Your First Persona
           </button>
         </div>

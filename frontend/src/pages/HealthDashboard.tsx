@@ -48,7 +48,7 @@ export default function HealthDashboard() {
 
   const ageColors = {
     fresh: 'bg-emerald-500',
-    recent: 'bg-blue-500',
+    recent: 'bg-teal-500',
     aging: 'bg-amber-500',
     stale: 'bg-orange-500',
     very_stale: 'bg-red-500',
@@ -222,7 +222,7 @@ export default function HealthDashboard() {
                 </div>
               )}
             </div>
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <div className="mt-6 p-4 bg-teal-50 rounded-lg">
               <p className="text-xs text-slate-600">
                 <strong>Interpretation:</strong> Materials above Q3 ({completenessMetrics.quartiles?.q3 || 0}%) are well-documented. 
                 Materials below Q1 ({completenessMetrics.quartiles?.q1 || 0}%) need attention.

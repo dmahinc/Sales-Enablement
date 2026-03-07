@@ -50,13 +50,13 @@ function getMaterialTypeBgColor(materialType: string | null | undefined): string
   const type = materialType.toLowerCase().trim()
   switch (type) {
     case 'product_brief':
-      return 'bg-blue-50'
+      return 'bg-teal-50'
     case 'sales_deck':
     case 'product_sales_deck':
-      return 'bg-purple-50'
+      return 'bg-primary-50'
     case 'sales_enablement_deck':
     case 'product_sales_enablement_deck':
-      return 'bg-green-50'
+      return 'bg-emerald-50'
     case 'datasheet':
     case 'product_datasheet':
       return 'bg-orange-50'
@@ -68,7 +68,7 @@ function getMaterialTypeBgColor(materialType: string | null | undefined): string
 const UNIVERSES = [
   { id: 'all', name: 'All Materials', icon: FolderOpen, color: 'text-slate-500', bgColor: 'bg-slate-50', borderColor: 'border-slate-200' },
   { id: 'Public Cloud', name: 'Public Cloud', icon: Cloud, color: 'text-primary-500', bgColor: 'bg-primary-50', borderColor: 'border-primary-200' },
-  { id: 'Private Cloud', name: 'Private Cloud', icon: Server, color: 'text-violet-500', bgColor: 'bg-violet-50', borderColor: 'border-violet-200' },
+  { id: 'Private Cloud', name: 'Private Cloud', icon: Server, color: 'text-primary-500', bgColor: 'bg-primary-50', borderColor: 'border-primary-200' },
   { id: 'Bare Metal', name: 'Bare Metal', icon: HardDrive, color: 'text-amber-500', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
   { id: 'Hosting & Collaboration', name: 'Hosting & Collaboration', icon: Users, color: 'text-emerald-500', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
   { id: 'Cross-Universes', name: 'Cross-Universes', icon: Globe, color: 'text-indigo-500', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' },
@@ -82,13 +82,13 @@ function getMaterialTypeColors(materialType: string | null | undefined): { bg: s
   
   switch (type) {
     case 'product_brief':
-      return { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-200' }
+      return { bg: 'bg-teal-50', icon: 'text-teal-600', border: 'border-teal-200' }
     case 'sales_deck':
     case 'product_sales_deck':
-      return { bg: 'bg-purple-50', icon: 'text-purple-600', border: 'border-purple-200' }
+      return { bg: 'bg-primary-50', icon: 'text-primary-600', border: 'border-primary-200' }
     case 'sales_enablement_deck':
     case 'product_sales_enablement_deck':
-      return { bg: 'bg-green-50', icon: 'text-green-600', border: 'border-green-200' }
+      return { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'border-emerald-200' }
     case 'datasheet':
     case 'product_datasheet':
       return { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'border-orange-200' }
@@ -106,11 +106,11 @@ function getFreshnessInfo(lastUpdated?: string): { label: string; color: string;
   const days = Math.floor((new Date().getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24))
   
   if (days <= 30) {
-    return { label: 'Fresh', color: 'text-green-600', days }
+    return { label: 'Fresh', color: 'text-emerald-600', days }
   } else if (days <= 90) {
-    return { label: 'Recent', color: 'text-blue-600', days }
+    return { label: 'Recent', color: 'text-teal-600', days }
   } else if (days <= 180) {
-    return { label: 'Aging', color: 'text-yellow-600', days }
+    return { label: 'Aging', color: 'text-amber-600', days }
   } else if (days <= 365) {
     return { label: 'Stale', color: 'text-orange-600', days }
   } else {
@@ -513,8 +513,8 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                     </span>
                     {material.status && (
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        material.status === 'published' ? 'bg-green-100 text-green-700' :
-                        material.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
+                        material.status === 'published' ? 'bg-emerald-100 text-emerald-700' :
+                        material.status === 'draft' ? 'bg-amber-100 text-amber-700' :
                         'bg-slate-100 text-slate-700'
                       }`}>
                         {material.status}
@@ -1499,7 +1499,7 @@ export default function Materials() {
           <div className="flex items-center space-x-1">
             <button
               onClick={() => setPreviewMaterial(material)}
-              className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center justify-center border border-transparent hover:border-blue-200"
+              className="p-2 text-slate-600 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all flex items-center justify-center border border-transparent hover:border-teal-200"
               title="Preview"
             >
               <Eye className="h-5 w-5" />
@@ -1706,7 +1706,7 @@ export default function Materials() {
                   onClick={() => setIsUploadModalOpen(true)}
                   className="btn-ovh-secondary"
                 >
-                  <Upload className="w-4 h-4 mr-2" />
+                  <Upload className="h-5 w-5 mr-2" />
                   Upload Material
                 </button>
                 {(isDirector || isPMM) && (
@@ -1714,7 +1714,7 @@ export default function Materials() {
                     onClick={() => setIsBatchUploadModalOpen(true)}
                     className="btn-ovh-primary flex items-center gap-2"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkles className="h-5 w-5" />
                     Batch Upload with AI
                   </button>
                 )}
@@ -2258,7 +2258,7 @@ export default function Materials() {
                     onClick={() => setIsUploadModalOpen(true)}
                     className="btn-ovh-secondary"
                   >
-                    <Upload className="w-4 h-4 mr-2" />
+                    <Upload className="h-5 w-5 mr-2" />
                     Upload Material
                   </button>
                   {(isDirector || isPMM) && (
@@ -2266,7 +2266,7 @@ export default function Materials() {
                       onClick={() => setIsBatchUploadModalOpen(true)}
                       className="btn-ovh-primary flex items-center gap-2"
                     >
-                      <Sparkles className="w-4 h-4" />
+                      <Sparkles className="h-5 w-5" />
                       Batch Upload with AI
                     </button>
                   )}
@@ -2588,7 +2588,7 @@ export default function Materials() {
                     onClick={() => setIsUploadModalOpen(true)}
                     className="btn-ovh-primary"
                   >
-                    <Upload className="w-4 h-4 mr-2" />
+                    <Upload className="h-5 w-5 mr-2" />
                     Upload Material
                   </button>
                 )}

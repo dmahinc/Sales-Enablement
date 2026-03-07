@@ -217,7 +217,7 @@ export default function CustomerMaterials() {
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
-            <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-yellow-500' : ''}`} />
+            <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-amber-500' : ''}`} />
             <span>{showFavoritesOnly ? 'Show All' : 'Favorites Only'}</span>
           </button>
           <div className="text-sm text-slate-600 dark:text-slate-400">
@@ -429,7 +429,7 @@ export default function CustomerMaterials() {
 
                   {/* Expiration Warning */}
                   {isExpired && (
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-2 text-xs text-yellow-800 dark:text-yellow-300">
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2 text-xs text-amber-800 dark:text-amber-300">
                       <Clock className="h-3 w-3 inline mr-1" />
                       This link has expired
                     </div>
@@ -447,8 +447,8 @@ export default function CustomerMaterials() {
                     disabled={toggleFavoriteMutation.isPending}
                     className={`p-2.5 rounded-lg transition-all flex-shrink-0 border ${
                       material.is_favorite
-                        ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 border-yellow-300 dark:border-yellow-800 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 shadow-sm'
-                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:border-yellow-300 dark:hover:border-yellow-800 hover:text-yellow-500 shadow-sm'
+                        ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-yellow-400 border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 shadow-sm'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300 dark:hover:border-amber-800 hover:text-amber-500 shadow-sm'
                     } ${toggleFavoriteMutation.isPending ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
                     title={material.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
                     aria-label={material.is_favorite ? 'Remove from favorites' : 'Add to favorites'}

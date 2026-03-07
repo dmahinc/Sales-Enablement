@@ -870,7 +870,7 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                             <span className="text-xs text-slate-500">{fileProgress.progress}%</span>
                           )}
                           {isSuccess && (
-                            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                            <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                           )}
                           {isError && (
                             <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
@@ -999,7 +999,7 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                       if (editingIndex === index && editFormData) {
                         // Editing row - show full form
                         return (
-                          <tr key={index} className="bg-blue-50">
+                          <tr key={index} className="bg-teal-50">
                             <td className="border border-slate-300 px-4 py-2 text-sm">{suggestion.filename}</td>
                             <td colSpan={3} className="border border-slate-300 px-4 py-3">
                               <ProductHierarchySelector

@@ -290,7 +290,7 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
             onClick={addMaterial}
             className="btn-ovh-secondary text-sm"
           >
-            <Plus className="w-4 h-4 mr-1" />
+            <Plus className="h-5 w-5 mr-1" />
             Add Material
           </button>
         </div>
@@ -350,7 +350,7 @@ export default function TrackForm({ track, onClose }: TrackFormProps) {
                         }}
                         className="mt-2 text-sm text-primary-600 hover:text-primary-700 flex items-center"
                       >
-                        <Upload className="w-4 h-4 mr-1" />
+                        <Upload className="h-5 w-5 mr-1" />
                         Can't find it? Upload new material
                       </button>
                     )}

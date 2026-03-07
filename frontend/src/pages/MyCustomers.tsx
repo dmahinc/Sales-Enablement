@@ -87,7 +87,7 @@ export default function MyCustomers() {
           onClick={() => setIsCreateModalOpen(true)}
           className="mt-4 sm:mt-0 btn-ovh-primary flex items-center space-x-2"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-5 w-5" />
           <span>Add Customer</span>
         </button>
       </div>
@@ -184,7 +184,7 @@ export default function MyCustomers() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                         customer.is_active
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
                           : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                       }`}>
                         {customer.is_active ? 'Active' : 'Inactive'}
@@ -202,14 +202,14 @@ export default function MyCustomers() {
                           className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20"
                           title="Edit customer"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(customer)}
                           className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
                           title="Delete customer"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-5 w-5" />
                         </button>
                       </div>
                     </td>

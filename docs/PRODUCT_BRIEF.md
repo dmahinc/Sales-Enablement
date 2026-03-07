@@ -1,7 +1,7 @@
 # Sales Enablement Platform - Product Brief
 
-**Document Version:** 1.3  
-**Date:** February 25, 2026  
+**Document Version:** 1.4  
+**Date:** March 5, 2026  
 **Status:** Updated  
 **Owner:** Product Marketing Team
 
@@ -87,6 +87,7 @@ The **Product Enablement & Customer Engagement Platform** (formerly "Product & S
   - View customer engagement timeline for their assigned customers
   - Communicate with assigned customers through in-app messaging
   - View customer engagement context while messaging (materials shared, views, downloads)
+  - Use AI Agent to search materials, share documents, check customer engagement, and execute actions via natural language commands
 
 #### 3. Directors & Leadership
 - **Count:** ~5-10 users
@@ -100,6 +101,7 @@ The **Product Enablement & Customer Engagement Platform** (formerly "Product & S
   - Make strategic decisions based on completeness data
   - Archive outdated materials to maintain content quality
   - View all material sharing activity across the organization
+  - Use AI Agent for material management, analytics, and platform navigation via natural language commands
 
 ### Secondary Users
 
@@ -118,6 +120,7 @@ The **Product Enablement & Customer Engagement Platform** (formerly "Product & S
   - Bookmark/favorite materials for easy access
   - Receive notifications about new shared materials
   - Interact with sales contacts through messaging
+  - Access AI Agent for material discovery and platform assistance
 
 ---
 
@@ -134,6 +137,7 @@ The **Product Enablement & Customer Engagement Platform** (formerly "Product & S
 | **Product Completeness Matrix** | Matrix view showing which products have which essential material types, with completeness scores and age distribution | P1 |
 | **Sales Enablement Tracks** | Create learning paths/syllabi for products, solutions, use cases | P1 |
 | **Document Sharing** | Generate shareable links to send documents to customers with tracking | P1 |
+| **AI Agent** | Natural language interface for material search, sharing, customer engagement checks, and platform actions | P1 |
 | **Collaborative Platform** | Shared workspace for Product and Sales teams | P0 |
 | **Single Source of Truth** | Version control, status tracking, latest information | P0 |
 | **User Authentication** | Secure login with role-based access | P0 |
@@ -267,6 +271,19 @@ US-2.16: As a PMM or Director, I want to see a warning when trying to delete a m
   - Warning shows count of active links and details (customer name, email, expiry date)
   - Suggests archiving as alternative to deletion
   - Prevents deletion if active links exist
+
+US-2.17: As a user, I want to interact with an AI agent using natural language commands, so I can quickly search materials, share documents, check customer engagement, and execute platform actions without navigating through multiple screens.
+  Acceptance Criteria:
+  - AI Agent accessible via persistent button in bottom-left corner
+  - Agent panel integrated into layout (between sidebar and main content)
+  - Can search materials using natural language queries
+  - Can request material sharing with customer confirmation flow
+  - Can check customer engagement (views, downloads) for shared materials
+  - Can execute various platform actions via natural language
+  - Agent asks for confirmation before executing actions
+  - Sidebar automatically collapses to icons-only when agent opens
+  - Panel takes approximately 1/3 of screen width when open
+  - No page scrolling when opening agent panel
 ```
 
 ### Epic 3: Collaboration & Single Source of Truth
@@ -366,10 +383,21 @@ US-4.6: As a Director, I want to see age distribution per universe to understand
 │   ├── Add Customer
 │   ├── Edit Customer
 │   └── Delete Customer
+├── 💬 Conversations (Sales/Customer)
+│   ├── Conversation List
+│   ├── Message Thread View
+│   ├── Customer Context Sidebar (Sales)
+│   └── Material Sharing Integration
 ├── 📱 Customer Dashboard (Customer Persona)
 │   ├── My Shared Materials
 │   ├── Notifications
 │   └── Favorites/Bookmarks
+├── 🤖 AI Agent (All Personas)
+│   ├── Natural Language Chat Interface
+│   ├── Material Search & Discovery
+│   ├── Document Sharing Actions
+│   ├── Customer Engagement Queries
+│   └── Platform Action Execution
 └── 🔍 Discovery
     ├── Search Box
     ├── Filters (universe, type, status, product)
@@ -626,6 +654,9 @@ The platform follows OVHcloud's design system with:
 - ✅ Conversation view with customer context sidebar for Sales personas
 - ✅ Real-time message polling and unread message tracking
 - ✅ Material sharing integration in messaging interface
+- ✅ AI Agent with natural language interface for material search, sharing, and platform actions
+- ✅ Integrated agent panel (between sidebar and main content) with auto-collapsing sidebar
+- ✅ Menu label updated from "Messages" to "Conversations"
 
 ### Phase 2: Enhancement (Q2 2026)
 - [x] Enhanced customer messaging features (Phase 2: Enhanced UX)
@@ -694,6 +725,8 @@ The platform follows OVHcloud's design system with:
 | **Archive** | Material status that prevents new sharing while preserving existing active links |
 | **In-App Messaging** | Bidirectional communication feature between Customers and Sales personas within the platform |
 | **Conversation View** | Chat-style interface displaying message threads chronologically with customer context |
+| **AI Agent** | Natural language interface accessible from bottom-left corner, integrated into layout, enabling material search, document sharing, customer engagement checks, and platform action execution |
+| **Conversations** | Menu label for the messaging feature (formerly "Messages") |
 
 ### B. Related Documents
 
@@ -713,6 +746,8 @@ The platform follows OVHcloud's design system with:
 | 1.0 | 2026-02-02 | - | Initial version |
 | 1.1 | 2026-02-14 | - | Added Product Completeness Matrix, age distribution, material status breakdown, Director Dashboard features |
 | 1.2 | 2026-02-23 | - | Added Customer Persona, Sales customer management, Shares Over Time chart, Sales data filtering, Dark mode, Platform rebranding |
+| 1.3 | 2026-02-25 | - | Updated with messaging features and archive functionality |
+| 1.4 | 2026-03-05 | - | Added AI Agent feature, integrated agent panel, updated menu label to "Conversations" |
 
 ---
 

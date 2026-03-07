@@ -69,7 +69,7 @@ export default function Dashboard() {
   if (hasError) {
     return (
       <div className="card-ovh p-6 text-center">
-        <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500" />
+        <AlertTriangle className="mx-auto h-12 w-12 text-amber-500" />
         <h3 className="mt-2 text-sm font-medium text-slate-900">Error loading dashboard</h3>
         <p className="mt-1 text-sm text-slate-500">Please try refreshing the page.</p>
       </div>
@@ -98,8 +98,8 @@ export default function Dashboard() {
       name: 'Total Sales Sessions',
       value: directorData?.total_sales_sessions || 0,
       icon: LogIn,
-      color: 'bg-violet-500',
-      bgColor: 'bg-violet-50',
+      color: 'bg-primary-500',
+      bgColor: 'bg-primary-50',
       link: '#',
     },
     {
@@ -139,8 +139,8 @@ export default function Dashboard() {
       name: 'Published Materials',
       value: materials?.filter((m: any) => m.status === 'published')?.length || 0,
       icon: CheckCircle,
-      color: 'bg-violet-500',
-      bgColor: 'bg-violet-50',
+      color: 'bg-primary-500',
+      bgColor: 'bg-primary-50',
       link: '/materials?status=published',
     },
   ]
@@ -157,7 +157,7 @@ export default function Dashboard() {
           </h1>
           <p className="mt-1 text-slate-500">Product Enablement & Customer Engagement Platform - Your Single Source of Truth</p>
           {isDirector && (
-            <p className="mt-1 text-xs text-blue-600">Role detected: Director - Showing completeness matrix</p>
+            <p className="mt-1 text-xs text-teal-600">Role detected: Director - Showing completeness matrix</p>
           )}
         </div>
         {!isDirector && (
@@ -290,18 +290,18 @@ export default function Dashboard() {
                 
                 <Link
                   to="/materials"
-                  className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-violet-300 hover:bg-violet-50 transition-all group"
+                  className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-all group"
                 >
-                  <div className="bg-violet-100 p-3 rounded-lg mr-4">
-                    <BarChart3 className="h-6 w-6 text-violet-500" />
+                  <div className="bg-primary-100 p-3 rounded-lg mr-4">
+                    <BarChart3 className="h-6 w-6 text-primary-500" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium text-slate-900 group-hover:text-violet-600">
+                    <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600">
                       Explore Materials
                     </h3>
                     <p className="text-xs text-slate-500">Browse product and solution materials</p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-violet-500 group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
                 </Link>
               </div>
             </div>
