@@ -23,6 +23,8 @@ export default function ShareView() {
         })
     },
     retry: false,
+    staleTime: 5 * 60 * 1000, // 5 min - avoid refetch on tab switch (was creating duplicate view events)
+    refetchOnWindowFocus: false,
   })
 
   const handleDownload = async () => {

@@ -116,13 +116,20 @@ export default function AgentPanel({ onToggle, isOpen: isOpenProp }: AgentPanelP
         assistantMsg.action_status = 'pending'
       }
       setMessages((prev) => [...prev, assistantMsg])
-    } catch {
+    } catch (err: unknown) {
+      const detail =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null
+      const content =
+        typeof detail === 'string' && detail
+          ? detail
+          : 'Sorry, I encountered an error. The AI agent may not be configured. Please try again later.'
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content:
-            'Sorry, I encountered an error. The AI agent may not be configured. Please try again later.',
+          content,
         },
       ])
     } finally {

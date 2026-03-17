@@ -12,7 +12,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, desc, func
+from sqlalchemy import or_, and_, desc, func, text
 
 from app.models.user import User
 from app.models.material import Material
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 READONLY_TOOLS = {
     "search_materials",
     "get_material_details",
+    "list_my_sales_contacts",
     "list_my_customers",
     "list_my_requests",
     "list_shared_materials",
@@ -53,11 +54,11 @@ _SEARCH_MATERIALS = {
     "type": "function",
     "function": {
         "name": "search_materials",
-        "description": "Search sales enablement materials by keyword, product name, type, or universe. The search is flexible and matches words regardless of order or spacing (e.g., 'Dataplatform Sales Deck' will match 'Data Platform - Sales Deck'). Returns a list of matching materials with their IDs.",
+        "description": "AI-powered semantic search for sales enablement materials (datasheets, decks, briefs). Use for document-related queries only. Do NOT use for finding people or sending messages — for 'tell X' or 'dis à X' requests, use list_my_customers + send_message_to_customer instead.",
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Search keywords - can be partial words, product names, or material names. The search matches all words anywhere in the material name, file name, product name, or description. Example: 'Data Platform Sales Deck' or 'datasheet object storage'"},
+                "query": {"type": "string", "description": "Natural language search query or keywords. Can be a full question like 'materials about data sovereignty for CTOs', partial words, product names, or material names. The search uses AI semantic matching when available, with keyword fallback."},
                 "material_type": {"type": "string", "description": "Filter by type: product_brief, sales_enablement_deck, sales_deck, datasheet, product_portfolio, product_catalog, other"},
                 "universe_name": {"type": "string", "description": "Filter by universe: Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration"},
                 "limit": {"type": "integer", "description": "Max results (default 10)", "default": 10},
@@ -86,7 +87,7 @@ _LIST_MY_CUSTOMERS = {
     "type": "function",
     "function": {
         "name": "list_my_customers",
-        "description": "List all customers assigned to the current sales user.",
+        "description": "List all customers assigned to you (or created by you). Use this when the user asks how many customers they have, who their customers are, or similar questions about their customer list.",
         "parameters": {"type": "object", "properties": {}, "required": []},
     },
 }
@@ -137,12 +138,12 @@ _SHARE_MATERIAL_WITH_CUSTOMER = {
     "type": "function",
     "function": {
         "name": "share_material_with_customer",
-        "description": "Share a material with a customer by creating a secure share link. You need the material ID and the customer's email.",
+        "description": "Share a material with a customer by creating a secure share link. CRITICAL: Use the EXACT email the user specified (e.g. damien.mahinc@gmail.com). Never use the current user's email - that is the sales person, not the customer.",
         "parameters": {
             "type": "object",
             "properties": {
                 "material_id": {"type": "integer", "description": "ID of the material to share"},
-                "customer_email": {"type": "string", "description": "Customer's email address"},
+                "customer_email": {"type": "string", "description": "The customer's email address - MUST be the exact email the user asked to share with (e.g. john@company.com), NOT the current user's email"},
                 "customer_name": {"type": "string", "description": "Customer's name (optional)"},
                 "expires_in_days": {"type": "integer", "description": "Number of days until link expires (default 90)", "default": 90},
             },
@@ -155,15 +156,43 @@ _SEND_MESSAGE_TO_CUSTOMER = {
     "type": "function",
     "function": {
         "name": "send_message_to_customer",
-        "description": "Send a message to a customer.",
+        "description": "Send a message to a customer. ALWAYS use customer_name (string) for the recipient name — e.g. customer_name: 'Laetitia Fauquembergue'. NEVER put a name in customer_id (customer_id must be an integer from list_my_customers). Use customer_email if you have it.",
         "parameters": {
             "type": "object",
             "properties": {
-                "customer_id": {"type": "integer", "description": "Customer user ID"},
+                "customer_name": {"type": "string", "description": "Recipient name, e.g. 'Laetitia Fauquembergue'. Use this when the user mentions a person by name."},
+                "customer_email": {"type": "string", "description": "Recipient email, e.g. laetitia.fauquembergue@gmail.com. Most reliable when known."},
+                "customer_id": {"type": "integer", "description": "Only use when you have the exact numeric ID from list_my_customers. Do NOT use for names."},
                 "message": {"type": "string", "description": "Message text to send"},
                 "subject": {"type": "string", "description": "Message subject (optional)"},
             },
-            "required": ["customer_id", "message"],
+            "required": ["message"],
+        },
+    },
+}
+
+_LIST_MY_SALES_CONTACTS = {
+    "type": "function",
+    "function": {
+        "name": "list_my_sales_contacts",
+        "description": "List your sales contacts (OVHcloud team members who have shared materials with you). Use this to find who to send a thank-you or message to.",
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+}
+
+_SEND_MESSAGE_TO_SALES_CONTACT = {
+    "type": "function",
+    "function": {
+        "name": "send_message_to_sales_contact",
+        "description": "Send a message to your sales contact (e.g. to thank them for a shared document). Use list_my_sales_contacts first to find the sales_contact_id if needed.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sales_contact_id": {"type": "integer", "description": "ID of the sales contact to message (from list_my_sales_contacts)"},
+                "message": {"type": "string", "description": "Message text to send"},
+                "subject": {"type": "string", "description": "Message subject (optional, e.g. 'Thank you for the Object Storage one-pager')"},
+            },
+            "required": ["sales_contact_id", "message"],
         },
     },
 }
@@ -265,7 +294,7 @@ _CHECK_CUSTOMER_ENGAGEMENT = {
     "type": "function",
     "function": {
         "name": "check_customer_engagement",
-        "description": "Check customer engagement: whether a customer viewed or downloaded shared materials. Can filter by customer email/name and material. Use this to answer questions like 'Did X download the document?' or 'Has my customer viewed the deck?'",
+        "description": "Check customer engagement: whether a customer viewed or downloaded shared materials. ONLY use for questions about views/downloads (e.g. 'Did X download?', 'Has Laetitia viewed the deck?'). Do NOT use when the user wants to SEND a message to someone — use list_my_customers + send_message_to_customer for that.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -495,7 +524,7 @@ def get_tools_for_role(role: str) -> List[Dict[str, Any]]:
         _GET_USAGE_ANALYTICS,
     ]
 
-    if role == "sales":
+    if role in ("sales", "user"):
         return common_read + [
             _LIST_MY_CUSTOMERS,
             _LIST_MY_REQUESTS,
@@ -509,6 +538,7 @@ def get_tools_for_role(role: str) -> List[Dict[str, Any]]:
         ]
     elif role in ("pmm", "director", "admin"):
         tools = common_read + [
+            _LIST_MY_CUSTOMERS,
             _LIST_MATERIAL_REQUESTS,
             _CHECK_CUSTOMER_ENGAGEMENT,
             _GET_SHARING_STATS,
@@ -522,6 +552,11 @@ def get_tools_for_role(role: str) -> List[Dict[str, Any]]:
         if role in ("director", "admin"):
             tools.append(_SHARE_MATERIAL_WITH_CUSTOMER)
         return tools
+    elif role == "customer":
+        return common_read + [
+            _LIST_MY_SALES_CONTACTS,
+            _SEND_MESSAGE_TO_SALES_CONTACT,
+        ]
     return common_read
 
 
@@ -559,6 +594,74 @@ def _exec_search_materials(params: Dict, user: User, db: Session) -> Tuple[bool,
     universe = params.get("universe_name")
     limit = min(params.get("limit", 10), 20)
 
+    # Try semantic search first
+    if query:
+        try:
+            embedded_count = db.execute(
+                text("SELECT count(*) FROM materials WHERE embedding_vec IS NOT NULL")
+            ).scalar()
+            if embedded_count and embedded_count > 0:
+                import asyncio
+                from app.services.embedding_service import embed_text
+                
+                # Handle async call from sync context
+                # Check if there's a running event loop (FastAPI context)
+                try:
+                    loop = asyncio.get_running_loop()
+                    # We're in an async context - run in a thread with new event loop
+                    import concurrent.futures
+                    def run_async():
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        try:
+                            return new_loop.run_until_complete(embed_text(query))
+                        finally:
+                            new_loop.close()
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(run_async)
+                        qvec = future.result(timeout=30)
+                except RuntimeError:
+                    # No event loop running - safe to use asyncio.run
+                    qvec = asyncio.run(embed_text(query))
+                
+                vec_str = "[" + ",".join(f"{v:.8f}" for v in qvec) + "]"
+
+                where_parts = ["embedding_vec IS NOT NULL", "status NOT IN ('draft', 'archived')"]
+                sql_params: Dict = {"qvec": vec_str, "lim": limit}
+                if mat_type:
+                    where_parts.append("material_type ILIKE :mtype")
+                    sql_params["mtype"] = f"%{mat_type}%"
+                if universe:
+                    where_parts.append("universe_name ILIKE :uni")
+                    sql_params["uni"] = f"%{universe}%"
+
+                rows = db.execute(
+                    text(f"""
+                        SELECT id, 1 - (embedding_vec <=> CAST(:qvec AS vector)) AS similarity
+                        FROM materials
+                        WHERE {" AND ".join(where_parts)}
+                        ORDER BY embedding_vec <=> CAST(:qvec AS vector)
+                        LIMIT :lim
+                    """),
+                    sql_params,
+                ).fetchall()
+
+                if rows:
+                    ids = [r[0] for r in rows]
+                    materials = db.query(Material).filter(Material.id.in_(ids)).all()
+                    mat_map = {m.id: m for m in materials}
+                    lines = [f"Found {len(ids)} material(s) (semantic search):"]
+                    for row in rows:
+                        m = mat_map.get(row[0])
+                        if m:
+                            sim = round(float(row[1]) * 100, 1)
+                            lines.append(f"- ID {m.id}: \"{m.name}\" ({m.material_type or 'N/A'}) — {m.product_name or 'N/A'} [{m.universe_name or 'N/A'}] — relevance: {sim}%")
+                    return True, "\n".join(lines)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Semantic search failed in agent, falling back to keyword search: {e}", exc_info=True)
+
+    # Keyword fallback
     q = db.query(Material).filter(Material.status != "ARCHIVED")
     if query:
         normalized_query = " ".join(query.split())
@@ -627,7 +730,21 @@ def _exec_list_my_customers(params: Dict, user: User, db: Session) -> Tuple[bool
         return True, "You have no customers assigned."
     lines = [f"You have {len(customers)} customer(s):"]
     for c in customers:
-        lines.append(f"- ID {c.id}: {c.full_name} ({c.email})")
+        company = None
+        try:
+            link = db.query(SharedLink).filter(
+                and_(
+                    SharedLink.shared_by_user_id == user.id,
+                    SharedLink.customer_email == c.email,
+                    SharedLink.company_name.isnot(None),
+                )
+            ).order_by(SharedLink.created_at.desc()).first()
+            if link:
+                company = link.company_name
+        except Exception:
+            pass
+        suffix = f" — {company}" if company else ""
+        lines.append(f"- ID {c.id}: {c.full_name} ({c.email}){suffix}")
     return True, "\n".join(lines)
 
 
@@ -681,11 +798,43 @@ def _exec_request_material_from_pmm(params: Dict, user: User, db: Session) -> Tu
 def _exec_share_material_with_customer(params: Dict, user: User, db: Session) -> Tuple[bool, str]:
     import secrets as _secrets
     mid = params.get("material_id")
-    mat = db.query(Material).filter(Material.id == mid).first()
+    mat = None
+    if isinstance(mid, int) or (isinstance(mid, str) and str(mid).isdigit()):
+        mat = db.query(Material).filter(Material.id == int(mid)).first()
+    elif isinstance(mid, str) and mid.strip():
+        # AI sometimes passes material name instead of ID — search by name
+        like = f"%{mid.strip()}%"
+        mat = db.query(Material).filter(
+            Material.status.in_(["published", "PUBLISHED"]),
+            or_(Material.name.ilike(like), Material.file_name.ilike(like)),
+        ).order_by(desc(Material.created_at)).first()
     if not mat:
-        return False, f"Material with ID {mid} not found."
+        return False, f"Material '{mid}' not found. Use search_materials to find the correct material ID."
+    mid = mat.id  # Use resolved ID
     if mat.status != "published" and mat.status != "PUBLISHED":
         return False, f"Material \"{mat.name}\" is not published (status: {mat.status}). Only published materials can be shared."
+    customer_email = (params.get("customer_email") or "").strip()
+    customer_name = (params.get("customer_name") or "").strip()
+    if not customer_email and customer_name:
+        # AI may pass only customer_name — look up email from user's customers
+        customers = db.query(User).filter(
+            and_(
+                User.role == "customer",
+                or_(
+                    User.assigned_sales_id == user.id,
+                    User.created_by_id == user.id,
+                ),
+            )
+        ).all()
+        parts = [p.strip().lower() for p in customer_name.split() if p.strip()]
+        for c in customers:
+            fn = (c.full_name or "").lower()
+            if all(p in fn for p in parts):
+                customer_email = c.email or ""
+                customer_name = customer_name or c.full_name or ""
+                break
+    if not customer_email:
+        return False, "Customer email is required. Use list_my_customers to find the customer's email."
     token = _secrets.token_urlsafe(48)
     expires_at = datetime.utcnow() + timedelta(days=params.get("expires_in_days", 90))
     link = SharedLink(
@@ -699,7 +848,27 @@ def _exec_share_material_with_customer(params: Dict, user: User, db: Session) ->
     from app.core.config import settings
     platform_url = getattr(settings, "PLATFORM_URL", "http://localhost:3003")
     share_url = f"{platform_url.rstrip('/')}/share/{token}"
-    return True, f"Shared \"{mat.name}\" with {params.get('customer_email')}. Share link: {share_url} (expires in {params.get('expires_in_days', 90)} days)."
+    shared_by_name = user.full_name or user.email or "OVHcloud"
+    email_sent = False
+    if customer_email:
+        try:
+            from app.core.email import send_share_link_notification
+            email_sent = send_share_link_notification(
+                customer_email=customer_email,
+                customer_name=customer_name,
+                material_name=mat.name,
+                share_url=share_url,
+                shared_by_name=shared_by_name,
+                platform_url=platform_url,
+            )
+        except Exception as e:
+            logger.warning("Failed to send share link email: %s", e)
+    msg = f"Shared \"{mat.name}\" with {customer_email}. Share link: {share_url} (expires in {params.get('expires_in_days', 90)} days)."
+    if email_sent:
+        msg += " Email notification sent."
+    elif customer_email and not email_sent:
+        msg += " (Email notification could not be sent - check SMTP configuration.)"
+    return True, msg
 
 
 def _exec_send_message_to_customer(params: Dict, user: User, db: Session) -> Tuple[bool, str]:
@@ -708,21 +877,157 @@ def _exec_send_message_to_customer(params: Dict, user: User, db: Session) -> Tup
     except ImportError:
         return False, "Messaging feature is not available."
     cid = params.get("customer_id")
-    customer = db.query(User).filter(
-        and_(User.id == cid, User.role == "customer", or_(
-            User.assigned_sales_id == user.id, User.created_by_id == user.id,
-        ))
-    ).first()
+    customer_name_param = (params.get("customer_name") or "").strip()
+    customer_email_param = (params.get("customer_email") or "").strip().lower()
+    # AI sometimes puts name in customer_id (e.g. "Laetitia Fauquembergue") — treat as customer_name
+    if isinstance(cid, str) and cid.strip() and not cid.strip().isdigit():
+        customer_name_param = customer_name_param or cid.strip()
+        cid = None
+    elif cid is not None:
+        try:
+            cid = int(cid)
+        except (TypeError, ValueError):
+            customer_name_param = customer_name_param or str(cid)
+            cid = None
+    if not cid and not customer_name_param and not customer_email_param:
+        return False, "Provide customer_id, customer_name, or customer_email to identify the recipient."
+    customer = None
+
+    def _can_message(c):
+        is_assigned = c.assigned_sales_id == user.id or c.created_by_id == user.id
+        has_conv = db.query(CustomerMessage).filter(
+            and_(CustomerMessage.customer_id == c.id, CustomerMessage.sales_contact_id == user.id)
+        ).first() is not None
+        return is_assigned or has_conv
+
+    # 1. Try customer_email first (most reliable)
+    if customer_email_param:
+        customer = db.query(User).filter(
+            User.role == "customer", User.email.ilike(customer_email_param)
+        ).first()
+        if customer and not _can_message(customer):
+            customer = None
+
+    # 2. Try customer_id (may be wrong if AI confused with message ID)
+    if not customer and cid:
+        customer = db.query(User).filter(
+            and_(User.id == cid, User.role == "customer")
+        ).first()
+        if customer and not _can_message(customer):
+            customer = None
+
+    # 3. Fallback: customer_id failed but we have email from conversation — try by email
+    if not customer and cid and customer_email_param:
+        customer = db.query(User).filter(
+            User.role == "customer", User.email.ilike(customer_email_param)
+        ).first()
+        if customer and not _can_message(customer):
+            customer = None
+
+    # 4. Try customer_name
+    if not customer and customer_name_param:
+        assigned_ids = {r[0] for r in db.query(User.id).filter(
+            and_(User.role == "customer", or_(
+                User.assigned_sales_id == user.id, User.created_by_id == user.id,
+            ))
+        ).all()}
+        messaged_ids = {r[0] for r in db.query(CustomerMessage.customer_id).filter(
+            CustomerMessage.sales_contact_id == user.id
+        ).distinct().all()}
+        allowed_ids = assigned_ids | messaged_ids
+        if not allowed_ids:
+            return False, "You have no customers. Use list_my_customers to see your customers."
+        q = db.query(User).filter(
+            and_(User.role == "customer", User.id.in_(allowed_ids))
+        )
+        parts = [p.strip().lower() for p in customer_name_param.split() if p.strip()]
+        for c in q.all():
+            full_name_lower = (c.full_name or "").lower()
+            name_has_any = any(p in full_name_lower for p in parts)
+            company_has_any = False
+            try:
+                link = db.query(SharedLink).filter(
+                    and_(
+                        SharedLink.shared_by_user_id == user.id,
+                        SharedLink.customer_email == c.email,
+                    )
+                ).first()
+                if link and link.company_name:
+                    company_lower = (link.company_name or "").lower()
+                    company_has_any = any(p in company_lower for p in parts)
+            except Exception:
+                pass
+            if name_has_any or company_has_any:
+                customer = c
+                break
     if not customer:
-        return False, f"Customer with ID {cid} not found or not assigned to you."
+        return False, f"Customer not found or not assigned to you. Use list_my_customers to see your customers."
     msg = CustomerMessage(
-        customer_id=cid, sales_contact_id=user.id,
+        customer_id=customer.id, sales_contact_id=user.id,
         subject=params.get("subject"), message=params.get("message", ""),
         sent_by_customer=False, is_read=False,
     )
     db.add(msg)
     db.commit()
     return True, f"Message sent to {customer.full_name} ({customer.email})."
+
+
+def _exec_list_my_sales_contacts(params: Dict, user: User, db: Session) -> Tuple[bool, str]:
+    """List sales contacts for the current customer (users who shared materials with them)."""
+    if user.role != "customer":
+        return False, "This tool is only available for customers."
+    links = db.query(SharedLink).filter(
+        and_(
+            SharedLink.customer_email == user.email,
+            SharedLink.is_active == True,
+            SharedLink.shared_by_user_id.isnot(None),
+        )
+    ).all()
+    contact_ids = list(set([lk.shared_by_user_id for lk in links if lk.shared_by_user_id]))
+    if not contact_ids:
+        return True, "You have no sales contacts yet (no one has shared materials with you)."
+    contacts = db.query(User).filter(
+        User.id.in_(contact_ids),
+        User.role.in_(["sales", "director", "pmm", "admin"]),
+    ).order_by(User.full_name).all()
+    lines = [f"You have {len(contacts)} sales contact(s):"]
+    for c in contacts:
+        lines.append(f"- ID {c.id}: {c.full_name} ({c.email})")
+    return True, "\n".join(lines)
+
+
+def _exec_send_message_to_sales_contact(params: Dict, user: User, db: Session) -> Tuple[bool, str]:
+    """Customer sends a message to their sales contact."""
+    if user.role != "customer":
+        return False, "This tool is only available for customers."
+    try:
+        from app.models.customer_message import CustomerMessage
+    except ImportError:
+        return False, "Messaging feature is not available."
+    sid = params.get("sales_contact_id")
+    sales = db.query(User).filter(User.id == sid).first()
+    if not sales or sales.role not in ("sales", "director", "pmm", "admin"):
+        return False, f"Sales contact with ID {sid} not found."
+    # Verify this sales contact has shared with this customer
+    link = db.query(SharedLink).filter(
+        and_(
+            SharedLink.customer_email == user.email,
+            SharedLink.shared_by_user_id == sid,
+        )
+    ).first()
+    if not link:
+        return False, f"You cannot message {sales.full_name} — they have not shared any materials with you."
+    msg = CustomerMessage(
+        customer_id=user.id,
+        sales_contact_id=sid,
+        subject=params.get("subject"),
+        message=params.get("message", ""),
+        sent_by_customer=True,
+        is_read=False,
+    )
+    db.add(msg)
+    db.commit()
+    return True, f"Message sent to {sales.full_name} ({sales.email})."
 
 
 def _exec_list_material_requests(params: Dict, user: User, db: Session) -> Tuple[bool, str]:
@@ -1264,6 +1569,8 @@ _EXECUTORS = {
     "request_material_from_pmm": _exec_request_material_from_pmm,
     "share_material_with_customer": _exec_share_material_with_customer,
     "send_message_to_customer": _exec_send_message_to_customer,
+    "list_my_sales_contacts": _exec_list_my_sales_contacts,
+    "send_message_to_sales_contact": _exec_send_message_to_sales_contact,
     "list_material_requests": _exec_list_material_requests,
     "acknowledge_request": _exec_acknowledge_request,
     "deliver_request": _exec_deliver_request,
@@ -1292,13 +1599,38 @@ def build_human_description(tool_name: str, params: Dict[str, Any], user: User, 
     if tool_name == "request_material_from_pmm":
         return f"Create a material request ({params.get('material_type', 'N/A')}): \"{params.get('description', '')[:100]}\""
     elif tool_name == "share_material_with_customer":
-        mat = db.query(Material).filter(Material.id == params.get("material_id")).first()
-        mat_name = mat.name if mat else f"ID {params.get('material_id')}"
+        mid = params.get("material_id")
+        mat = None
+        if isinstance(mid, int) or (isinstance(mid, str) and str(mid).isdigit()):
+            mat = db.query(Material).filter(Material.id == int(mid)).first()
+        elif isinstance(mid, str) and mid.strip():
+            # AI sometimes passes material name instead of ID — search by name
+            like = f"%{mid.strip()}%"
+            mat = db.query(Material).filter(
+                Material.status.in_(["published", "PUBLISHED"]),
+                or_(Material.name.ilike(like), Material.file_name.ilike(like)),
+            ).order_by(desc(Material.created_at)).first()
+        mat_name = mat.name if mat else str(mid) if mid else "?"
         return f"Share \"{mat_name}\" with {params.get('customer_email', 'customer')}"
     elif tool_name == "send_message_to_customer":
-        cust = db.query(User).filter(User.id == params.get("customer_id")).first()
-        cust_name = cust.full_name if cust else f"ID {params.get('customer_id')}"
-        return f"Send message to {cust_name}: \"{params.get('message', '')[:80]}\""
+        cid = params.get("customer_id")
+        cname = params.get("customer_name")
+        cemail = params.get("customer_email")
+        if cemail:
+            cust = db.query(User).filter(User.email.ilike(cemail)).first()
+            target = cust.full_name if cust else cemail
+        elif cname:
+            target = cname
+        elif cid:
+            cust = db.query(User).filter(User.id == cid).first()
+            target = cust.full_name if cust else f"ID {cid}"
+        else:
+            target = "customer"
+        return f"Send message to {target}: \"{params.get('message', '')[:80]}\""
+    elif tool_name == "send_message_to_sales_contact":
+        sales = db.query(User).filter(User.id == params.get("sales_contact_id")).first()
+        sales_name = sales.full_name if sales else f"ID {params.get('sales_contact_id')}"
+        return f"Send message to {sales_name}: \"{params.get('message', '')[:80]}\""
     elif tool_name == "acknowledge_request":
         return f"Acknowledge request #{params.get('request_id')}" + (f" with ETA {params.get('eta_date')}" if params.get("eta_date") else "")
     elif tool_name == "deliver_request":

@@ -785,6 +785,10 @@ export default function Materials() {
   const [filterCategoryIds, setFilterCategoryIds] = useState<number[]>([]) // Empty array means "all"
   const [filterProductIds, setFilterProductIds] = useState<number[]>([]) // Empty array means "all"
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+  const [semanticSearchResults, setSemanticSearchResults] = useState<any[] | null>(null)
+  const [semanticSearchMode, setSemanticSearchMode] = useState<string | null>(null)
+  const [isSemanticSearching, setIsSemanticSearching] = useState(false)
   // Track which universes have archived materials visible (default: all hidden)
   const [showArchivedByUniverse, setShowArchivedByUniverse] = useState<Record<string, boolean>>({})
   // View toggle: 'list' or 'browse'
@@ -817,6 +821,42 @@ export default function Materials() {
     queryKey: ['materials'],
     queryFn: () => api.get('/materials').then(res => res.data),
   })
+
+  // Debounce search query for semantic search (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim())
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Semantic search API call when in browse mode
+  useEffect(() => {
+    if (viewMode !== 'browse' || !debouncedSearchQuery || debouncedSearchQuery.length < 2) {
+      setSemanticSearchResults(null)
+      setSemanticSearchMode(null)
+      return
+    }
+    let cancelled = false
+    setIsSemanticSearching(true)
+    api.get('/search/semantic', { params: { q: debouncedSearchQuery, limit: 30 } })
+      .then(res => {
+        if (!cancelled) {
+          setSemanticSearchResults(res.data.results || [])
+          setSemanticSearchMode(res.data.mode || 'keyword')
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSemanticSearchResults(null)
+          setSemanticSearchMode(null)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsSemanticSearching(false)
+      })
+    return () => { cancelled = true }
+  }, [debouncedSearchQuery, viewMode])
 
   // Track search actions for sales users (moved after filteredMaterials is defined)
 
@@ -1221,8 +1261,14 @@ export default function Materials() {
       })
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
+    // Use semantic search results when available
+    if (semanticSearchResults && debouncedSearchQuery.length >= 2) {
+      const semanticIds = new Set(semanticSearchResults.map((r: any) => r.id))
+      filtered = filtered.filter((m: any) => semanticIds.has(m.id))
+      // Sort by semantic relevance order
+      const idOrder = semanticSearchResults.map((r: any) => r.id)
+      filtered.sort((a: any, b: any) => idOrder.indexOf(a.id) - idOrder.indexOf(b.id))
+    } else if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim()
       filtered = filtered.filter((m: any) =>
         m.name?.toLowerCase().includes(query) ||
@@ -1243,7 +1289,7 @@ export default function Materials() {
     })
 
     return filtered
-  }, [materials, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, searchQuery, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds])
+  }, [materials, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, searchQuery, debouncedSearchQuery, semanticSearchResults, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds])
 
   // Browse view materials grouped by universe
   const browseMaterialsByUniverse = useMemo(() => {

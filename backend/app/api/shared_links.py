@@ -88,35 +88,53 @@ async def create_shared_link(
             detail="Sales users cannot share internal materials. Only customer-facing or shared assets can be shared."
         )
     
-    # Generate unique token
-    token = generate_unique_token()
-    # Ensure token is unique (very unlikely collision, but check anyway)
-    while db.query(SharedLink).filter(SharedLink.unique_token == token).first():
+    # Reuse existing active link for same material + customer to avoid inflating timeline
+    # (each new link = extra "shared" + "viewed" events; reusing gives real activity per link)
+    if link_data.customer_email:
+        from sqlalchemy import func
+        existing = db.query(SharedLink).filter(
+            SharedLink.material_id == link_data.material_id,
+            func.lower(SharedLink.customer_email) == link_data.customer_email.strip().lower(),
+            SharedLink.is_active == True,
+            SharedLink.expires_at > datetime.utcnow()
+        ).first()
+        if existing:
+            shared_link = existing
+            db.refresh(shared_link)
+        else:
+            shared_link = None
+    else:
+        shared_link = None
+    
+    if not shared_link:
+        # Generate unique token
         token = generate_unique_token()
-    
-    # Calculate expiration date
-    expires_at = datetime.utcnow() + timedelta(days=link_data.expires_in_days)
-    
-    # Create shared link
-    shared_link = SharedLink(
-        unique_token=token,
-        material_id=link_data.material_id,
-        shared_by_user_id=current_user.id,
-        customer_email=link_data.customer_email,
-        customer_name=link_data.customer_name,
-        company_name=link_data.company_name,
-        expires_at=expires_at,
-        is_active=True
-    )
-    
-    db.add(shared_link)
-    db.commit()
-    db.refresh(shared_link)
+        # Ensure token is unique (very unlikely collision, but check anyway)
+        while db.query(SharedLink).filter(SharedLink.unique_token == token).first():
+            token = generate_unique_token()
+        
+        # Calculate expiration date
+        expires_at = datetime.utcnow() + timedelta(days=link_data.expires_in_days)
+        
+        # Create shared link
+        shared_link = SharedLink(
+            unique_token=token,
+            material_id=link_data.material_id,
+            shared_by_user_id=current_user.id,
+            customer_email=link_data.customer_email,
+            customer_name=link_data.customer_name,
+            company_name=link_data.company_name,
+            expires_at=expires_at,
+            is_active=True
+        )
+        db.add(shared_link)
+        db.commit()
+        db.refresh(shared_link)
     
     # Build share URL - use PLATFORM_URL from settings (frontend URL) instead of backend URL
     from app.core.config import settings
     platform_url = getattr(settings, 'PLATFORM_URL', 'http://localhost:3003')
-    share_url = f"{platform_url.rstrip('/')}/share/{token}"
+    share_url = f"{platform_url.rstrip('/')}/share/{shared_link.unique_token}"
     
     # Return response with share URL
     return {
@@ -207,18 +225,31 @@ async def get_shared_link_by_token(
     shared_link.access_count += 1
     shared_link.last_accessed_at = datetime.utcnow()
     
-    # Track view event in MaterialUsage for timeline
+    # Track view event in MaterialUsage for timeline - real customer activity only
+    # Skip known bots/prefetchers (email clients, link previews) to avoid phantom views
     try:
-        usage_event = MaterialUsage(
-            material_id=material.id,
-            user_id=shared_link.shared_by_user_id,
-            action=UsageAction.VIEW.value,
-            used_at=datetime.utcnow(),
-            shared_link_id=shared_link.id,
-            ip_address=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent")
+        ua = (request.headers.get("user-agent") or "").lower()
+        bot_patterns = (
+            "googlebot", "bingbot", "slurp", "duckduckbot", "baiduspider",
+            "yandexbot", "facebookexternalhit", "linkedinbot", "twitterbot",
+            "whatsapp", "telegrambot", "slackbot", "applebot", "discordbot",
+            "bytespider", "petalbot", "semrushbot", "ahrefsbot", "mj12bot",
+            "dotbot", "rogerbot", "screaming frog", "sistrix", "sogou",
+            "exabot", "ia_archiver", "archive.org_bot", "curl", "wget",
+            "python-requests", "go-http-client", "java/", "okhttp"
         )
-        db.add(usage_event)
+        is_bot = any(p in ua for p in bot_patterns)
+        if not is_bot:
+            usage_event = MaterialUsage(
+                material_id=material.id,
+                user_id=shared_link.shared_by_user_id,
+                action=UsageAction.VIEW.value,
+                used_at=datetime.utcnow(),
+                shared_link_id=shared_link.id,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
+            db.add(usage_event)
     except Exception as e:
         import logging
         logging.error(f"Failed to track view usage: {str(e)}")
@@ -247,6 +278,94 @@ async def get_shared_link_by_token(
         "created_at": shared_link.created_at,
         "share_url": share_url
     }
+
+
+@router.get(
+    "/token/{token}/thumbnail",
+    summary="Get Material Thumbnail via Shared Link",
+    description="Get pre-generated thumbnail PNG. Fast, small response.",
+)
+async def thumbnail_shared_material(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """Get thumbnail for shared material. Returns small PNG or 404."""
+    from fastapi.responses import FileResponse
+    from app.services.thumbnail_service import ensure_thumbnail
+
+    shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
+    if not shared_link or not shared_link.is_valid():
+        raise HTTPException(status_code=404, detail="Link not found or expired")
+
+    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
+    if not material or not material.file_path:
+        raise HTTPException(status_code=404, detail="Material not available")
+
+    file_path = storage_service.get_file_path(material.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_format = material.file_format or (material.file_name.split(".")[-1] if material.file_name else "")
+    thumb_path = ensure_thumbnail(material.id, file_path, file_format)
+
+    if not thumb_path or not thumb_path.exists():
+        raise HTTPException(status_code=404, detail="Thumbnail not available")
+
+    return FileResponse(
+        path=str(thumb_path),
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get(
+    "/token/{token}/view",
+    summary="View Material via Shared Link (for thumbnails)",
+    description="Get material file for inline viewing (e.g. thumbnails). No download tracking.",
+)
+async def view_shared_material(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """View material file via shared link. Returns file for display without tracking download."""
+    shared_link = db.query(SharedLink).filter(SharedLink.unique_token == token).first()
+    if not shared_link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Link not found. This shared link is invalid, expired, or has been deactivated."
+        )
+    if not shared_link.is_valid():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Link not found. This shared link is invalid, expired, or has been deactivated."
+        )
+    material = db.query(Material).filter(Material.id == shared_link.material_id).first()
+    if not material or not material.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found or file not available"
+        )
+    file_path = storage_service.get_file_path(material.file_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on server"
+        )
+    file_format = material.file_format or (material.file_name.split('.')[-1] if material.file_name else '')
+    media_type_map = {
+        'pdf': 'application/pdf',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }
+    media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
+    filename = material.file_name or f"material_{material.id}.{file_format}"
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.get(
@@ -445,7 +564,9 @@ async def get_timeline(
         shared_links_query = db.query(SharedLink).filter(SharedLink.shared_by_user_id == current_user.id)
     
     if customer_email:
-        shared_links_query = shared_links_query.filter(SharedLink.customer_email == customer_email)
+        shared_links_query = shared_links_query.filter(
+            func.lower(SharedLink.customer_email) == customer_email.strip().lower()
+        )
     if material_id:
         shared_links_query = shared_links_query.filter(SharedLink.material_id == material_id)
     
@@ -456,13 +577,6 @@ async def get_timeline(
     
     shared_material_ids = list(set([link.material_id for link in shared_links]))
     link_by_id = {link.id: link for link in shared_links}
-    
-    # Build material_id -> list of SharedLinks mapping
-    material_to_links = {}
-    for link in shared_links:
-        if link.material_id not in material_to_links:
-            material_to_links[link.material_id] = []
-        material_to_links[link.material_id].append(link)
     
     # Pre-fetch materials
     materials = db.query(Material).filter(Material.id.in_(shared_material_ids)).all()
@@ -504,21 +618,15 @@ async def get_timeline(
         
         if action_filter and shared_material_ids:
             shared_link_ids = [link.id for link in shared_links]
-            shared_link_user_ids = list(set([link.shared_by_user_id for link in shared_links if link.shared_by_user_id]))
             
-            # Query MaterialUsage events that have a shared_link_id pointing to one
-            # of the relevant shared links, OR legacy events (shared_link_id IS NULL)
-            # that match by user_id + material_id.
+            # Only include usage with shared_link_id - actual customer engagement via share links.
+            # Exclude legacy events (shared_link_id IS NULL): those come from sales viewing
+            # materials in-app or deal rooms, and we cannot attribute them to a customer.
+            # Including them caused wrong attribution (e.g. Jacques events when viewing Stephane).
             usage_query = db.query(MaterialUsage).filter(
                 MaterialUsage.action.in_(action_filter),
                 MaterialUsage.material_id.in_(shared_material_ids),
-                or_(
-                    MaterialUsage.shared_link_id.in_(shared_link_ids),
-                    and_(
-                        MaterialUsage.shared_link_id.is_(None),
-                        MaterialUsage.user_id.in_(shared_link_user_ids) if shared_link_user_ids else False
-                    )
-                )
+                MaterialUsage.shared_link_id.in_(shared_link_ids),
             )
             
             if material_id:
@@ -530,26 +638,22 @@ async def get_timeline(
             
             usage_events = usage_query.order_by(MaterialUsage.used_at.desc()).all()
             
-            existing_event_keys = set()
-            
+            # Show each MaterialUsage event - real customer activity (no artificial deduplication)
             for usage in usage_events:
                 material = material_by_id.get(usage.material_id)
                 if not material:
                     continue
                 
+                action_type = "viewed" if usage.action == UsageAction.VIEW.value else "downloaded"
+                
                 # If the event has a shared_link_id, match it directly to that link
                 if usage.shared_link_id and usage.shared_link_id in link_by_id:
                     link = link_by_id[usage.shared_link_id]
-                    if customer_email and link.customer_email != customer_email:
+                    if customer_email and (link.customer_email or "").strip().lower() != customer_email.strip().lower():
                         continue
-                    
-                    event_key = (usage.id,)
-                    if event_key in existing_event_keys:
-                        continue
-                    existing_event_keys.add(event_key)
                     
                     events.append({
-                        "event_type": "viewed" if usage.action == UsageAction.VIEW.value else "downloaded",
+                        "event_type": action_type,
                         "timestamp": usage.used_at,
                         "material_id": usage.material_id,
                         "material_name": material.name,
@@ -561,52 +665,6 @@ async def get_timeline(
                         "company_name": link.company_name,
                         "shared_link_id": link.id
                     })
-                    continue
-                
-                # Legacy fallback for events without shared_link_id:
-                # Pick the single best-matching shared link instead of emitting
-                # one event per link. Prefer the link whose created_at is closest
-                # to (but before) the usage timestamp.
-                matching_links = material_to_links.get(usage.material_id, [])
-                if not matching_links:
-                    continue
-                
-                candidates = [
-                    l for l in matching_links
-                    if l.shared_by_user_id == usage.user_id
-                    and (not customer_email or l.customer_email == customer_email)
-                    and l.created_at <= usage.used_at
-                ]
-                if not candidates:
-                    candidates = [
-                        l for l in matching_links
-                        if l.shared_by_user_id == usage.user_id
-                        and (not customer_email or l.customer_email == customer_email)
-                    ]
-                if not candidates:
-                    continue
-                
-                # Pick the link created most recently before the event
-                best_link = max(candidates, key=lambda l: l.created_at)
-                
-                event_key = (usage.id,)
-                if event_key in existing_event_keys:
-                    continue
-                existing_event_keys.add(event_key)
-                
-                events.append({
-                    "event_type": "viewed" if usage.action == UsageAction.VIEW.value else "downloaded",
-                    "timestamp": usage.used_at,
-                    "material_id": usage.material_id,
-                    "material_name": material.name,
-                    "product_name": material.product_name,
-                    "material_type": material.material_type,
-                    "other_type_description": material.other_type_description,
-                    "customer_email": best_link.customer_email,
-                    "customer_name": best_link.customer_name,
-                    "company_name": best_link.company_name,
-                    "shared_link_id": best_link.id
-                })
     
     # Sort all events by timestamp (most recent first)
     events.sort(key=lambda x: x["timestamp"], reverse=True)

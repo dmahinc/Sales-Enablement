@@ -9,9 +9,8 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // Note: Browser handles SSL validation - user must accept self-signed cert
-  // This timeout helps detect if certificate is blocking the request
-  timeout: 10000,
+  // 30s timeout - login and other requests can be slow when server is under load
+  timeout: 30000,
 })
 
 // Add token to requests

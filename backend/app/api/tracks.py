@@ -11,7 +11,7 @@ from app.models.track import Track, TrackMaterial, TrackProgress
 from app.models.material import Material
 from app.schemas.track import (
     TrackCreate, TrackUpdate, TrackResponse,
-    TrackMaterialCreate, TrackMaterialResponse,
+    TrackMaterialCreate, TrackMaterialAdd, TrackMaterialUpdate, TrackMaterialResponse,
     TrackProgressResponse, TrackProgressUpdate
 )
 from datetime import datetime
@@ -96,7 +96,10 @@ async def get_track(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Track not found"
         )
-    
+
+    creator = db.query(User).filter(User.id == track.created_by_id).first() if track.created_by_id else None
+    created_by_name = (creator.full_name or creator.email) if creator else None
+
     # Load materials in order
     track_materials = db.query(TrackMaterial).filter(
         TrackMaterial.track_id == track_id
@@ -111,14 +114,15 @@ async def get_track(
             "order": tm.order,
             "step_description": tm.step_description,
             "is_required": tm.is_required,
-            "material": {
-                "id": material.id,
-                "name": material.name,
-                "description": material.description,
-                "material_type": material.material_type,
-                "universe_name": material.universe_name,
-                "file_path": material.file_path,
-            } if material else None
+        "material": {
+                    "id": material.id,
+                    "name": material.name,
+                    "description": material.description,
+                    "material_type": material.material_type,
+                    "universe_name": material.universe_name,
+                    "file_path": material.file_path,
+                    "file_format": material.file_format,
+                } if material else None
         })
     
     return {
@@ -131,6 +135,7 @@ async def get_track(
         "estimated_duration_minutes": track.estimated_duration_minutes,
         "status": track.status,
         "created_by_id": track.created_by_id,
+        "created_by_name": created_by_name,
         "created_at": track.created_at,
         "updated_at": track.updated_at,
         "materials": materials
@@ -291,6 +296,99 @@ async def update_track(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to update track: {str(e)}"
         )
+
+
+@router.post("/{track_id}/materials", response_model=TrackResponse, status_code=status.HTTP_201_CREATED)
+async def add_track_material(
+    track_id: int,
+    data: TrackMaterialAdd,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Add a material to a track."""
+    track = db.query(Track).filter(Track.id == track_id).first()
+    if not track:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
+    if current_user.role not in ("director", "pmm", "admin") and not current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to edit tracks")
+    material = db.query(Material).filter(Material.id == data.material_id).first()
+    if not material:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found")
+    existing = db.query(TrackMaterial).filter(
+        TrackMaterial.track_id == track_id,
+        TrackMaterial.material_id == data.material_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Material already in track")
+    max_order = db.query(func.max(TrackMaterial.order)).filter(TrackMaterial.track_id == track_id).scalar() or 0
+    order = data.order if data.order is not None else max_order + 1
+    tm = TrackMaterial(
+        track_id=track_id,
+        material_id=data.material_id,
+        order=order,
+        step_description=data.step_description,
+        is_required=data.is_required
+    )
+    db.add(tm)
+    track.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(track)
+    return await get_track(track_id, db, current_user)
+
+
+@router.patch("/{track_id}/materials/{material_id}", response_model=TrackResponse)
+async def update_track_material(
+    track_id: int,
+    material_id: int,
+    data: TrackMaterialUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update a material's order, step_description, or is_required in a track."""
+    track = db.query(Track).filter(Track.id == track_id).first()
+    if not track:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
+    if current_user.role not in ("director", "pmm", "admin") and not current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to edit tracks")
+    tm = db.query(TrackMaterial).filter(
+        TrackMaterial.track_id == track_id,
+        TrackMaterial.material_id == material_id
+    ).first()
+    if not tm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not in this track")
+    if data.order is not None:
+        tm.order = data.order
+    if data.step_description is not None:
+        tm.step_description = data.step_description
+    if data.is_required is not None:
+        tm.is_required = data.is_required
+    track.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(track)
+    return await get_track(track_id, db, current_user)
+
+
+@router.delete("/{track_id}/materials/{material_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_track_material(
+    track_id: int,
+    material_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Remove a material from a track."""
+    track = db.query(Track).filter(Track.id == track_id).first()
+    if not track:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
+    if current_user.role not in ("director", "pmm", "admin") and not current_user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to edit tracks")
+    tm = db.query(TrackMaterial).filter(
+        TrackMaterial.track_id == track_id,
+        TrackMaterial.material_id == material_id
+    ).first()
+    if tm:
+        db.delete(tm)
+        track.updated_at = datetime.utcnow()
+        db.commit()
 
 
 @router.delete("/{track_id}", status_code=status.HTTP_204_NO_CONTENT)

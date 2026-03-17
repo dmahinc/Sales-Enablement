@@ -36,6 +36,9 @@ class MaterialUsage(BaseModel):
     
     # Link to the shared link that triggered this event (for customer actions via public share URLs)
     shared_link_id = Column(Integer, ForeignKey("shared_links.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Link to deal room (for engagement within Digital Sales Rooms)
+    deal_room_id = Column(Integer, ForeignKey("deal_rooms.id", ondelete="SET NULL"), nullable=True, index=True)
     
     # Additional metadata
     ip_address = Column(String(45))  # IPv4 or IPv6

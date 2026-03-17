@@ -24,6 +24,7 @@ from app.models.product_release import ProductRelease  # noqa: F401
 from app.models.marketing_update import MarketingUpdate  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.shared_link import SharedLink  # noqa: F401
+from app.models.deal_room import DealRoom, DealRoomMaterial, ActionPlanItem, RoomMessage  # noqa: F401
 from app.models.customer_message import CustomerMessage  # noqa: F401
 from app.models.material_request import MaterialRequest  # noqa: F401
 # AICorrection model may not exist in all deployments
@@ -195,7 +196,7 @@ async def health_check():
 
 # Import routers
 # Import routers - handle missing modules gracefully
-from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, session, product_releases, marketing_updates, customers, material_requests, help
+from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, deal_rooms, session, product_releases, marketing_updates, customers, material_requests, help, email
 import logging
 
 logger = logging.getLogger(__name__)
@@ -244,11 +245,13 @@ try:
 except (ImportError, AttributeError):
     pass  # Products router is optional
 app.include_router(health.router)
+app.include_router(email.router)
 app.include_router(discovery.router)
 app.include_router(analytics.router)
 app.include_router(tracks.router)
 app.include_router(users.router)
 app.include_router(shared_links.router)
+app.include_router(deal_rooms.router)
 app.include_router(product_releases.router)
 app.include_router(marketing_updates.router)
 try:
@@ -264,6 +267,21 @@ try:
     app.include_router(agent.router)
 except ImportError:
     logger.warning("Agent router not available")
+try:
+    from app.api import embeddings as embeddings_router
+    app.include_router(embeddings_router.router)
+except ImportError:
+    logger.warning("Embeddings router not available")
+try:
+    from app.api import semantic_search as semantic_search_router
+    app.include_router(semantic_search_router.router)
+except ImportError:
+    logger.warning("Semantic search router not available")
+try:
+    from app.api import recommendations as recommendations_router
+    app.include_router(recommendations_router.router)
+except ImportError:
+    logger.warning("Recommendations router not available")
 try:
     from app.api import sales
     app.include_router(sales.router)

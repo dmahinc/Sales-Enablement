@@ -22,7 +22,8 @@ export default function Login() {
       await login(email, password)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please check your credentials.')
+      const d = err?.response?.data
+      setError(d?.detail ?? d?.message ?? err?.message ?? 'Login failed. Please check your credentials.')
     } finally {
       setIsLoading(false)
     }

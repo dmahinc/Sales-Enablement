@@ -1,7 +1,7 @@
 """add_marketing_updates_table
 
 Revision ID: 102a85357d32
-Revises: 103600bf0724
+Revises: 013
 Create Date: 2026-02-19 21:18:37.725848
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '102a85357d32'
-down_revision = '103600bf0724'
+down_revision = '013'
 branch_labels = None
 depends_on = None
 

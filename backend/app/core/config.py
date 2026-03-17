@@ -67,8 +67,14 @@ class Settings(BaseSettings):
     OVH_AI_ENABLED: bool = Field(default=False, description="Enable OVHcloud AI Endpoints integration")
     OVH_AI_ENDPOINT_URL: str = Field(default="", description="OVHcloud AI Endpoint URL")
     OVH_AI_API_KEY: str = Field(default="", description="OVHcloud AI API Key")
-    OVH_AI_MODEL: str = Field(default="Mistral-Small-3.2-24B-Instruct-2506", description="AI model to use")
+    OVH_AI_MODEL: str = Field(default="Meta-Llama-3_3-70B-Instruct", description="AI model to use")
     OVH_AI_CONFIDENCE_THRESHOLD: float = Field(default=0.9, description="Confidence threshold for auto-apply (0.0-1.0)")
+    
+    # Embedding / Semantic Search Configuration
+    OVH_AI_EMBEDDING_URL: str = Field(default="", description="OVHcloud AI Embedding endpoint URL (OpenAI-compatible /v1/embeddings)")
+    OVH_AI_EMBEDDING_MODEL: str = Field(default="", description="Embedding model name (e.g. multilingual-e5-large)")
+    EMBEDDING_DIMENSIONS: int = Field(default=384, description="Embedding vector dimensions (384 for fastembed default, override for OVH model)")
+    EMBEDDING_PROVIDER: str = Field(default="auto", description="Embedding provider: 'ovh', 'local', or 'auto' (tries OVH first, falls back to local)")
     
     class Config:
         env_file = "/app/.env"  # Use absolute path for container
@@ -100,10 +106,14 @@ if env_file_path and env_file_path.exists():
                 key = key.strip()
                 value = value.strip().strip('"').strip("'")
                 # Force override with .env values for OVH_AI settings, SMTP settings, SECRET_KEY, and other config
-                if key.startswith("OVH_AI_"):
-                    # Handle boolean values
+                if key.startswith("OVH_AI_") or key.startswith("EMBEDDING_"):
                     if key == "OVH_AI_ENABLED":
                         setattr(_settings, key, value.lower() in ("true", "1", "yes"))
+                    elif key == "EMBEDDING_DIMENSIONS":
+                        try:
+                            setattr(_settings, key, int(value))
+                        except ValueError:
+                            pass
                     else:
                         setattr(_settings, key, value)
                 elif key.startswith("SMTP_"):

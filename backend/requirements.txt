@@ -10,5 +10,9 @@ python-multipart
 alembic
 httpx
 PyPDF2
+PyMuPDF
 python-docx
 python-pptx
+pgvector
+fastembed
+numpy

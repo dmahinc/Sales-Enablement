@@ -79,8 +79,12 @@ class Material(BaseModel):
     pain_points = Column(Text)  # JSON array of pain points
     
     # AI-generated executive summary
-    executive_summary = Column(Text, nullable=True)  # AI-generated structured summary
-    executive_summary_generated_at = Column(DateTime, nullable=True)  # When summary was generated
+    executive_summary = Column(Text, nullable=True)
+    executive_summary_generated_at = Column(DateTime, nullable=True)
+    
+    # Semantic search: serialised JSON embedding + raw vector handled via SQL
+    embedding = Column(Text, nullable=True)
+    search_text = Column(Text, nullable=True)
     
     # Relationships (using string references to avoid circular imports)
     # Note: ContentBlockUsage relationship removed temporarily to fix import issues

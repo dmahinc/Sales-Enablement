@@ -23,17 +23,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is logged in
     const token = localStorage.getItem('token')
     if (token) {
-      api.get('/auth/me')
+      const controller = new AbortController()
+      const timeout = setTimeout(() => {
+        controller.abort()
+      }, 10000)
+      api.get('/auth/me', { signal: controller.signal })
         .then(response => {
+          clearTimeout(timeout)
           setUser(response.data)
           setLoading(false)
         })
         .catch((error) => {
+          clearTimeout(timeout)
           console.error('Auth check failed:', error)
-          localStorage.removeItem('token')
+          if (error.name !== 'AbortError') {
+            localStorage.removeItem('token')
+          }
           setUser(null)
           setLoading(false)
         })
@@ -93,9 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userResponse = await api.get('/auth/me')
       setUser(userResponse.data)
     } catch (error: any) {
-      // Re-throw with a more user-friendly message
-      const errorMessage = error.response?.data?.detail || error.message || 'Login failed. Please check your credentials.'
-      throw new Error(errorMessage)
+      // Re-throw with a more user-friendly message (backend uses 'message' in ErrorResponse)
+      const errData = error.response?.data
+      const errorMessage = errData?.detail ?? errData?.message ?? error.message ?? 'Login failed. Please check your credentials.'
+      throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Login failed. Please check your credentials.')
     }
   }
 

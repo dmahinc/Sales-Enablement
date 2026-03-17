@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { BookOpen, Plus, Edit, Trash2, Play, Clock, Users, Target } from 'lucide-react'
+import { BookOpen, Plus, Edit, Trash2, Play, Clock, Target } from 'lucide-react'
 import Modal from '../components/Modal'
 import TrackForm from '../components/TrackForm'
 import { Link } from 'react-router-dom'
 
 export default function Tracks() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [editingTrack, setEditingTrack] = useState<any>(null)
   const [statusFilter, setStatusFilter] = useState<string>('')
 
   const { data: tracks, isLoading } = useQuery({
@@ -36,9 +35,11 @@ export default function Tracks() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
-        <span className="ml-3 text-slate-500">Loading tracks...</span>
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-[#006dc7] border-t-transparent"></div>
+          <span className="text-slate-500">Loading tracks...</span>
+        </div>
       </div>
     )
   }
@@ -49,131 +50,155 @@ export default function Tracks() {
   }) || []
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-primary-700">Sales Enablement Tracks</h1>
-          <p className="mt-1 text-slate-500">Structured learning paths for use cases and business stories</p>
-        </div>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="btn-ovh-primary mt-4 sm:mt-0"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Track
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="card-ovh p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm font-medium text-slate-600">Filter:</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input-ovh w-auto"
-          >
-            <option value="">All Statuses</option>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
-          </select>
-          {statusFilter && (
-            <button
-              onClick={() => setStatusFilter('')}
-              className="text-sm text-primary-500 hover:text-primary-600"
-            >
-              Clear filter
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Tracks Grid */}
-      {filteredTracks.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTracks.map((track: any) => (
-            <div key={track.id} className="card-ovh hover:shadow-md transition-all duration-200">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="bg-primary-50 p-3 rounded-xl">
-                    <BookOpen className="h-6 w-6 text-primary-500" />
-                  </div>
-                  <span className={`badge-ovh ${
-                    track.status === 'published' ? 'badge-ovh-success' :
-                    track.status === 'archived' ? 'badge-ovh-gray' :
-                    'badge-ovh-warning'
-                  }`}>
-                    {track.status}
-                  </span>
-                </div>
-                
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">{track.name}</h3>
-                <p className="text-sm text-slate-600 mb-4 line-clamp-2">{track.description}</p>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-slate-500">
-                    <Target className="h-4 w-4 mr-2" />
-                    <span className="truncate">{track.use_case}</span>
-                  </div>
-                  {track.estimated_duration_minutes && (
-                    <div className="flex items-center text-sm text-slate-500">
-                      <Clock className="h-4 w-4 mr-2" />
-                      <span>{track.estimated_duration_minutes} minutes</span>
-                    </div>
-                  )}
-                  <div className="flex items-center text-sm text-slate-500">
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    <span>{track.materials?.length || 0} materials</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2 pt-4 border-t border-slate-200">
-                  <Link
-                    to={`/tracks/${track.id}`}
-                    className="flex-1 btn-ovh-primary text-center"
-                  >
-                    <Play className="w-4 h-4 mr-2 inline" />
-                    View Track
-                  </Link>
-                  <button
-                    onClick={() => setEditingTrack(track)}
-                    className="p-2 text-slate-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-all"
-                    title="Edit"
-                  >
-                    <Edit className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(track.id)}
-                    className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
+    <div className="min-h-screen bg-[#f7fafc] dark:bg-slate-900 -m-6 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Hero / Header - DSR style */}
+        <section className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100">
+                Sales Enablement Tracks
+              </h1>
+              <p className="mt-2 text-slate-600 dark:text-slate-400">
+                Structured learning paths for use cases and business stories
+              </p>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="card-ovh p-12 text-center">
-          <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="h-8 w-8 text-slate-400" />
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#006dc7] hover:bg-[#005294] dark:bg-[#21dadb] dark:hover:bg-[#1cc0c1] text-white font-semibold shadow-md transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Create Track
+            </button>
           </div>
-          <h3 className="text-lg font-medium text-slate-900">No tracks found</h3>
-          <p className="mt-2 text-sm text-slate-500">
-            Get started by creating your first Sales Enablement Track
-          </p>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="mt-6 btn-ovh-primary"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create Track
-          </button>
+        </section>
+
+        {/* Filters */}
+        <div className="mb-8 rounded-2xl bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Filter</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-[#006dc7]/30 focus:border-[#006dc7]"
+            >
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="archived">Archived</option>
+            </select>
+            {statusFilter && (
+              <button
+                onClick={() => setStatusFilter('')}
+                className="text-sm font-medium text-[#006dc7] dark:text-[#21dadb] hover:underline"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Tracks Grid - DSR card style */}
+        {filteredTracks.length > 0 ? (
+          <section>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-6">
+              Learning Paths
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTracks.map((track: any) => (
+                <div
+                  key={track.id}
+                  className="rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 hover:shadow-lg hover:border-[#006dc7]/30 dark:hover:border-[#21dadb]/30 transition-all duration-200"
+                >
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-[#e4f1fb]/80 dark:bg-[#003b6b]/20 flex items-center justify-center">
+                        <BookOpen className="h-6 w-6 text-[#006dc7] dark:text-[#21dadb]" />
+                      </div>
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold uppercase ${
+                          track.status === 'published'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : track.status === 'archived'
+                            ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        }`}
+                      >
+                        {track.status}
+                      </span>
+                    </div>
+
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2 line-clamp-2">
+                      {track.name}
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 line-clamp-2">
+                      {track.description}
+                    </p>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                        <Target className="h-4 w-4 flex-shrink-0 text-[#006dc7]/70" />
+                        <span className="truncate">{track.use_case}</span>
+                      </div>
+                      {track.estimated_duration_minutes && (
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                          <Clock className="h-4 w-4 flex-shrink-0 text-[#006dc7]/70" />
+                          <span>{track.estimated_duration_minutes} min</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                        <BookOpen className="h-4 w-4 flex-shrink-0 text-[#006dc7]/70" />
+                        <span>{track.materials?.length || 0} materials</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+                      <Link
+                        to={`/tracks/${track.id}`}
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#006dc7] hover:bg-[#005294] dark:bg-[#21dadb] dark:hover:bg-[#1cc0c1] text-white font-semibold text-sm transition-colors"
+                      >
+                        <Play className="w-4 h-4" />
+                        View Track
+                      </Link>
+                      <Link
+                        to={`/tracks/${track.id}/edit`}
+                        className="p-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-[#006dc7] dark:hover:text-[#21dadb] hover:bg-[#e4f1fb]/50 dark:hover:bg-[#003b6b]/20 transition-colors"
+                        title="Edit"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(track.id)}
+                        className="p-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <div className="rounded-2xl bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-slate-700 p-12 text-center">
+            <div className="w-20 h-20 rounded-2xl bg-[#e4f1fb]/80 dark:bg-[#003b6b]/20 flex items-center justify-center mx-auto mb-6">
+              <BookOpen className="h-10 w-10 text-[#006dc7] dark:text-[#21dadb]" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">No tracks found</h3>
+            <p className="mt-2 text-slate-600 dark:text-slate-400">
+              Get started by creating your first Sales Enablement Track
+            </p>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#006dc7] hover:bg-[#005294] dark:bg-[#21dadb] dark:hover:bg-[#1cc0c1] text-white font-semibold shadow-md transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Create Track
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Modals */}
       <Modal
@@ -185,14 +210,6 @@ export default function Tracks() {
         <TrackForm onClose={() => setIsCreateModalOpen(false)} />
       </Modal>
 
-      <Modal
-        isOpen={!!editingTrack}
-        onClose={() => setEditingTrack(null)}
-        title="Edit Track"
-        size="lg"
-      >
-        <TrackForm track={editingTrack} onClose={() => setEditingTrack(null)} />
-      </Modal>
     </div>
   )
 }

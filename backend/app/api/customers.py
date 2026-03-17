@@ -3,7 +3,7 @@ Customer API endpoints - Customer persona dashboard and interactions
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 from datetime import datetime
 from typing import List, Optional
 from app.core.database import get_db
@@ -30,6 +30,13 @@ try:
 except (ImportError, Exception):
     CustomerMessage = None
     CUSTOMER_MESSAGES_AVAILABLE = False
+
+try:
+    from app.models.deal_room import DealRoom
+    DEAL_ROOMS_AVAILABLE = True
+except (ImportError, Exception):
+    DealRoom = None
+    DEAL_ROOMS_AVAILABLE = False
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
 
@@ -65,6 +72,45 @@ class MessageResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+@router.get("/deal-rooms", response_model=List[dict])
+async def get_customer_deal_rooms(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    List deal rooms shared with this customer (where customer_email matches).
+    Customers see their Digital Sales Rooms here.
+    """
+    if current_user.role != "customer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available for customers"
+        )
+    if not DEAL_ROOMS_AVAILABLE or not DealRoom:
+        return []
+
+    email_lower = current_user.email.strip().lower()
+    rooms = db.query(DealRoom).filter(
+        DealRoom.customer_email.isnot(None),
+        func.lower(func.trim(DealRoom.customer_email)) == email_lower,
+        DealRoom.is_active == True,
+        DealRoom.expires_at > datetime.utcnow(),
+    ).order_by(DealRoom.updated_at.desc()).all()
+
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "company_name": r.company_name,
+            "opportunity_name": r.opportunity_name,
+            "unique_token": r.unique_token,
+            "expires_at": r.expires_at.isoformat() if r.expires_at else None,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+        }
+        for r in rooms
+    ]
 
 
 @router.get("/dashboard", response_model=CustomerDashboardResponse)

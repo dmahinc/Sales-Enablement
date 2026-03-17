@@ -13,10 +13,15 @@ import HealthDashboard from './pages/HealthDashboard'
 import UsageAnalytics from './pages/UsageAnalytics'
 import Tracks from './pages/Tracks'
 import TrackDetail from './pages/TrackDetail'
+import TrackEditView from './pages/TrackEditView'
 import Users from './pages/Users'
 import ProductHierarchy from './pages/ProductHierarchy'
 import ShareHistory from './pages/ShareHistory'
 import ShareView from './pages/ShareView'
+import RoomView from './pages/RoomView'
+import DealRooms from './pages/DealRooms'
+import RoomEditView from './pages/RoomEditView'
+import RoomAnalytics from './pages/RoomAnalytics'
 import Login from './pages/Login'
 import ProductReleases from './pages/ProductReleases'
 import MarketingUpdates from './pages/MarketingUpdates'
@@ -27,6 +32,8 @@ import CustomerMessages from './pages/CustomerMessages'
 import MaterialRequests from './pages/MaterialRequests'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import CustomerDealRooms from './pages/CustomerDealRooms'
 
 const queryClient = new QueryClient()
 
@@ -115,6 +122,30 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/share/:token" element={<ShareView />} />
       <Route
+        path="/room/:token"
+        element={
+          <ProtectedRoute>
+            <RoomView />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/deal-rooms/:id/edit"
+        element={
+          <ProtectedRoute>
+            <RoomEditView />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tracks/:id/edit"
+        element={
+          <ProtectedRoute>
+            <TrackEditView />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/"
         element={
           <ProtectedRoute>
@@ -135,6 +166,8 @@ function AppRoutes() {
           } 
         />
         <Route path="sharing" element={<ShareHistory />} />
+        <Route path="deal-rooms" element={<DealRooms />} />
+        <Route path="deal-rooms/:id/analytics" element={<RoomAnalytics />} />
         <Route path="tracks" element={<Tracks />} />
         <Route path="tracks/:id" element={<TrackDetail />} />
         <Route path="product-hierarchy" element={<ProductHierarchy />} />
@@ -144,6 +177,7 @@ function AppRoutes() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="my-customers" element={<MyCustomers />} />
         <Route path="messages" element={<RoleBasedMessages />} />
+        <Route path="my-deal-rooms" element={<CustomerDealRooms />} />
       </Route>
     </Routes>
   )
@@ -151,18 +185,20 @@ function AppRoutes() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <Router future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}>
-            <AppRoutes />
-          </Router>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <Router future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}>
+              <AppRoutes />
+            </Router>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 

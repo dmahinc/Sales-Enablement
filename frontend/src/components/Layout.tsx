@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers, ClipboardList } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers, ClipboardList, Building2 } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import AgentPanel from './AgentPanel'
 import { useQuery } from '@tanstack/react-query'
@@ -48,11 +48,12 @@ export default function Layout() {
     )
   }
 
-  const isAdmin = user?.role === 'admin' || user?.is_superuser
-  const isDirector = user?.role === 'director'
-  const isPMM = user?.role === 'pmm'
-  const isSales = user?.role === 'sales'
-  const isCustomer = user?.role === 'customer'
+  const role = (user?.role || '').toLowerCase()
+  const isAdmin = role === 'admin' || user?.is_superuser
+  const isDirector = role === 'director'
+  const isPMM = role === 'pmm'
+  const isSales = role === 'sales'
+  const isCustomer = role === 'customer'
 
   const baseNavItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -64,6 +65,7 @@ export default function Layout() {
     { type: 'section', label: 'MONITORING & ANALYTICS' },
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sharing', label: 'Material Sharing', icon: Share2 },
+    { path: '/deal-rooms', label: 'Digital Sales Rooms', icon: Building2 },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Manage Material', icon: FileText },
@@ -80,6 +82,7 @@ export default function Layout() {
     { type: 'section', label: 'MONITORING & ANALYTICS' },
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sharing', label: 'Material Sharing', icon: Share2 },
+    { path: '/deal-rooms', label: 'Digital Sales Rooms', icon: Building2 },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Manage Materials', icon: FileText },
@@ -103,6 +106,7 @@ export default function Layout() {
     { path: '/tracks', label: 'Enablement Tracks', icon: BookOpen },
     { type: 'section', label: 'CUSTOMER ENGAGEMENT' },
     { path: '/my-customers', label: 'My Customers', icon: UserCircle },
+    { path: '/deal-rooms', label: 'Digital Sales Rooms', icon: Building2 },
     { path: '/messages', label: 'Conversations', icon: MessageSquare, badge: unreadMessagesData?.unread_count },
     { path: '/sharing', label: 'My Shared Materials', icon: Share2 },
     { type: 'section', label: 'NEWS' },
@@ -120,6 +124,7 @@ export default function Layout() {
 
   const customerNavItems = [
     { path: '/', label: 'My Shared Materials', icon: FileText },
+    { path: '/my-deal-rooms', label: 'My Deal Rooms', icon: Building2 },
     { path: '/messages', label: 'Conversations', icon: MessageSquare, badge: customerUnreadData?.unread_messages_count },
     { path: '/notifications', label: 'Notifications', icon: Bell },
   ]
@@ -128,6 +133,7 @@ export default function Layout() {
     { type: 'section', label: 'MONITORING & ANALYTICS' },
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/sharing', label: 'Material Sharing', icon: Share2 },
+    { path: '/deal-rooms', label: 'Digital Sales Rooms', icon: Building2 },
     { path: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
     { type: 'section', label: 'MATERIAL & ENABLEMENT' },
     { path: '/materials', label: 'Manage Material', icon: FileText },

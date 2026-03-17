@@ -77,6 +77,40 @@ def send_email(
         return False
 
 
+def send_email_or_raise(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
+    """
+    Same as send_email but raises on failure with the actual exception.
+    Use for testing/debugging to get the real SMTP error.
+    """
+    if not settings.SMTP_ENABLED:
+        raise RuntimeError("SMTP is disabled (SMTP_ENABLED=false)")
+    if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        raise RuntimeError("SMTP configuration incomplete: SMTP_HOST, SMTP_USER, SMTP_PASSWORD required")
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+    msg['To'] = to_email
+    if text_body:
+        msg.attach(MIMEText(text_body, 'plain'))
+    msg.attach(MIMEText(html_body, 'html'))
+
+    timeout = 30
+    if settings.SMTP_PORT == 465:
+        import ssl
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout, context=context) as server:
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+    else:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=timeout) as server:
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+    return True
+
+
 def send_user_creation_notification(
     user_email: str,
     user_name: str,

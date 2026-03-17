@@ -427,7 +427,7 @@ export default function CustomerEngagementTimeline({
 
                   return (
                     <div 
-                      key={`${event.shared_link_id}-${event.event_type}-${event.timestamp}`}
+                      key={`${event.shared_link_id}-${event.event_type}-${event.timestamp}-${eventIndex}`}
                       className="px-6 py-4 hover:bg-slate-50 transition-colors"
                     >
                       <div className="flex items-start space-x-4">

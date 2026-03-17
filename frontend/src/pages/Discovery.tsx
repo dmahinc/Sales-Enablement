@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon } from 'lucide-react'
+import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon, Sparkles } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
 import ProductIcon from '../components/ProductIcon'
 
@@ -17,6 +17,7 @@ interface Material {
   status?: string
   file_path?: string
   file_name?: string
+  file_format?: string
   last_updated?: string
   usage_count?: number
 }
@@ -46,6 +47,10 @@ export default function Discovery() {
   const { user } = useAuth()
   const isSales = user?.role === 'sales'
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [semanticResults, setSemanticResults] = useState<any[] | null>(null)
+  const [searchMode, setSearchMode] = useState<'local' | 'semantic' | 'fulltext' | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
   const [selectedUniverseId, setSelectedUniverseId] = useState<number | null>(null)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
@@ -55,6 +60,42 @@ export default function Discovery() {
   const [sharingMaterial, setSharingMaterial] = useState<Material | null>(null)
   const [previewMaterial, setPreviewMaterial] = useState<Material | null>(null)
   const [viewMode, setViewMode] = useState<'gallery' | 'list'>('gallery')
+
+  // Debounce search query (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim())
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Semantic search API call
+  useEffect(() => {
+    if (!debouncedQuery || debouncedQuery.length < 2) {
+      setSemanticResults(null)
+      setSearchMode(null)
+      return
+    }
+    let cancelled = false
+    setIsSearching(true)
+    api.get('/search/semantic', { params: { q: debouncedQuery, limit: 30 } })
+      .then(res => {
+        if (!cancelled) {
+          setSemanticResults(res.data.results || [])
+          setSearchMode(res.data.mode === 'semantic' ? 'semantic' : 'fulltext')
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSemanticResults(null)
+          setSearchMode('local')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsSearching(false)
+      })
+    return () => { cancelled = true }
+  }, [debouncedQuery])
 
   // Fetch data
   const { data: materials = [], isLoading: materialsLoading } = useQuery<Material[]>({
@@ -107,9 +148,25 @@ export default function Discovery() {
 
   // Filter materials based on selection and search
   const filteredMaterials = useMemo(() => {
+    // Use semantic results when available and searching
+    if (semanticResults && debouncedQuery.length >= 2) {
+      return semanticResults.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        material_type: r.material_type,
+        universe_name: r.universe_name,
+        product_name: r.product_name,
+        description: r.description,
+        tags: r.tags ? (typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags) : [],
+        status: r.status,
+        file_format: r.file_format,
+        usage_count: r.usage_count,
+        similarity_score: r.similarity_score,
+      })) as Material[]
+    }
+
     let filtered = materials
 
-    // Filter by hierarchy selection
     if (selectedUniverseId) {
       const universe = universes.find(u => u.id === selectedUniverseId)
       if (universe) {
@@ -119,7 +176,6 @@ export default function Discovery() {
     if (selectedCategoryId) {
       const category = allCategories.find(c => c.id === selectedCategoryId)
       if (category) {
-        // Filter by products in this category
         const categoryProducts = allProducts.filter(p => p.category_id === selectedCategoryId)
         const productNames = categoryProducts.map(p => p.name).concat(categoryProducts.map(p => p.display_name))
         filtered = filtered.filter(m => m.product_name && productNames.includes(m.product_name))
@@ -134,8 +190,8 @@ export default function Discovery() {
       }
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
+    // Client-side filter only when no semantic results
+    if (searchQuery.trim() && !semanticResults) {
       const query = searchQuery.toLowerCase().trim()
       filtered = filtered.filter(m =>
         m.name?.toLowerCase().includes(query) ||
@@ -147,7 +203,7 @@ export default function Discovery() {
     }
 
     return filtered
-  }, [materials, selectedUniverseId, selectedCategoryId, selectedProductId, searchQuery, universes, allCategories, allProducts])
+  }, [materials, selectedUniverseId, selectedCategoryId, selectedProductId, searchQuery, debouncedQuery, semanticResults, universes, allCategories, allProducts])
 
   // Build breadcrumbs
   const breadcrumbs = useMemo(() => {
@@ -539,19 +595,30 @@ export default function Discovery() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search materials..."
+              placeholder="Try: 'pitch Object Storage to a CTO' or 'data sovereignty materials'..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full pl-10 pr-24 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <span className="text-lg">×</span>
-              </button>
-            )}
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5">
+              {isSearching && (
+                <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+              )}
+              {searchMode === 'semantic' && debouncedQuery && !isSearching && (
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded-full">
+                  <Sparkles className="w-3 h-3" />
+                  AI
+                </span>
+              )}
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setSemanticResults(null); setSearchMode(null); }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <span className="text-lg">×</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -782,8 +849,7 @@ function MaterialCard({ material, onDownload, onShare, isSales = false }: Materi
               </span>
             )}
           </div>
-          {/* Action buttons */}
-          <div className="flex items-center justify-end space-x-2 mt-3 pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
             {material.status === 'published' && !(isSales && material.audience === 'internal') && (
               <button
                 onClick={(e) => {
@@ -884,7 +950,6 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview, isSales
         
         {/* Status Badge and Product Icon */}
         <div className="absolute top-3 right-3 flex items-center space-x-2">
-          {/* Product Icon Badge */}
           {material.product_name && (
             <div className="bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-white/50" title={material.product_name}>
               <ProductIcon 
@@ -894,6 +959,8 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview, isSales
               />
             </div>
           )}
+          {material.status && (
+        <div className="absolute top-3 right-3 flex items-center space-x-2">
           {material.status && (
             <span className={`text-xs px-2 py-1 rounded-full font-medium ${
               material.status === 'published' ? 'bg-emerald-100 text-emerald-700' :

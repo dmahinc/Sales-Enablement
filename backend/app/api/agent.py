@@ -57,13 +57,20 @@ async def agent_chat(
     current_user: User = Depends(get_current_active_user),
 ):
     """Send a message to the AI agent. Returns a response and optionally a pending action for confirmation."""
-    result = await process_message(
-        session_id=body.session_id,
-        user_message=body.message,
-        user=current_user,
-        db=db,
-    )
-    return AgentChatResponse(**result)
+    try:
+        result = await process_message(
+            session_id=body.session_id,
+            user_message=body.message,
+            user=current_user,
+            db=db,
+        )
+        return AgentChatResponse(**result)
+    except Exception as e:
+        logging.getLogger(__name__).exception("Agent chat failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e) or "The AI agent encountered an error. Please try again.",
+        )
 
 
 @router.post("/confirm", response_model=AgentConfirmResponse)

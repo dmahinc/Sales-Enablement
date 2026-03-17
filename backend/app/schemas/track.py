@@ -19,6 +19,21 @@ class TrackMaterialCreate(TrackMaterialBase):
     pass
 
 
+class TrackMaterialAdd(BaseModel):
+    """Schema for adding a single material to a track"""
+    material_id: int
+    order: Optional[int] = None  # If omitted, appended at end
+    step_description: Optional[str] = None
+    is_required: bool = True
+
+
+class TrackMaterialUpdate(BaseModel):
+    """Schema for updating a track material (order, step_description, is_required)"""
+    order: Optional[int] = Field(None, ge=1)
+    step_description: Optional[str] = None
+    is_required: Optional[bool] = None
+
+
 class TrackMaterialResponse(TrackMaterialBase):
     """Schema for track material response"""
     id: int

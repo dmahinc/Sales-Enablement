@@ -683,17 +683,33 @@ async def get_conversations(
         return []
     
     try:
-        # Get all customers assigned to or created by this sales person
-        customers = db.query(User).filter(
-            and_(
-                User.role == "customer",
-                or_(
-                    User.assigned_sales_id == current_user.id,
-                    User.created_by_id == current_user.id
+        # Get customers from two sources:
+        # 1. Assigned to or created by this sales person
+        # 2. Customers who have messaged this sales person (e.g. via shared link contact)
+        assigned_customer_ids = {
+            r[0] for r in db.query(User.id).filter(
+                and_(
+                    User.role == "customer",
+                    or_(
+                        User.assigned_sales_id == current_user.id,
+                        User.created_by_id == current_user.id
+                    )
                 )
-            )
+            ).all()
+        }
+        messaged_customer_ids = {
+            r[0] for r in db.query(CustomerMessage.customer_id).filter(
+                CustomerMessage.sales_contact_id == current_user.id
+            ).distinct().all()
+        }
+        all_customer_ids = assigned_customer_ids | messaged_customer_ids
+        if not all_customer_ids:
+            return []
+
+        customers = db.query(User).filter(
+            and_(User.role == "customer", User.id.in_(all_customer_ids))
         ).all()
-        
+
         if search:
             customers = [c for c in customers if search.lower() in c.full_name.lower() or search.lower() in c.email.lower()]
         
@@ -811,19 +827,26 @@ async def get_conversation(
         return []
     
     try:
-        # Verify customer is assigned to this sales person
+        # Verify customer exists and either: assigned to this sales person, or has messaged this sales person
         customer = db.query(User).filter(
-            and_(
-                User.id == customer_id,
-                User.role == "customer",
-                or_(
-                    User.assigned_sales_id == current_user.id,
-                    User.created_by_id == current_user.id
-                )
-            )
+            and_(User.id == customer_id, User.role == "customer")
         ).first()
-        
         if not customer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Customer not found"
+            )
+        has_conversation = db.query(CustomerMessage).filter(
+            and_(
+                CustomerMessage.customer_id == customer_id,
+                CustomerMessage.sales_contact_id == current_user.id
+            )
+        ).first() is not None
+        is_assigned = (
+            customer.assigned_sales_id == current_user.id or
+            customer.created_by_id == current_user.id
+        )
+        if not (is_assigned or has_conversation):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Customer not found or not assigned to you"
@@ -890,19 +913,26 @@ async def send_message(
             detail="Messaging feature is not yet available"
         )
     
-    # Verify customer is assigned to this sales person
+    # Verify customer exists and either: assigned to this sales person, or has existing conversation
     customer = db.query(User).filter(
-        and_(
-            User.id == message_data.customer_id,
-            User.role == "customer",
-            or_(
-                User.assigned_sales_id == current_user.id,
-                User.created_by_id == current_user.id
-            )
-        )
+        and_(User.id == message_data.customer_id, User.role == "customer")
     ).first()
-    
     if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found"
+        )
+    has_conversation = db.query(CustomerMessage).filter(
+        and_(
+            CustomerMessage.customer_id == message_data.customer_id,
+            CustomerMessage.sales_contact_id == current_user.id
+        )
+    ).first() is not None
+    is_assigned = (
+        customer.assigned_sales_id == current_user.id or
+        customer.created_by_id == current_user.id
+    )
+    if not (is_assigned or has_conversation):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Customer not found or not assigned to you"

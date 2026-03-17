@@ -16,6 +16,7 @@ from app.services.ai_service import generate_executive_summary
 from app.core.config import settings
 from pathlib import Path
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -522,6 +523,13 @@ async def create_material(
         db.commit()
         db.refresh(material)
         
+        # Generate embedding in background (non-blocking)
+        try:
+            from app.api.embeddings import _generate_embedding_for_material
+            asyncio.ensure_future(_generate_embedding_for_material(material, db))
+        except Exception:
+            pass
+        
         # Return material with warning if same type exists (but different name)
         if existing_by_type:
             warning_message = f"A {material_type} already exists for this product ({', '.join([m.name for m in existing_by_type])}). You can upload multiple versions as long as the filename is different."
@@ -702,8 +710,17 @@ async def update_material(
             setattr(material, key, value)
         
         material.updated_at = datetime.utcnow()
+        # Clear embedding so it gets regenerated
+        material.embedding = None
         db.commit()
         db.refresh(material)
+        
+        # Regenerate embedding in background
+        try:
+            from app.api.embeddings import _generate_embedding_for_material
+            asyncio.ensure_future(_generate_embedding_for_material(material, db))
+        except Exception:
+            pass
         
         # Add PMM information to response
         material_dict = MaterialResponse.model_validate(material).model_dump()
@@ -1032,7 +1049,16 @@ async def upload_material_file(
         db.add(material)
         db.commit()
         db.refresh(material)
-        
+
+        # Generate thumbnail for PDFs (fast, ~50-200ms)
+        if material.file_format and str(material.file_format).lower() == "pdf":
+            try:
+                from app.services.thumbnail_service import ensure_thumbnail
+                full_path = storage_service.get_file_path(material.file_path)
+                ensure_thumbnail(material.id, full_path, material.file_format)
+            except Exception as te:
+                logger.debug(f"Thumbnail generation deferred: {te}")
+
         # Convert to response model to ensure proper serialization
         from app.schemas.material import MaterialResponse
         material_dict = MaterialResponse.model_validate(material).model_dump(mode='json')
@@ -1123,6 +1149,93 @@ async def upload_material_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload file: {str(e)}"
         )
+
+@router.get("/{material_id}/thumbnail")
+async def get_material_thumbnail(
+    material_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get pre-generated thumbnail (small PNG) for fast loading.
+    For PDFs: first page extracted once and cached. Returns 404 for non-PDF or if not yet generated.
+    """
+    from fastapi.responses import FileResponse
+    from app.services.thumbnail_service import ensure_thumbnail, get_thumbnail_path
+
+    material = db.query(Material).filter(Material.id == material_id).first()
+    if not material:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found")
+
+    if not material.file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not available")
+
+    file_path = storage_service.get_file_path(material.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    file_format = material.file_format or (material.file_name.split(".")[-1] if material.file_name else "")
+    thumb_path = ensure_thumbnail(material_id, file_path, file_format)
+
+    if not thumb_path or not thumb_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thumbnail not available")
+
+    return FileResponse(
+        path=str(thumb_path),
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get("/{material_id}/view")
+async def view_material_file(
+    material_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """View a material file (e.g. for thumbnails). Returns file without download tracking."""
+    from fastapi.responses import FileResponse
+
+    material = db.query(Material).filter(Material.id == material_id).first()
+    if not material:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Material not found"
+        )
+
+    if not material.file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not available for this material"
+        )
+
+    file_path = storage_service.get_file_path(material.file_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on server"
+        )
+
+    file_format = material.file_format or (material.file_name.split('.')[-1] if material.file_name else '')
+    media_type_map = {
+        'pdf': 'application/pdf',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'ppt': 'application/vnd.ms-powerpoint',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc': 'application/msword',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls': 'application/vnd.ms-excel',
+    }
+    media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
+    filename = material.file_name or (f"{material.name}.{file_format}" if material.file_format else material.name)
+
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
 
 @router.get("/{material_id}/download")
 async def download_material_file(
