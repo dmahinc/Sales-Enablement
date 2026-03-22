@@ -228,7 +228,7 @@ async def list_materials(
     
     materials = query.offset(skip).limit(limit).all()
     
-    # Add PMM information to each material
+    # Add PMM information and segment_ids to each material
     result = []
     for material in materials:
         material_dict = MaterialResponse.model_validate(material).model_dump()
@@ -237,6 +237,9 @@ async def list_materials(
             if pmm_user:
                 material_dict['pmm_in_charge_name'] = pmm_user.full_name
                 material_dict['pmm_in_charge_email'] = pmm_user.email
+        # Add segment_ids for GTM hierarchy filtering
+        segment_ids = [s.id for s in material.segments.all()]
+        material_dict['segment_ids'] = segment_ids
         result.append(material_dict)
     
     return result

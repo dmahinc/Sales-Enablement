@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon, Sparkles } from 'lucide-react'
+import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon, Sparkles, Target, Layers } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
 import ProductIcon from '../components/ProductIcon'
 
@@ -56,6 +56,9 @@ export default function Discovery() {
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
   const [expandedUniverses, setExpandedUniverses] = useState<Set<number>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
+  const [expandedSegments, setExpandedSegments] = useState<Set<number>>(new Set())
+  const [hierarchyMode, setHierarchyMode] = useState<'product' | 'gtm'>('product')
+  const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(null)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [sharingMaterial, setSharingMaterial] = useState<Material | null>(null)
   const [previewMaterial, setPreviewMaterial] = useState<Material | null>(null)
@@ -117,6 +120,21 @@ export default function Discovery() {
     queryKey: ['products', 'list'],
     queryFn: () => api.get('/products/').then(res => res.data),
   })
+
+  const { data: segments = [] } = useQuery({
+    queryKey: ['segments', 'all'],
+    queryFn: () => api.get('/segments', { params: { all: true } }).then(res => res.data),
+  })
+
+  const gtmTree = useMemo(() => {
+    const all = segments as Array<{ id: number; name: string; parent_segment_id: number | null }>
+    const parents = all.filter((s: any) => !s.parent_segment_id)
+    const children = all.filter((s: any) => s.parent_segment_id != null)
+    return parents.map((p: any) => ({
+      ...p,
+      children: children.filter((c: any) => c.parent_segment_id === p.id),
+    }))
+  }, [segments])
 
   // Filter categories and products by selected universe
   const categories = useMemo(() => {
@@ -189,6 +207,9 @@ export default function Discovery() {
         )
       }
     }
+    if (selectedSegmentId) {
+      filtered = filtered.filter((m: any) => (m.segment_ids || []).includes(selectedSegmentId))
+    }
 
     // Client-side filter only when no semantic results
     if (searchQuery.trim() && !semanticResults) {
@@ -203,7 +224,7 @@ export default function Discovery() {
     }
 
     return filtered
-  }, [materials, selectedUniverseId, selectedCategoryId, selectedProductId, searchQuery, debouncedQuery, semanticResults, universes, allCategories, allProducts])
+  }, [materials, selectedUniverseId, selectedCategoryId, selectedProductId, selectedSegmentId, searchQuery, debouncedQuery, semanticResults, universes, allCategories, allProducts])
 
   // Build breadcrumbs
   const breadcrumbs = useMemo(() => {
@@ -212,9 +233,14 @@ export default function Discovery() {
         setSelectedUniverseId(null)
         setSelectedCategoryId(null)
         setSelectedProductId(null)
+        setSelectedSegmentId(null)
       }}
     ]
-    if (selectedUniverseId) {
+    if (hierarchyMode === 'gtm' && selectedSegmentId) {
+      const segment = (segments as any[]).find((s: any) => s.id === selectedSegmentId)
+      if (segment) crumbs.push({ label: segment.name })
+    }
+    if (hierarchyMode === 'product' && selectedUniverseId) {
       const universe = universes.find(u => u.id === selectedUniverseId)
       if (universe) {
         crumbs.push({
@@ -242,7 +268,7 @@ export default function Discovery() {
       }
     }
     return crumbs
-  }, [selectedUniverseId, selectedCategoryId, selectedProductId, universes, allCategories, allProducts])
+  }, [hierarchyMode, selectedUniverseId, selectedCategoryId, selectedProductId, selectedSegmentId, universes, allCategories, allProducts, segments])
 
   // Toggle universe expansion
   const toggleUniverse = (universeId: number) => {
@@ -404,7 +430,30 @@ export default function Discovery() {
       {/* Left Sidebar - Hierarchical Navigation */}
       <div className="w-80 border-r border-slate-200 bg-slate-50 overflow-y-auto">
         <div className="p-4">
-          <h2 className="text-sm font-semibold text-slate-700 mb-3">Browse by Hierarchy</h2>
+          {/* Product vs GTM Toggle */}
+          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white mb-3">
+            <button
+              onClick={() => { setHierarchyMode('product'); setSelectedSegmentId(null) }}
+              className={`flex-1 px-3 py-2 text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                hierarchyMode === 'product' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Product
+            </button>
+            <button
+              onClick={() => { setHierarchyMode('gtm'); setSelectedUniverseId(null); setSelectedCategoryId(null); setSelectedProductId(null) }}
+              className={`flex-1 px-3 py-2 text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                hierarchyMode === 'gtm' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              GTM
+            </button>
+          </div>
+          <h2 className="text-sm font-semibold text-slate-700 mb-3">
+            {hierarchyMode === 'product' ? 'Product Hierarchy' : 'GTM Hierarchy'}
+          </h2>
           
           {/* All Materials */}
           <button
@@ -412,9 +461,11 @@ export default function Discovery() {
               setSelectedUniverseId(null)
               setSelectedCategoryId(null)
               setSelectedProductId(null)
+              setSelectedSegmentId(null)
             }}
             className={`w-full text-left px-3 py-2 rounded-lg mb-1 flex items-center space-x-2 ${
-              !selectedUniverseId && !selectedCategoryId && !selectedProductId
+              (hierarchyMode === 'product' && !selectedUniverseId && !selectedCategoryId && !selectedProductId) ||
+              (hierarchyMode === 'gtm' && !selectedSegmentId)
                 ? 'bg-primary-50 text-primary-700 font-medium'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
@@ -423,8 +474,71 @@ export default function Discovery() {
             <span>All Materials</span>
           </button>
 
-          {/* Universes */}
-          {universes.map(universe => {
+          {/* GTM Hierarchy Tree */}
+          {hierarchyMode === 'gtm' && (
+            <div className="mt-2 space-y-1">
+              {gtmTree.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-slate-500">No GTM segments. Run seed script.</div>
+              ) : (
+                gtmTree.map((parent: any) => {
+                  const hasChildren = parent.children && parent.children.length > 0
+                  const isExpanded = expandedSegments.has(parent.id)
+                  return (
+                    <div key={parent.id} className="mb-1">
+                      <button
+                        onClick={() => setSelectedSegmentId(selectedSegmentId === parent.id ? null : parent.id)}
+                        className={`w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 ${
+                          selectedSegmentId === parent.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {hasChildren ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setExpandedSegments(prev => {
+                                const next = new Set(prev)
+                                if (next.has(parent.id)) next.delete(parent.id)
+                                else next.add(parent.id)
+                                return next
+                              })
+                            }}
+                            className="p-0.5"
+                          >
+                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          </button>
+                        ) : (
+                          <div className="w-4 h-4" />
+                        )}
+                        <Target className="w-4 h-4" />
+                        <span className="flex-1">{parent.name}</span>
+                        <span className="text-xs text-slate-400">
+                          {materials.filter((m: any) => (m.segment_ids || []).includes(parent.id)).length}
+                        </span>
+                      </button>
+                      {isExpanded && hasChildren && parent.children.map((child: any) => (
+                        <button
+                          key={child.id}
+                          onClick={() => setSelectedSegmentId(selectedSegmentId === child.id ? null : child.id)}
+                          className={`w-full text-left px-3 py-2 rounded-lg ml-6 mt-1 flex items-center space-x-2 ${
+                            selectedSegmentId === child.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span className="flex-1">{child.name}</span>
+                          <span className="text-xs text-slate-400">
+                            {materials.filter((m: any) => (m.segment_ids || []).includes(child.id)).length}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          )}
+
+          {/* Product Hierarchy - Universes */}
+          {hierarchyMode === 'product' && universes.map(universe => {
             const universeCategories = allCategories.filter(c => c.universe_id === universe.id)
             const isExpanded = expandedUniverses.has(universe.id)
             const isSelected = selectedUniverseId === universe.id && !selectedCategoryId && !selectedProductId

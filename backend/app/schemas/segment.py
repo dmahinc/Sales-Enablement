@@ -38,6 +38,7 @@ class SegmentUpdate(BaseModel):
 class SegmentResponse(SegmentBase):
     """Schema for segment response"""
     id: int
+    parent_segment_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 

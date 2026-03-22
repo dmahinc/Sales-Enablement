@@ -16,21 +16,22 @@ router = APIRouter(prefix="/api/segments", tags=["segments"])
 @router.get("", response_model=List[SegmentResponse])
 async def list_segments(
     parent_segment_id: Optional[int] = None,
+    all: bool = False,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 500,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """List all segments"""
+    """List segments. Use all=true to get full hierarchy (for GTM tree)."""
     query = db.query(Segment)
-    
-    if parent_segment_id:
-        query = query.filter(Segment.parent_segment_id == parent_segment_id)
-    else:
-        # Default: show top-level segments only
-        query = query.filter(Segment.parent_segment_id == None)
-    
-    segments = query.offset(skip).limit(limit).all()
+
+    if not all:
+        if parent_segment_id is not None:
+            query = query.filter(Segment.parent_segment_id == parent_segment_id)
+        else:
+            query = query.filter(Segment.parent_segment_id == None)
+
+    segments = query.order_by(Segment.name).offset(skip).limit(limit).all()
     return segments
 
 @router.get("/{segment_id}", response_model=SegmentResponse)
