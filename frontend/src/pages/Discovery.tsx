@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon, Sparkles, Target, Layers, Users, Check, Globe } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
 import ProductIcon from '../components/ProductIcon'
+import { getMaterialCategory } from '../utils/materialTypes'
 
 interface Material {
   id: number
@@ -151,10 +152,14 @@ export default function Discovery() {
     return filtered
   }, [allProducts, selectedUniverseId, selectedCategoryId])
 
-  // Group materials by universe for default view
+  // Group materials by universe for default view - filter by hierarchy mode first
   const materialsByUniverse = useMemo(() => {
     const grouped: Record<string, Material[]> = {}
-    materials.forEach(material => {
+    const hierarchyFiltered = materials.filter((m: any) => {
+      const cat = getMaterialCategory(m.material_type)
+      return hierarchyMode === 'product' ? cat !== 'gtm' : cat === 'gtm'
+    })
+    hierarchyFiltered.forEach(material => {
       const universe = material.universe_name || 'Uncategorized'
       if (!grouped[universe]) {
         grouped[universe] = []
@@ -162,36 +167,47 @@ export default function Discovery() {
       grouped[universe].push(material)
     })
     return grouped
-  }, [materials])
+  }, [materials, hierarchyMode])
 
   // Filter materials based on selection and search
   const filteredMaterials = useMemo(() => {
-    // Use semantic results when available and searching
+    // Hierarchy mode filter - only show materials of selected category (Product or GTM)
+    const hierarchyFiltered = materials.filter((m: any) => {
+      const cat = getMaterialCategory(m.material_type)
+      return hierarchyMode === 'product' ? cat !== 'gtm' : cat === 'gtm'
+    })
+
+    // Use semantic results when available and searching (filter to current hierarchy)
     if (semanticResults && debouncedQuery.length >= 2) {
-      return semanticResults.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        material_type: r.material_type,
-        universe_name: r.universe_name,
-        product_name: r.product_name,
-        description: r.description,
-        tags: r.tags ? (typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags) : [],
-        status: r.status,
-        file_format: r.file_format,
-        usage_count: r.usage_count,
-        similarity_score: r.similarity_score,
-      })) as Material[]
+      return semanticResults
+        .filter((r: any) => {
+          const cat = getMaterialCategory(r.material_type)
+          return hierarchyMode === 'product' ? cat !== 'gtm' : cat === 'gtm'
+        })
+        .map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          material_type: r.material_type,
+          universe_name: r.universe_name,
+          product_name: r.product_name,
+          description: r.description,
+          tags: r.tags ? (typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags) : [],
+          status: r.status,
+          file_format: r.file_format,
+          usage_count: r.usage_count,
+          similarity_score: r.similarity_score,
+        })) as Material[]
     }
 
-    let filtered = materials
+    let filtered = hierarchyFiltered
 
-    if (selectedUniverseId) {
+    if (hierarchyMode === 'product' && selectedUniverseId) {
       const universe = universes.find(u => u.id === selectedUniverseId)
       if (universe) {
         filtered = filtered.filter(m => m.universe_name === universe.name)
       }
     }
-    if (selectedCategoryId) {
+    if (hierarchyMode === 'product' && selectedCategoryId) {
       const category = allCategories.find(c => c.id === selectedCategoryId)
       if (category) {
         const categoryProducts = allProducts.filter(p => p.category_id === selectedCategoryId)
@@ -199,7 +215,7 @@ export default function Discovery() {
         filtered = filtered.filter(m => m.product_name && productNames.includes(m.product_name))
       }
     }
-    if (selectedProductId) {
+    if (hierarchyMode === 'product' && selectedProductId) {
       const product = allProducts.find(p => p.id === selectedProductId)
       if (product) {
         filtered = filtered.filter(m => 
@@ -207,7 +223,7 @@ export default function Discovery() {
         )
       }
     }
-    if (selectedSegmentId) {
+    if (hierarchyMode === 'gtm' && selectedSegmentId) {
       filtered = filtered.filter((m: any) => (m.segment_ids || []).includes(selectedSegmentId))
     }
 
@@ -224,7 +240,7 @@ export default function Discovery() {
     }
 
     return filtered
-  }, [materials, selectedUniverseId, selectedCategoryId, selectedProductId, selectedSegmentId, searchQuery, debouncedQuery, semanticResults, universes, allCategories, allProducts])
+  }, [materials, hierarchyMode, selectedUniverseId, selectedCategoryId, selectedProductId, selectedSegmentId, searchQuery, debouncedQuery, semanticResults, universes, allCategories, allProducts])
 
   // Build breadcrumbs
   const breadcrumbs = useMemo(() => {

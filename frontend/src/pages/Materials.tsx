@@ -11,6 +11,7 @@ import ShareLinkModal from '../components/ShareLinkModal'
 import MultiSelect from '../components/MultiSelect'
 import { useAuth } from '../contexts/AuthContext'
 import ProductIcon from '../components/ProductIcon'
+import { getMaterialCategory, PRODUCT_MATERIAL_TYPES, GTM_MATERIAL_TYPES } from '../utils/materialTypes'
 
 // Helper function to get icon for material type
 function getMaterialTypeIcon(materialType: string | null | undefined): LucideIcon {
@@ -1035,6 +1036,14 @@ export default function Materials() {
 
   const filteredMaterials = useMemo(() => {
     return (materials || []).filter((m: any) => {
+      // Hierarchy mode filter - only show materials belonging to selected category (Product or GTM)
+      const matCategory = getMaterialCategory(m.material_type)
+      if (hierarchyMode === 'product') {
+        if (matCategory === 'gtm') return false
+      } else {
+        if (matCategory !== 'gtm') return false
+      }
+
       // Archived filter - hide archived by default unless explicitly shown for this universe
       if (m.status === 'archived') {
         const universeName = m.universe_name || 'Uncategorized'
@@ -1050,8 +1059,8 @@ export default function Materials() {
         if (!m.name?.toLowerCase().includes(query)) return false
       }
       
-      // Universe filter - if any universes are selected, filter by them
-      if (selectedUniverses.length > 0) {
+      // Universe filter - only applies to Product materials
+      if (hierarchyMode === 'product' && selectedUniverses.length > 0) {
         if (!m.universe_name || !selectedUniverses.includes(m.universe_name)) return false
       }
       
@@ -1065,16 +1074,16 @@ export default function Materials() {
         if (!m.status || !filterStatuses.includes(m.status)) return false
       }
       
-      // Product filter - if any products are selected, filter by them
-      if (filterProductIds.length > 0) {
+      // Product filter - only applies to Product materials
+      if (hierarchyMode === 'product' && filterProductIds.length > 0) {
         const matchingProducts = allProducts.filter((p: any) => filterProductIds.includes(p.id))
         // Check both name and display_name since materials might store either
         const productNames = matchingProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
         if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
       }
       
-      // Category filter - if any categories are selected, filter by products in those categories
-      if (filterCategoryIds.length > 0) {
+      // Category filter - only applies to Product materials
+      if (hierarchyMode === 'product' && filterCategoryIds.length > 0) {
         const matchingProducts = allProducts.filter((p: any) => 
           p.category_id && filterCategoryIds.includes(p.category_id)
         )
@@ -1083,15 +1092,15 @@ export default function Materials() {
         if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
       }
 
-      // GTM segment filter
-      if (filterSegmentIds.length > 0) {
+      // GTM segment filter - only applies to GTM materials
+      if (hierarchyMode === 'gtm' && filterSegmentIds.length > 0) {
         const segIds = m.segment_ids || []
         if (!segIds.some((sid: number) => filterSegmentIds.includes(sid))) return false
       }
       
       return true
     })
-  }, [materials, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, filterSegmentIds, searchQuery, allProducts, showArchivedByUniverse])
+  }, [materials, hierarchyMode, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, filterSegmentIds, searchQuery, allProducts, showArchivedByUniverse])
 
   // Track search actions for sales users
   useEffect(() => {
@@ -1297,14 +1306,24 @@ export default function Materials() {
   const browseFilteredMaterials = useMemo(() => {
     let filtered = materials || []
 
-    // Filter by hierarchy selection
-    if (browseSelectedUniverseId) {
+    // Hierarchy mode filter - only show materials belonging to selected category (Product or GTM)
+    filtered = filtered.filter((m: any) => {
+      const matCategory = getMaterialCategory(m.material_type)
+      if (hierarchyMode === 'product') {
+        return matCategory !== 'gtm'
+      } else {
+        return matCategory === 'gtm'
+      }
+    })
+
+    // Filter by hierarchy selection (Product: universe/category/product, GTM: segment)
+    if (hierarchyMode === 'product' && browseSelectedUniverseId) {
       const universe = effectiveUniverses.find((u: any) => u.id === browseSelectedUniverseId)
       if (universe) {
         filtered = filtered.filter((m: any) => m.universe_name === universe.name || m.universe_name === universe.display_name)
       }
     }
-    if (browseSelectedCategoryId) {
+    if (hierarchyMode === 'product' && browseSelectedCategoryId) {
       const category = allCategories.find((c: any) => c.id === browseSelectedCategoryId)
       if (category) {
         const categoryProducts = allProducts.filter((p: any) => p.category_id === browseSelectedCategoryId)
@@ -1312,7 +1331,7 @@ export default function Materials() {
         filtered = filtered.filter((m: any) => m.product_name && productNames.includes(m.product_name))
       }
     }
-    if (browseSelectedProductId) {
+    if (hierarchyMode === 'product' && browseSelectedProductId) {
       const product = allProducts.find((p: any) => p.id === browseSelectedProductId)
       if (product) {
         filtered = filtered.filter((m: any) => 
@@ -1321,21 +1340,18 @@ export default function Materials() {
       }
     }
 
-    // GTM segment filter
-    if (browseSelectedSegmentId) {
+    // GTM segment filter (only when in GTM mode)
+    if (hierarchyMode === 'gtm' && browseSelectedSegmentId) {
       filtered = filtered.filter((m: any) => {
         const segIds = m.segment_ids || []
         return segIds.includes(browseSelectedSegmentId)
       })
     }
 
-    // Apply the same filters as list view
-    // Universe filter - if any universes are selected, filter by them
-    if (selectedUniverses.length > 0) {
-      filtered = filtered.filter((m: any) => {
-        if (!m.universe_name || !selectedUniverses.includes(m.universe_name)) return false
-        return true
-      })
+    // Apply the same filters as list view (conditional on hierarchy mode)
+    // Universe filter - only for Product materials
+    if (hierarchyMode === 'product' && selectedUniverses.length > 0) {
+      filtered = filtered.filter((m: any) => m.universe_name && selectedUniverses.includes(m.universe_name))
     }
 
     // Material Type filter - if any types are selected, filter by them
@@ -1354,30 +1370,24 @@ export default function Materials() {
       })
     }
 
-    // Product filter - if any products are selected, filter by them
-    if (filterProductIds.length > 0) {
+    // Product filter - only for Product materials
+    if (hierarchyMode === 'product' && filterProductIds.length > 0) {
       const matchingProducts = allProducts.filter((p: any) => filterProductIds.includes(p.id))
       const productNames = matchingProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
-      filtered = filtered.filter((m: any) => {
-        if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
-        return true
-      })
+      filtered = filtered.filter((m: any) => m.product_name && productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name)))
     }
 
-    // Category filter - if any categories are selected, filter by products in those categories
-    if (filterCategoryIds.length > 0) {
+    // Category filter - only for Product materials
+    if (hierarchyMode === 'product' && filterCategoryIds.length > 0) {
       const categoryProducts = allProducts.filter((p: any) => 
         p.category_id && filterCategoryIds.includes(p.category_id)
       )
       const productNames = categoryProducts.flatMap((p: any) => [p.name, p.display_name]).filter(Boolean) as string[]
-      filtered = filtered.filter((m: any) => {
-        if (!m.product_name || !productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name))) return false
-        return true
-      })
+      filtered = filtered.filter((m: any) => m.product_name && productNames.some((name: string) => m.product_name === name || m.product_name?.includes(name)))
     }
 
-    // GTM segment filter
-    if (filterSegmentIds.length > 0) {
+    // GTM segment filter - only for GTM materials
+    if (hierarchyMode === 'gtm' && filterSegmentIds.length > 0) {
       filtered = filtered.filter((m: any) => {
         const segIds = m.segment_ids || []
         return segIds.some((sid: number) => filterSegmentIds.includes(sid))
@@ -1412,7 +1422,7 @@ export default function Materials() {
     })
 
     return filtered
-  }, [materials, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, browseSelectedSegmentId, searchQuery, debouncedSearchQuery, semanticSearchResults, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, filterSegmentIds])
+  }, [materials, hierarchyMode, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, browseSelectedSegmentId, searchQuery, debouncedSearchQuery, semanticSearchResults, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, filterSegmentIds])
 
   // Browse view materials grouped by universe
   const browseMaterialsByUniverse = useMemo(() => {
@@ -1427,12 +1437,14 @@ export default function Materials() {
     return grouped
   }, [browseFilteredMaterials])
 
-  // Universe display order (matching menu order)
+  // Universe display order (matching menu order) - include GTM for GTM materials
   const universeDisplayOrder = [
     'Public Cloud',
     'Private Cloud',
     'Bare Metal',
-    'Hosting & Collaboration'
+    'Hosting & Collaboration',
+    'Cross-Universes',
+    'GTM',
   ]
 
   // Get sorted universe entries for display
@@ -1848,7 +1860,7 @@ export default function Materials() {
             <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
             <p className="mt-1 text-slate-500">Browse materials by hierarchy</p>
           </div>
-          <div className="mt-4 sm:mt-0 flex space-x-3">
+          <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-3">
             {/* View Toggle */}
             <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
               <button
@@ -1866,6 +1878,41 @@ export default function Materials() {
               >
                 <Grid className="w-5 h-5" />
                 <span>Browse</span>
+              </button>
+            </div>
+            {/* Product/GTM Toggle - visible in header for Browse view */}
+            <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+              <button
+                onClick={() => {
+                  setHierarchyMode('product')
+                  setBrowseSelectedSegmentId(null)
+                  setFilterSegmentIds([])
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all ${
+                  hierarchyMode === 'product' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+                title="Product Hierarchy"
+              >
+                <Layers className="w-4 h-4" />
+                Product
+              </button>
+              <button
+                onClick={() => {
+                  setHierarchyMode('gtm')
+                  setBrowseSelectedUniverseId(null)
+                  setBrowseSelectedCategoryId(null)
+                  setBrowseSelectedProductId(null)
+                  setSelectedUniverses([])
+                  setFilterCategoryIds([])
+                  setFilterProductIds([])
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-l border-slate-200 ${
+                  hierarchyMode === 'gtm' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+                title="GTM Hierarchy"
+              >
+                <Target className="w-4 h-4" />
+                GTM
               </button>
             </div>
             {isSales ? (
@@ -1906,7 +1953,11 @@ export default function Materials() {
               {/* Product vs GTM Hierarchy Toggle */}
               <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50 mb-3">
                 <button
-                  onClick={() => { setHierarchyMode('product'); setBrowseSelectedSegmentId(null) }}
+                  onClick={() => {
+                    setHierarchyMode('product')
+                    setBrowseSelectedSegmentId(null)
+                    setFilterSegmentIds([])
+                  }}
                   className={`flex-1 px-3 py-2 text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
                     hierarchyMode === 'product' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-100'
                   }`}
@@ -1916,7 +1967,15 @@ export default function Materials() {
                   Product
                 </button>
                 <button
-                  onClick={() => { setHierarchyMode('gtm'); setBrowseSelectedUniverseId(null); setBrowseSelectedCategoryId(null); setBrowseSelectedProductId(null) }}
+                  onClick={() => {
+                    setHierarchyMode('gtm')
+                    setBrowseSelectedUniverseId(null)
+                    setBrowseSelectedCategoryId(null)
+                    setBrowseSelectedProductId(null)
+                    setSelectedUniverses([])
+                    setFilterCategoryIds([])
+                    setFilterProductIds([])
+                  }}
                   className={`flex-1 px-3 py-2 text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
                     hierarchyMode === 'gtm' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-100'
                   }`}
@@ -2201,78 +2260,73 @@ export default function Materials() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                  {/* Universe Filter */}
-                  <MultiSelect
-                    label="Universe"
-                    options={UNIVERSES.filter(u => u.id !== 'all').map(u => ({
-                      value: u.id,
-                      label: u.name
-                    }))}
-                    selectedValues={selectedUniverses}
-                    onChange={(values) => setSelectedUniverses(values as string[])}
-                    placeholder="All Universes"
-                  />
+                  {/* Universe Filter - Product mode only */}
+                  {hierarchyMode === 'product' && (
+                    <MultiSelect
+                      label="Universe"
+                      options={UNIVERSES.filter(u => u.id !== 'all').map(u => ({
+                        value: u.id,
+                        label: u.name
+                      }))}
+                      selectedValues={selectedUniverses}
+                      onChange={(values) => setSelectedUniverses(values as string[])}
+                      placeholder="All Universes"
+                    />
+                  )}
 
-                  {/* Category Filter */}
-                  <MultiSelect
-                    label="Category"
-                    options={categories.map((cat: any) => ({
-                      value: cat.id,
-                      label: cat.display_name
-                    }))}
-                    selectedValues={filterCategoryIds}
-                    onChange={(values) => {
-                      setFilterCategoryIds(values as number[])
-                      // Clear product filter when category changes
-                      setFilterProductIds([])
-                    }}
-                    placeholder="All Categories"
-                    disabled={selectedUniverses.length === 0}
-                  />
+                  {/* Category Filter - Product mode only */}
+                  {hierarchyMode === 'product' && (
+                    <MultiSelect
+                      label="Category"
+                      options={categories.map((cat: any) => ({
+                        value: cat.id,
+                        label: cat.display_name
+                      }))}
+                      selectedValues={filterCategoryIds}
+                      onChange={(values) => {
+                        setFilterCategoryIds(values as number[])
+                        setFilterProductIds([])
+                      }}
+                      placeholder="All Categories"
+                      disabled={selectedUniverses.length === 0}
+                    />
+                  )}
 
-                  {/* Product Filter */}
-                  <MultiSelect
-                    label="Product"
-                    options={products.map((prod: any) => ({
-                      value: prod.id,
-                      label: prod.display_name
-                    }))}
-                    selectedValues={filterProductIds}
-                    onChange={(values) => setFilterProductIds(values as number[])}
-                    placeholder="All Products"
-                    disabled={selectedUniverses.length === 0}
-                  />
+                  {/* Product Filter - Product mode only */}
+                  {hierarchyMode === 'product' && (
+                    <MultiSelect
+                      label="Product"
+                      options={products.map((prod: any) => ({
+                        value: prod.id,
+                        label: prod.display_name
+                      }))}
+                      selectedValues={filterProductIds}
+                      onChange={(values) => setFilterProductIds(values as number[])}
+                      placeholder="All Products"
+                      disabled={selectedUniverses.length === 0}
+                    />
+                  )}
 
-                  {/* GTM Segment Filter */}
-                  <MultiSelect
-                    label="GTM Segment"
-                    options={segmentFilterOptions}
-                    selectedValues={filterSegmentIds}
-                    onChange={(values) => setFilterSegmentIds(values as number[])}
-                    placeholder="All Segments"
-                    disabled={segmentFilterOptions.length === 0}
-                  />
+                  {/* GTM Segment Filter - GTM mode only */}
+                  {hierarchyMode === 'gtm' && (
+                    <MultiSelect
+                      label="GTM Segment"
+                      options={segmentFilterOptions}
+                      selectedValues={filterSegmentIds}
+                      onChange={(values) => setFilterSegmentIds(values as number[])}
+                      placeholder="All Segments"
+                      disabled={segmentFilterOptions.length === 0}
+                    />
+                  )}
 
-                  {/* Material Type Filter */}
+                  {/* Material Type Filter - options filtered by hierarchy mode */}
                   <MultiSelect
                     label="Type"
-                    options={[
-                      { value: 'product_brief', label: 'Product Brief' },
-                      { value: 'sales_enablement_deck', label: 'Sales Enablement Deck' },
-                      { value: 'product_portfolio', label: 'Product Portfolio' },
-                      { value: 'sales_deck', label: 'Sales Deck' },
-                      { value: 'datasheet', label: 'Datasheet' },
-                      { value: 'product_catalog', label: 'Product Catalog' },
-                      { value: 'gtm_playbook', label: 'GTM Playbook' },
-                      { value: 'gtm_sales_deck', label: 'GTM Sales Deck' },
-                      { value: 'customer_story', label: 'Customer Story' },
-                      { value: 'channel_enablement_kit', label: 'Channel Enablement Kit' },
-                      { value: 'roi_business_case', label: 'ROI / Business Case' },
-                      { value: 'persona_selling_guide', label: 'Persona Selling Guide' },
-                      { value: 'win_loss_summary', label: 'Win/Loss Summary' },
-                      { value: 'pricing_summary', label: 'Pricing Summary' },
-                      { value: 'market_brief', label: 'Market Brief' },
-                    ]}
+                    options={
+                      hierarchyMode === 'product'
+                        ? PRODUCT_MATERIAL_TYPES.map(t => ({ value: t.value, label: t.label }))
+                        : GTM_MATERIAL_TYPES.map(t => ({ value: t.value, label: t.label }))
+                    }
                     selectedValues={filterTypes}
                     onChange={(values) => setFilterTypes(values as string[])}
                     placeholder="All Types"
@@ -2335,13 +2389,20 @@ export default function Materials() {
                 <FileText className="w-16 h-16 text-slate-300 mb-4" />
                 <h3 className="text-lg font-medium text-slate-900 mb-2">No materials found</h3>
                 <p className="text-sm text-slate-500">
-                  {searchQuery ? 'Try adjusting your search terms' : 'Select a universe, category, or product to view materials'}
+                  {searchQuery
+                    ? 'Try adjusting your search terms'
+                    : hierarchyMode === 'product'
+                      ? 'Select a universe, category, or product to view materials'
+                      : 'Select a segment to view GTM materials'}
                 </p>
               </div>
             ) : (
               <>
-                {/* Show grouped by universe if no specific selection */}
-                {!browseSelectedUniverseId && !browseSelectedCategoryId && !browseSelectedProductId && !searchQuery ? (
+                {/* Show grouped by universe/segment if no specific selection */}
+                {!searchQuery && (
+                  (hierarchyMode === 'product' && !browseSelectedUniverseId && !browseSelectedCategoryId && !browseSelectedProductId) ||
+                  (hierarchyMode === 'gtm' && !browseSelectedSegmentId)
+                ) ? (
                   sortedBrowseMaterialsByUniverse.map(([universeName, universeMaterials]) => (
                     <div key={universeName} className="mb-8">
                       <h2 className="text-xl font-semibold text-slate-900 mb-4">{universeName}</h2>
@@ -2501,15 +2562,52 @@ export default function Materials() {
             <div>
               <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
               <p className="mt-1 text-slate-500">
-                {selectedUniverses.length === 0
-                  ? 'Manage your product enablement & customer engagement materials'
-                  : selectedUniverses.length === 1
-                    ? `Materials in ${UNIVERSES.find(u => u.id === selectedUniverses[0])?.name}`
-                    : `Materials in ${selectedUniverses.length} universes`
+                {hierarchyMode === 'product'
+                  ? selectedUniverses.length === 0
+                    ? 'Product materials by universe, category, and product'
+                    : selectedUniverses.length === 1
+                      ? `Materials in ${UNIVERSES.find(u => u.id === selectedUniverses[0])?.name}`
+                      : `Materials in ${selectedUniverses.length} universes`
+                  : filterSegmentIds.length === 0
+                    ? 'GTM materials by market segments'
+                    : `${filterSegmentIds.length} segment${filterSegmentIds.length !== 1 ? 's' : ''} selected`
                 }
               </p>
             </div>
-            <div className="mt-4 sm:mt-0 flex space-x-3">
+            <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-3">
+              {/* Product/GTM Toggle - in header for visibility */}
+              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                <button
+                  onClick={() => {
+                    setHierarchyMode('product')
+                    setFilterSegmentIds([])
+                    setFilterTypes((prev) => prev.filter(t => PRODUCT_MATERIAL_TYPES.some(pt => pt.value === t)))
+                  }}
+                  className={`px-4 py-2.5 text-sm font-medium transition-all flex items-center gap-2 ${
+                    hierarchyMode === 'product' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title="Product Hierarchy"
+                >
+                  <Layers className="w-4 h-4" />
+                  Product
+                </button>
+                <button
+                  onClick={() => {
+                    setHierarchyMode('gtm')
+                    setSelectedUniverses([])
+                    setFilterCategoryIds([])
+                    setFilterProductIds([])
+                    setFilterTypes((prev) => prev.filter(t => GTM_MATERIAL_TYPES.some(gt => gt.value === t)))
+                  }}
+                  className={`px-4 py-2.5 text-sm font-medium transition-all border-l border-slate-200 flex items-center gap-2 ${
+                    hierarchyMode === 'gtm' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title="GTM Hierarchy"
+                >
+                  <Target className="w-4 h-4" />
+                  GTM
+                </button>
+              </div>
               {/* View Toggle */}
               <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
                 <button
@@ -2591,78 +2689,73 @@ export default function Materials() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                {/* Universe Filter */}
-                <MultiSelect
-                  label="Universe"
-                  options={UNIVERSES.filter(u => u.id !== 'all').map(u => ({
-                    value: u.id,
-                    label: u.name
-                  }))}
-                  selectedValues={selectedUniverses}
-                  onChange={(values) => setSelectedUniverses(values as string[])}
-                  placeholder="All Universes"
-                />
+                {/* Universe Filter - Product mode only */}
+                {hierarchyMode === 'product' && (
+                  <MultiSelect
+                    label="Universe"
+                    options={UNIVERSES.filter(u => u.id !== 'all').map(u => ({
+                      value: u.id,
+                      label: u.name
+                    }))}
+                    selectedValues={selectedUniverses}
+                    onChange={(values) => setSelectedUniverses(values as string[])}
+                    placeholder="All Universes"
+                  />
+                )}
 
-                {/* Category Filter */}
-                <MultiSelect
-                  label="Category"
-                  options={categories.map((cat: any) => ({
-                    value: cat.id,
-                    label: cat.display_name
-                  }))}
-                  selectedValues={filterCategoryIds}
-                  onChange={(values) => {
-                    setFilterCategoryIds(values as number[])
-                    // Clear product filter when category changes
-                    setFilterProductIds([])
-                  }}
-                  placeholder="All Categories"
-                  disabled={selectedUniverses.length === 0}
-                />
+                {/* Category Filter - Product mode only */}
+                {hierarchyMode === 'product' && (
+                  <MultiSelect
+                    label="Category"
+                    options={categories.map((cat: any) => ({
+                      value: cat.id,
+                      label: cat.display_name
+                    }))}
+                    selectedValues={filterCategoryIds}
+                    onChange={(values) => {
+                      setFilterCategoryIds(values as number[])
+                      setFilterProductIds([])
+                    }}
+                    placeholder="All Categories"
+                    disabled={selectedUniverses.length === 0}
+                  />
+                )}
 
-                {/* Product Filter */}
-                <MultiSelect
-                  label="Product"
-                  options={products.map((prod: any) => ({
-                    value: prod.id,
-                    label: prod.display_name
-                  }))}
-                  selectedValues={filterProductIds}
-                  onChange={(values) => setFilterProductIds(values as number[])}
-                  placeholder="All Products"
-                  disabled={selectedUniverses.length === 0}
-                />
+                {/* Product Filter - Product mode only */}
+                {hierarchyMode === 'product' && (
+                  <MultiSelect
+                    label="Product"
+                    options={products.map((prod: any) => ({
+                      value: prod.id,
+                      label: prod.display_name
+                    }))}
+                    selectedValues={filterProductIds}
+                    onChange={(values) => setFilterProductIds(values as number[])}
+                    placeholder="All Products"
+                    disabled={selectedUniverses.length === 0}
+                  />
+                )}
 
-                {/* GTM Segment Filter */}
-                <MultiSelect
-                  label="GTM Segment"
-                  options={segmentFilterOptions}
-                  selectedValues={filterSegmentIds}
-                  onChange={(values) => setFilterSegmentIds(values as number[])}
-                  placeholder="All Segments"
-                  disabled={segmentFilterOptions.length === 0}
-                />
+                {/* GTM Segment Filter - GTM mode only */}
+                {hierarchyMode === 'gtm' && (
+                  <MultiSelect
+                    label="GTM Segment"
+                    options={segmentFilterOptions}
+                    selectedValues={filterSegmentIds}
+                    onChange={(values) => setFilterSegmentIds(values as number[])}
+                    placeholder="All Segments"
+                    disabled={segmentFilterOptions.length === 0}
+                  />
+                )}
 
-                {/* Material Type Filter */}
+                {/* Material Type Filter - options filtered by hierarchy mode */}
                 <MultiSelect
                   label="Type"
-                  options={[
-                    { value: 'product_brief', label: 'Product Brief' },
-                    { value: 'sales_enablement_deck', label: 'Sales Enablement Deck' },
-                    { value: 'product_portfolio', label: 'Product Portfolio' },
-                    { value: 'sales_deck', label: 'Sales Deck' },
-                    { value: 'datasheet', label: 'Datasheet' },
-                    { value: 'product_catalog', label: 'Product Catalog' },
-                    { value: 'gtm_playbook', label: 'GTM Playbook' },
-                    { value: 'gtm_sales_deck', label: 'GTM Sales Deck' },
-                    { value: 'customer_story', label: 'Customer Story' },
-                    { value: 'channel_enablement_kit', label: 'Channel Enablement Kit' },
-                    { value: 'roi_business_case', label: 'ROI / Business Case' },
-                    { value: 'persona_selling_guide', label: 'Persona Selling Guide' },
-                    { value: 'win_loss_summary', label: 'Win/Loss Summary' },
-                    { value: 'pricing_summary', label: 'Pricing Summary' },
-                    { value: 'market_brief', label: 'Market Brief' },
-                  ]}
+                  options={
+                    hierarchyMode === 'product'
+                      ? PRODUCT_MATERIAL_TYPES.map(t => ({ value: t.value, label: t.label }))
+                      : GTM_MATERIAL_TYPES.map(t => ({ value: t.value, label: t.label }))
+                  }
                   selectedValues={filterTypes}
                   onChange={(values) => setFilterTypes(values as string[])}
                   placeholder="All Types"
@@ -2824,9 +2917,13 @@ export default function Materials() {
               </div>
               <h3 className="text-lg font-medium text-slate-900">No materials found</h3>
               <p className="mt-2 text-sm text-slate-500">
-                {selectedUniverses.length > 0
-                  ? `No materials found in selected universes` 
-                  : 'Get started by uploading your first material'}
+                {hierarchyMode === 'product'
+                  ? selectedUniverses.length > 0
+                    ? 'No product materials in selected universes'
+                    : 'Get started by uploading your first product material'
+                  : filterSegmentIds.length > 0
+                    ? 'No GTM materials in selected segments'
+                    : 'Get started by uploading your first GTM material'}
               </p>
               <div className="mt-6 flex justify-center space-x-3">
                 {isSales ? (
