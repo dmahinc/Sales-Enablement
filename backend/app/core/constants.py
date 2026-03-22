@@ -16,13 +16,15 @@ ALLOWED_MIME_TYPES = [
 DEFAULT_PAGE_SIZE = 20
 MAX_PAGE_SIZE = 100
 
-# Product Universes
+# Product Universes (include GTM for GTM materials, Uncategorized for materials without universe)
 VALID_UNIVERSES = [
     "Public Cloud",
     "Private Cloud",
     "Bare Metal",
     "Hosting & Collaboration",
-    "Cross-Universes"
+    "Cross-Universes",
+    "GTM",
+    "Uncategorized",
 ]
 
 # Material Statuses
