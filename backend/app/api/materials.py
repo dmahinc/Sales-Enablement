@@ -94,6 +94,15 @@ def _check_existing_material_by_type(
         'PRODUCT_DATASHEET': 'datasheet',
         'PRODUCT_PORTFOLIO_PRESENTATION': 'product_portfolio',
         'PRODUCT_CATALOG': 'product_catalog',
+        'GTM_PLAYBOOK': 'gtm_playbook',
+        'GTM_SALES_DECK': 'gtm_sales_deck',
+        'CUSTOMER_STORY': 'customer_story',
+        'CHANNEL_ENABLEMENT_KIT': 'channel_enablement_kit',
+        'ROI_BUSINESS_CASE': 'roi_business_case',
+        'PERSONA_SELLING_GUIDE': 'persona_selling_guide',
+        'WIN_LOSS_SUMMARY': 'win_loss_summary',
+        'PRICING_SUMMARY': 'pricing_summary',
+        'MARKET_BRIEF': 'market_brief',
     }
     
     # Normalize the input material_type
@@ -291,14 +300,15 @@ async def get_material(
         logger.error(f"Failed to track material view: {str(e)}")
         db.rollback()
     
-    # Add PMM information
+    # Add PMM information and segment_ids
     material_dict = MaterialResponse.model_validate(material).model_dump()
     if material.pmm_in_charge_id:
         pmm_user = db.query(User).filter(User.id == material.pmm_in_charge_id).first()
         if pmm_user:
             material_dict['pmm_in_charge_name'] = pmm_user.full_name
             material_dict['pmm_in_charge_email'] = pmm_user.email
-    
+    material_dict['segment_ids'] = [s.id for s in material.segments.all()]
+
     return material_dict
 
 @router.get("/check-duplicate")
@@ -398,89 +408,79 @@ async def create_material(
     **Returns:**
     - Created material object with assigned ID
     """
+    from app.models.segment import Segment
+
+    GTM_MATERIAL_TYPES = {
+        'gtm_playbook', 'gtm_sales_deck', 'customer_story', 'channel_enablement_kit',
+        'roi_business_case', 'persona_selling_guide', 'win_loss_summary', 'pricing_summary', 'market_brief',
+    }
+    material_type_val = (material_data.material_type or '').lower()
+    is_gtm = material_type_val in GTM_MATERIAL_TYPES
+
     try:
         from app.models.product import Universe, Category, Product
-        
-        # Validate required fields
-        if not material_data.universe_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="universe_id is required"
-            )
-        if not material_data.category_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="category_id is required"
-            )
-        if not material_data.product_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="product_id is required"
-            )
-        
-        # Look up universe, category, and product names from IDs
-        universe = db.query(Universe).filter(Universe.id == material_data.universe_id).first()
-        if not universe:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Universe with id {material_data.universe_id} not found"
-            )
-        
-        category = db.query(Category).filter(Category.id == material_data.category_id).first()
-        if not category:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Category with id {material_data.category_id} not found"
-            )
-        
-        product = db.query(Product).filter(Product.id == material_data.product_id).first()
-        if not product:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Product with id {material_data.product_id} not found"
-            )
-        
-        # Validate category belongs to universe
-        if category.universe_id != material_data.universe_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Category does not belong to selected universe"
-            )
-        
-        # Ensure product belongs to selected universe
-        if product.universe_id != material_data.universe_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Product does not belong to selected universe"
-            )
-        
-        # Ensure product belongs to selected category (if product has a category)
-        if product.category_id and product.category_id != material_data.category_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Product does not belong to selected category"
-            )
-        
+
+        final_product_name = None
+        final_universe_name = None
+
+        if is_gtm:
+            # GTM materials: require segment_ids
+            segment_ids = material_data.segment_ids or []
+            if not segment_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="segment_ids is required for GTM materials (at least one segment)"
+                )
+            for seg_id in segment_ids:
+                seg = db.query(Segment).filter(Segment.id == seg_id).first()
+                if not seg:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Segment {seg_id} not found")
+            final_product_name = "GTM"
+            final_universe_name = "GTM"
+        else:
+            # Product materials: require product hierarchy
+            if not material_data.universe_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="universe_id is required for product materials")
+            if not material_data.category_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="category_id is required for product materials")
+            if not material_data.product_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="product_id is required for product materials")
+
+            universe = db.query(Universe).filter(Universe.id == material_data.universe_id).first()
+            if not universe:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Universe with id {material_data.universe_id} not found")
+            category = db.query(Category).filter(Category.id == material_data.category_id).first()
+            if not category:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Category with id {material_data.category_id} not found")
+            product = db.query(Product).filter(Product.id == material_data.product_id).first()
+            if not product:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Product with id {material_data.product_id} not found")
+            if category.universe_id != material_data.universe_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Category does not belong to selected universe")
+            if product.universe_id != material_data.universe_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Product does not belong to selected universe")
+            if product.category_id and product.category_id != material_data.category_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Product does not belong to selected category")
+
+            final_product_name = material_data.product_name or (product.display_name or product.name)
+            final_universe_name = material_data.universe_name or universe.name
+
         # Convert lists to JSON strings for storage
         material_dict = material_data.dict()
+        segment_ids = material_dict.pop('segment_ids', None) or []
         material_dict['tags'] = str(material_dict.get('tags', [])) if material_dict.get('tags') else None
         material_dict['keywords'] = str(material_dict.get('keywords', [])) if material_dict.get('keywords') else None
         material_dict['use_cases'] = str(material_dict.get('use_cases', [])) if material_dict.get('use_cases') else None
         material_dict['pain_points'] = str(material_dict.get('pain_points', [])) if material_dict.get('pain_points') else None
         material_dict['owner_id'] = current_user.id
-        
-        # Set PMM in charge: if current user is PMM, use them; otherwise use provided pmm_in_charge_id or leave null
+        material_dict['product_name'] = final_product_name
+        material_dict['universe_name'] = final_universe_name
+
+        # Set PMM in charge
         if current_user.role == "pmm":
             material_dict['pmm_in_charge_id'] = current_user.id
         elif 'pmm_in_charge_id' not in material_dict or not material_dict.get('pmm_in_charge_id'):
-            # If not PMM and no PMM specified, leave null (can be set later)
             material_dict['pmm_in_charge_id'] = None
-        
-        # Set names from product/universe if not provided
-        final_product_name = material_dict.get('product_name') or (product.display_name or product.name)
-        final_universe_name = material_dict.get('universe_name') or universe.name
-        material_dict['product_name'] = final_product_name
-        material_dict['universe_name'] = final_universe_name
         
         # Check for existing material of the same type (unless replacing)
         # Check for exact name match (BLOCK - exact duplicate)
@@ -525,7 +525,16 @@ async def create_material(
         db.add(material)
         db.commit()
         db.refresh(material)
-        
+
+        # Link GTM materials to segments
+        if is_gtm and segment_ids:
+            for seg_id in segment_ids:
+                seg = db.query(Segment).filter(Segment.id == seg_id).first()
+                if seg:
+                    material.segments.append(seg)
+            db.commit()
+            db.refresh(material)
+
         # Generate embedding in background (non-blocking)
         try:
             from app.api.embeddings import _generate_embedding_for_material
@@ -533,11 +542,12 @@ async def create_material(
         except Exception:
             pass
         
-        # Return material with warning if same type exists (but different name)
+        # Return material (as dict with segment_ids for consistency)
+        from app.schemas.material import MaterialResponse
+        material_dict_response = MaterialResponse.model_validate(material).model_dump()
+        material_dict_response["segment_ids"] = [s.id for s in material.segments.all()]
         if existing_by_type:
             warning_message = f"A {material_type} already exists for this product ({', '.join([m.name for m in existing_by_type])}). You can upload multiple versions as long as the filename is different."
-            from app.schemas.material import MaterialResponse
-            material_dict_response = MaterialResponse.model_validate(material).model_dump()
             material_dict_response["warning"] = warning_message
             material_dict_response["existing_materials"] = [
                 {
@@ -548,9 +558,7 @@ async def create_material(
                 }
                 for m in existing_by_type
             ]
-            return material_dict_response
-        
-        return material
+        return material_dict_response
     except HTTPException:
         raise
     except Exception as e:
@@ -569,7 +577,8 @@ async def update_material(
 ):
     """Update a material"""
     from app.models.product import Universe, Category, Product
-    
+    from app.models.segment import Segment
+
     material = db.query(Material).filter(Material.id == material_id).first()
     if not material:
         raise HTTPException(
@@ -622,6 +631,7 @@ async def update_material(
         update_data.pop('universe_id', None)
         update_data.pop('category_id', None)
         update_data.pop('product_id', None)
+        segment_ids = update_data.pop('segment_ids', None)
         
         # Map frontend enum values to database enum names
         material_type_mapping = {
@@ -631,6 +641,15 @@ async def update_material(
             'sales_deck': 'PRODUCT_SALES_DECK',
             'datasheet': 'PRODUCT_DATASHEET',
             'product_catalog': 'PRODUCT_CATALOG',
+            'gtm_playbook': 'GTM_PLAYBOOK',
+            'gtm_sales_deck': 'GTM_SALES_DECK',
+            'customer_story': 'CUSTOMER_STORY',
+            'channel_enablement_kit': 'CHANNEL_ENABLEMENT_KIT',
+            'roi_business_case': 'ROI_BUSINESS_CASE',
+            'persona_selling_guide': 'PERSONA_SELLING_GUIDE',
+            'win_loss_summary': 'WIN_LOSS_SUMMARY',
+            'pricing_summary': 'PRICING_SUMMARY',
+            'market_brief': 'MARKET_BRIEF',
         }
         
         audience_mapping = {
@@ -711,7 +730,16 @@ async def update_material(
         
         for key, value in update_data.items():
             setattr(material, key, value)
-        
+
+        if segment_ids is not None:
+            from sqlalchemy import delete
+            from app.models.associations import material_segment
+            db.execute(delete(material_segment).where(material_segment.c.material_id == material_id))
+            for seg_id in segment_ids:
+                seg = db.query(Segment).filter(Segment.id == seg_id).first()
+                if seg:
+                    material.segments.append(seg)
+
         material.updated_at = datetime.utcnow()
         # Clear embedding so it gets regenerated
         material.embedding = None
@@ -725,14 +753,15 @@ async def update_material(
         except Exception:
             pass
         
-        # Add PMM information to response
+        # Add PMM information and segment_ids to response
         material_dict = MaterialResponse.model_validate(material).model_dump()
         if material.pmm_in_charge_id:
             pmm_user = db.query(User).filter(User.id == material.pmm_in_charge_id).first()
             if pmm_user:
                 material_dict['pmm_in_charge_name'] = pmm_user.full_name
                 material_dict['pmm_in_charge_email'] = pmm_user.email
-        
+        material_dict['segment_ids'] = [s.id for s in material.segments.all()]
+
         return material_dict
     except Exception as e:
         db.rollback()
@@ -805,6 +834,7 @@ async def upload_material_file(
     product_id: Optional[int] = Form(None),
     product_name: Optional[str] = Form(None),
     universe_name: Optional[str] = Form(None),
+    segment_ids: Optional[str] = Form(None),
     other_type_description: Optional[str] = Form(None),
     freshness_date: Optional[str] = Form(None),
     pmm_in_charge_id: Optional[int] = Form(None),
@@ -817,59 +847,87 @@ async def upload_material_file(
     """Upload a new material file"""
     from app.services.storage import storage_service
     from app.models.product import Universe, Product
-    
-    # Handle optional universe/category/product (for track creation flow)
+    from app.models.segment import Segment
+    import json
+
+    GTM_MATERIAL_TYPES = {
+        'gtm_playbook', 'gtm_sales_deck', 'customer_story', 'channel_enablement_kit',
+        'roi_business_case', 'persona_selling_guide', 'win_loss_summary', 'pricing_summary', 'market_brief',
+    }
+    material_type_lower = (material_type or '').lower()
+    is_gtm = material_type_lower in GTM_MATERIAL_TYPES
+
     universe = None
     category = None
     product = None
     final_universe_name = universe_name or "Uncategorized"
     final_product_name = product_name or "Uncategorized"
-    
-    if universe_id:
-        universe = db.query(Universe).filter(Universe.id == universe_id).first()
-        if not universe:
+    parsed_segment_ids: List[int] = []
+
+    if is_gtm:
+        if not segment_ids or not str(segment_ids).strip():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Universe with id {universe_id} not found"
+                detail="segment_ids is required for GTM materials (at least one segment)"
             )
-        final_universe_name = universe_name or universe.name
-    
-    if category_id:
-        from app.models.product import Category
-        category = db.query(Category).filter(Category.id == category_id).first()
-        if not category:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Category with id {category_id} not found"
-            )
-        if universe_id and category.universe_id != universe_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Category does not belong to selected universe"
-            )
-    
-    if product_id:
-        product = db.query(Product).filter(Product.id == product_id).first()
-        if not product:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Product with id {product_id} not found"
-            )
-        final_product_name = product_name or product.display_name or product.name
-        
-        # Validate product belongs to selected universe if universe_id is provided
-        if universe_id and product.universe_id != universe_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Product does not belong to selected universe"
-            )
-        
-        # Validate product belongs to selected category if both are provided
-        if category_id and product.category_id and product.category_id != category_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Product does not belong to selected category"
-            )
+        raw = str(segment_ids).strip()
+        try:
+            parsed = json.loads(raw) if raw.startswith('[') else [int(x.strip()) for x in raw.split(',') if x.strip()]
+            parsed_segment_ids = [int(x) for x in parsed]
+        except (json.JSONDecodeError, ValueError):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="segment_ids must be a JSON array or comma-separated IDs")
+        if not parsed_segment_ids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="segment_ids is required for GTM materials (at least one segment)")
+        for seg_id in parsed_segment_ids:
+            seg = db.query(Segment).filter(Segment.id == seg_id).first()
+            if not seg:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Segment {seg_id} not found")
+        final_product_name = "GTM"
+        final_universe_name = "GTM"
+    else:
+        # Handle optional universe/category/product (for product materials)
+        if universe_id:
+            universe = db.query(Universe).filter(Universe.id == universe_id).first()
+            if not universe:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Universe with id {universe_id} not found"
+                )
+            final_universe_name = universe_name or universe.name
+
+        if category_id:
+            from app.models.product import Category
+            category = db.query(Category).filter(Category.id == category_id).first()
+            if not category:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Category with id {category_id} not found"
+                )
+            if universe_id and category.universe_id != universe_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Category does not belong to selected universe"
+                )
+
+        if product_id:
+            product = db.query(Product).filter(Product.id == product_id).first()
+            if not product:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Product with id {product_id} not found"
+                )
+            final_product_name = product_name or product.display_name or product.name
+
+            if universe_id and product.universe_id != universe_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Product does not belong to selected universe"
+                )
+            if category_id and product.category_id and product.category_id != category_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Product does not belong to selected category"
+                )
     
     try:
         # Read file content
@@ -902,6 +960,15 @@ async def upload_material_file(
             'sales_deck': 'PRODUCT_SALES_DECK',
             'datasheet': 'PRODUCT_DATASHEET',
             'product_catalog': 'PRODUCT_CATALOG',
+            'gtm_playbook': 'GTM_PLAYBOOK',
+            'gtm_sales_deck': 'GTM_SALES_DECK',
+            'customer_story': 'CUSTOMER_STORY',
+            'channel_enablement_kit': 'CHANNEL_ENABLEMENT_KIT',
+            'roi_business_case': 'ROI_BUSINESS_CASE',
+            'persona_selling_guide': 'PERSONA_SELLING_GUIDE',
+            'win_loss_summary': 'WIN_LOSS_SUMMARY',
+            'pricing_summary': 'PRICING_SUMMARY',
+            'market_brief': 'MARKET_BRIEF',
             'other': 'other',  # Store as-is for "other" type
         }
         
@@ -1053,6 +1120,14 @@ async def upload_material_file(
         db.commit()
         db.refresh(material)
 
+        if is_gtm and parsed_segment_ids:
+            for seg_id in parsed_segment_ids:
+                seg = db.query(Segment).filter(Segment.id == seg_id).first()
+                if seg:
+                    material.segments.append(seg)
+            db.commit()
+            db.refresh(material)
+
         # Generate thumbnail for PDFs (fast, ~50-200ms)
         if material.file_format and str(material.file_format).lower() == "pdf":
             try:
@@ -1065,7 +1140,8 @@ async def upload_material_file(
         # Convert to response model to ensure proper serialization
         from app.schemas.material import MaterialResponse
         material_dict = MaterialResponse.model_validate(material).model_dump(mode='json')
-        
+        material_dict['segment_ids'] = [s.id for s in material.segments.all()]
+
         # Add PMM information if available
         if material.pmm_in_charge_id:
             pmm_user = db.query(User).filter(User.id == material.pmm_in_charge_id).first()
@@ -1551,12 +1627,22 @@ async def batch_upload_materials(
         }
         
         # Process each file individually
+        GTM_MATERIAL_TYPES = {
+            'gtm_playbook', 'gtm_sales_deck', 'customer_story', 'channel_enablement_kit',
+            'roi_business_case', 'persona_selling_guide', 'win_loss_summary', 'pricing_summary', 'market_brief',
+        }
+
         for i, (file, suggestion) in enumerate(zip(files, suggestions)):
             try:
-                # Validate suggestion has required fields
-                required_fields = ['universe_id', 'category_id', 'product_id', 'material_type', 'audience']
-                missing_fields = [field for field in required_fields if suggestion.get(field) is None or suggestion.get(field) == '']
-                
+                material_type = suggestion.get('material_type', 'product_brief')
+                is_gtm = (material_type or '').lower() in GTM_MATERIAL_TYPES
+
+                if is_gtm:
+                    seg_ids = suggestion.get('segment_ids')
+                    missing_fields = ['segment_ids'] if (not seg_ids or (isinstance(seg_ids, (list, tuple)) and len(seg_ids) == 0)) else [f for f in ['material_type', 'audience'] if not suggestion.get(f)]
+                else:
+                    missing_fields = [f for f in ['universe_id', 'category_id', 'product_id', 'material_type', 'audience'] if suggestion.get(f) is None or suggestion.get(f) == '']
+
                 if missing_fields:
                     results["failure_count"] += 1
                     results["failures"].append({
@@ -1564,57 +1650,75 @@ async def batch_upload_materials(
                         "error": f"Missing required fields: {', '.join(missing_fields)}"
                     })
                     continue
-                
-                # Create FormData-like structure for single file upload
-                # We'll call the existing upload logic by creating a new request context
-                # For now, let's replicate the upload logic here
+
                 from app.models.product import Universe, Category, Product
-                
-                # Validate universe, category, product exist
-                universe = db.query(Universe).filter(Universe.id == suggestion['universe_id']).first()
-                if not universe:
-                    results["failure_count"] += 1
-                    results["failures"].append({
-                        "filename": file.filename,
-                        "error": f"Universe with id {suggestion['universe_id']} not found"
-                    })
-                    continue
-                
-                category = db.query(Category).filter(Category.id == suggestion['category_id']).first()
-                if not category:
-                    results["failure_count"] += 1
-                    results["failures"].append({
-                        "filename": file.filename,
-                        "error": f"Category with id {suggestion['category_id']} not found"
-                    })
-                    continue
-                
-                product = db.query(Product).filter(Product.id == suggestion['product_id']).first()
-                if not product:
-                    results["failure_count"] += 1
-                    results["failures"].append({
-                        "filename": file.filename,
-                        "error": f"Product with id {suggestion['product_id']} not found"
-                    })
-                    continue
-                
-                # Validate category belongs to universe
-                if category.universe_id != universe.id:
-                    results["failure_count"] += 1
-                    results["failures"].append({
-                        "filename": file.filename,
-                        "error": f"Category {category.id} does not belong to universe {universe.id}"
-                    })
-                    continue
-                
-                # Validate product belongs to category
-                if product.category_id != category.id:
-                    results["failure_count"] += 1
-                    results["failures"].append({
-                        "filename": file.filename,
-                        "error": f"Product {product.id} does not belong to category {category.id}"
-                    })
-                    continue
+                from app.models.segment import Segment
+
+                if is_gtm:
+                    segment_ids = suggestion.get('segment_ids') or []
+                    if not segment_ids or not isinstance(segment_ids, (list, tuple)):
+                        results["failure_count"] += 1
+                        results["failures"].append({"filename": file.filename, "error": "segment_ids (non-empty list) is required for GTM materials"})
+                        continue
+                    seg_ok = True
+                    for seg_id in segment_ids:
+                        seg = db.query(Segment).filter(Segment.id == seg_id).first()
+                        if not seg:
+                            results["failure_count"] += 1
+                            results["failures"].append({"filename": file.filename, "error": f"Segment {seg_id} not found"})
+                            seg_ok = False
+                            break
+                    if not seg_ok:
+                        continue
+                    final_product_name = "GTM"
+                    final_universe_name = "GTM"
+                    universe = category = product = None
+                else:
+                    universe = db.query(Universe).filter(Universe.id == suggestion['universe_id']).first()
+                    if not universe:
+                        results["failure_count"] += 1
+                        results["failures"].append({
+                            "filename": file.filename,
+                            "error": f"Universe with id {suggestion['universe_id']} not found"
+                        })
+                        continue
+
+                    category = db.query(Category).filter(Category.id == suggestion['category_id']).first()
+                    if not category:
+                        results["failure_count"] += 1
+                        results["failures"].append({
+                            "filename": file.filename,
+                            "error": f"Category with id {suggestion['category_id']} not found"
+                        })
+                        continue
+
+                    product = db.query(Product).filter(Product.id == suggestion['product_id']).first()
+                    if not product:
+                        results["failure_count"] += 1
+                        results["failures"].append({
+                            "filename": file.filename,
+                            "error": f"Product with id {suggestion['product_id']} not found"
+                        })
+                        continue
+
+                    if category.universe_id != universe.id:
+                        results["failure_count"] += 1
+                        results["failures"].append({
+                            "filename": file.filename,
+                            "error": f"Category {category.id} does not belong to universe {universe.id}"
+                        })
+                        continue
+
+                    if product.category_id != category.id:
+                        results["failure_count"] += 1
+                        results["failures"].append({
+                            "filename": file.filename,
+                            "error": f"Product {product.id} does not belong to category {category.id}"
+                        })
+                        continue
+
+                    final_product_name = suggestion.get('product_name') or product.display_name or product.name
+                    final_universe_name = suggestion.get('universe_name') or universe.name or universe.display_name
                 
                 # Read file content
                 file_content = await file.read()
@@ -1650,6 +1754,15 @@ async def batch_upload_materials(
                     'sales_deck': 'PRODUCT_SALES_DECK',
                     'datasheet': 'PRODUCT_DATASHEET',
                     'product_catalog': 'PRODUCT_CATALOG',
+                    'gtm_playbook': 'GTM_PLAYBOOK',
+                    'gtm_sales_deck': 'GTM_SALES_DECK',
+                    'customer_story': 'CUSTOMER_STORY',
+                    'channel_enablement_kit': 'CHANNEL_ENABLEMENT_KIT',
+                    'roi_business_case': 'ROI_BUSINESS_CASE',
+                    'persona_selling_guide': 'PERSONA_SELLING_GUIDE',
+                    'win_loss_summary': 'WIN_LOSS_SUMMARY',
+                    'pricing_summary': 'PRICING_SUMMARY',
+                    'market_brief': 'MARKET_BRIEF',
                     'other': 'other',
                 }
                 
@@ -1684,10 +1797,6 @@ async def batch_upload_materials(
                             "error": "other_type_description is required when material_type is 'other'"
                         })
                         continue
-                
-                # Get product and universe names
-                final_product_name = suggestion.get('product_name') or product.display_name or product.name
-                final_universe_name = suggestion.get('universe_name') or universe.name or universe.display_name
                 
                 # Check for existing materials
                 existing_by_name = _check_existing_material_by_name(db, final_product_name, file.filename)
@@ -1757,7 +1866,15 @@ async def batch_upload_materials(
                 db.add(material)
                 db.commit()
                 db.refresh(material)
-                
+
+                if is_gtm and segment_ids:
+                    for seg_id in segment_ids:
+                        seg = db.query(Segment).filter(Segment.id == seg_id).first()
+                        if seg:
+                            material.segments.append(seg)
+                    db.commit()
+                    db.refresh(material)
+
                 results["success_count"] += 1
                 results["successes"].append({
                     "filename": file.filename,

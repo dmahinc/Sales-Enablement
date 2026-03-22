@@ -1,7 +1,8 @@
 """
 Authentication API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
@@ -10,6 +11,7 @@ from app.core.security import authenticate_user, create_access_token, get_passwo
 from app.core.config import settings
 from app.models.user import User
 from app.schemas.user import UserResponse
+from app.api.avatars import get_avatar_data_url
 from pydantic import BaseModel, EmailStr
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -212,3 +214,70 @@ async def read_users_me_v2(current_user: User = Depends(get_current_active_user)
     Same as /me but with v2 prefix for frontend compatibility.
     """
     return current_user
+
+    return current_user
+
+
+AVATARS_DIR = Path("/app/avatars")
+AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post(
+    "/me/avatar",
+    response_model=UserResponse,
+    summary="Upload profile picture",
+    description="Upload or update your profile picture (all authenticated users)",
+)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Upload or replace profile picture. Accepts PNG, JPEG, GIF, WebP. Max 5MB."""
+    allowed = (".png", ".jpg", ".jpeg", ".gif", ".webp")
+    ext = "." + (file.filename or "").split(".")[-1].lower() if "." in (file.filename or "") else ""
+    if ext not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Allowed formats: {', '.join(allowed)}",
+        )
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:  # 5MB
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File too large (max 5MB)",
+        )
+    filename = f"{current_user.id}{ext}"
+    path = AVATARS_DIR / filename
+    path.write_bytes(content)
+    current_user.avatar_url = f"/api/avatars/{filename}"
+    db.commit()
+    db.refresh(current_user)
+    data = UserResponse.model_validate(current_user).model_dump()
+    data["avatar_data_url"] = get_avatar_data_url(current_user)
+    return UserResponse(**data)
+
+
+@router.delete(
+    "/me/avatar",
+    response_model=UserResponse,
+    summary="Remove profile picture",
+)
+async def remove_avatar(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Remove your profile picture."""
+    if current_user.avatar_url:
+        # Delete file if exists
+        for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+            path = AVATARS_DIR / f"{current_user.id}{ext}"
+            if path.exists():
+                path.unlink()
+                break
+    current_user.avatar_url = None
+    db.commit()
+    db.refresh(current_user)
+    data = UserResponse.model_validate(current_user).model_dump()
+    data["avatar_data_url"] = None
+    return UserResponse(**data)

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 
 interface User {
@@ -7,6 +7,8 @@ interface User {
   full_name: string
   role: string
   is_superuser?: boolean
+  avatar_url?: string | null
+  avatar_data_url?: string | null  // base64 data URL - no separate request needed
 }
 
 interface AuthContextType {
@@ -14,6 +16,7 @@ interface AuthContextType {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -21,6 +24,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    try {
+      const response = await api.get('/auth/me')
+      setUser(response.data)
+    } catch (err) {
+      console.error('Refresh user failed:', err)
+    }
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -113,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

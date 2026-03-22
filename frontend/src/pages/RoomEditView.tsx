@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -16,6 +16,8 @@ import {
   Save,
   FileText,
   ArrowLeft,
+  ImagePlus,
+  ImageIcon,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
@@ -62,6 +64,7 @@ type Room = {
   welcome_message?: string
   executive_summary?: string
   welcome_video_url?: string
+  customer_logo_url?: string
   materials: RoomMaterial[]
   action_plan: ActionPlanItem[]
 }
@@ -100,6 +103,7 @@ export default function RoomEditView() {
   const [viewerMaterial, setViewerMaterial] = useState<{ id: number; name: string; fileFormat?: string } | null>(null)
   const [downloading, setDownloading] = useState<number | null>(null)
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   const { data: room, isLoading, error } = useQuery<Room>({
     queryKey: ['deal-room-edit', roomId],
@@ -195,6 +199,22 @@ export default function RoomEditView() {
   const updateActionPlanMutation = useMutation({
     mutationFn: ({ itemId, data }: { itemId: number; data: Partial<ActionPlanItem> }) =>
       api.put(`/deal-rooms/${roomId}/action-plan/${itemId}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deal-room-edit', roomId] }),
+  })
+
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData()
+      fd.append('file', file)
+      return api.post(`/deal-rooms/${roomId}/logo`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deal-room-edit', roomId] }),
+  })
+
+  const removeLogoMutation = useMutation({
+    mutationFn: () => api.delete(`/deal-rooms/${roomId}/logo`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deal-room-edit', roomId] }),
   })
 
@@ -333,13 +353,64 @@ export default function RoomEditView() {
         </div>
       </div>
 
-      {/* Header - editable, compact */}
+      {/* Header - editable, compact; customer logo or upload */}
       <header className="sticky top-0 z-40 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-9 h-9 rounded-lg bg-[#006dc7] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">OVH</span>
-            </div>
+            <input
+              type="file"
+              ref={logoInputRef}
+              accept=".png,.jpg,.jpeg,.gif,.webp"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) uploadLogoMutation.mutate(f)
+                e.target.value = ''
+              }}
+            />
+            {roomData?.customer_logo_url ? (
+              <div className="relative group">
+                <img
+                  src={roomData.customer_logo_url}
+                  alt="Customer logo"
+                  className="h-9 max-w-[140px] object-contain object-left"
+                />
+                <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 bg-black/40 rounded transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadLogoMutation.isPending}
+                    className="p-1 rounded bg-white/90 text-slate-700 hover:bg-white text-xs"
+                    title="Change logo"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeLogoMutation.mutate()}
+                    disabled={removeLogoMutation.isPending}
+                    className="p-1 rounded bg-red-500/90 text-white hover:bg-red-600 text-xs"
+                    title="Remove logo"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={uploadLogoMutation.isPending}
+                className="w-9 h-9 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-400 hover:border-[#006dc7] hover:text-[#006dc7] transition-colors"
+                title="Upload customer logo"
+              >
+                {uploadLogoMutation.isPending ? (
+                  <Loader className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="w-4 h-4" />
+                )}
+              </button>
+            )}
             <div>
               <input
                 type="text"

@@ -59,7 +59,7 @@ _SEARCH_MATERIALS = {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Natural language search query or keywords. Can be a full question like 'materials about data sovereignty for CTOs', partial words, product names, or material names. The search uses AI semantic matching when available, with keyword fallback."},
-                "material_type": {"type": "string", "description": "Filter by type: product_brief, sales_enablement_deck, sales_deck, datasheet, product_portfolio, product_catalog, other"},
+                "material_type": {"type": "string", "description": "Filter by type: product_brief, sales_enablement_deck, sales_deck, datasheet, product_portfolio, product_catalog, gtm_playbook, gtm_sales_deck, customer_story, channel_enablement_kit, roi_business_case, persona_selling_guide, win_loss_summary, pricing_summary, market_brief, other"},
                 "universe_name": {"type": "string", "description": "Filter by universe: Public Cloud, Private Cloud, Bare Metal, Hosting & Collaboration"},
                 "limit": {"type": "integer", "description": "Max results (default 10)", "default": 10},
             },
@@ -124,7 +124,7 @@ _REQUEST_MATERIAL_FROM_PMM = {
         "parameters": {
             "type": "object",
             "properties": {
-                "material_type": {"type": "string", "description": "Type of material needed: product_brief, sales_enablement_deck, sales_deck, datasheet, product_portfolio, product_catalog, other"},
+                "material_type": {"type": "string", "description": "Type of material needed: product_brief, sales_enablement_deck, sales_deck, datasheet, product_portfolio, product_catalog, gtm_playbook, gtm_sales_deck, customer_story, channel_enablement_kit, roi_business_case, persona_selling_guide, win_loss_summary, pricing_summary, market_brief, other"},
                 "description": {"type": "string", "description": "Description of the material needed"},
                 "priority": {"type": "string", "description": "Priority: low, medium, high, urgent", "default": "medium"},
                 "use_case": {"type": "string", "description": "The use case or context for this material"},

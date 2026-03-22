@@ -33,7 +33,7 @@ class DealRoom(BaseModel):
     welcome_message = Column(Text, nullable=True)
     executive_summary = Column(Text, nullable=True)
     welcome_video_url = Column(String(500), nullable=True)
-    # OVHcloud branding is default; custom_logo_url optional for future
+    customer_logo_url = Column("custom_logo_path", String(500), nullable=True)  # Customer logo in header; footer stays OVHcloud
 
     # Lifecycle
     expires_at = Column(DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(days=90))

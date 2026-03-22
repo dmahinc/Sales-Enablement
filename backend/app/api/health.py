@@ -38,6 +38,15 @@ MATERIAL_TYPE_MAP = {
     "product_sales_deck": "PRODUCT_SALES_DECK",
     "datasheet": "PRODUCT_DATASHEET",
     "product_datasheet": "PRODUCT_DATASHEET",
+    "gtm_playbook": "GTM_PLAYBOOK",
+    "gtm_sales_deck": "GTM_SALES_DECK",
+    "customer_story": "CUSTOMER_STORY",
+    "channel_enablement_kit": "CHANNEL_ENABLEMENT_KIT",
+    "roi_business_case": "ROI_BUSINESS_CASE",
+    "persona_selling_guide": "PERSONA_SELLING_GUIDE",
+    "win_loss_summary": "WIN_LOSS_SUMMARY",
+    "pricing_summary": "PRICING_SUMMARY",
+    "market_brief": "MARKET_BRIEF",
 }
 
 def calculate_freshness_score(material: Material) -> int:

@@ -9,12 +9,23 @@ from app.models.base import BaseModel
 from app.models.associations import material_persona, material_segment
 
 class MaterialType(str, Enum):
+    # Product materials
     PRODUCT_BRIEF = "product_brief"
     SALES_ENABLEMENT_DECK = "sales_enablement_deck"
     PRODUCT_PORTFOLIO = "product_portfolio"
     SALES_DECK = "sales_deck"
     DATASHEET = "datasheet"
     PRODUCT_CATALOG = "product_catalog"
+    # GTM materials
+    GTM_PLAYBOOK = "gtm_playbook"
+    GTM_SALES_DECK = "gtm_sales_deck"
+    CUSTOMER_STORY = "customer_story"
+    CHANNEL_ENABLEMENT_KIT = "channel_enablement_kit"
+    ROI_BUSINESS_CASE = "roi_business_case"
+    PERSONA_SELLING_GUIDE = "persona_selling_guide"
+    WIN_LOSS_SUMMARY = "win_loss_summary"
+    PRICING_SUMMARY = "pricing_summary"
+    MARKET_BRIEF = "market_brief"
 
 class MaterialAudience(str, Enum):
     INTERNAL = "internal"

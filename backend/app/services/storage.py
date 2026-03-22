@@ -25,10 +25,12 @@ class StorageService:
             "01_Internal_Materials/Sales_Enablement_Decks/By_Product",
             "01_Internal_Materials/Sales_Enablement_Decks/By_Universe",
             "01_Internal_Materials/Product_Portfolio",
+            "01_Internal_Materials/GTM_Materials",
             "02_Customer_Facing/Sales_Decks/Universe_Level",
             "02_Customer_Facing/Sales_Decks/Product_Level",
             "02_Customer_Facing/Datasheets/By_Product",
             "02_Customer_Facing/Product_Catalog",
+            "02_Customer_Facing/GTM_Materials",
             "03_Shared_Assets/Personas",
             "03_Shared_Assets/Content_Blocks/Narratives",
             "03_Shared_Assets/Content_Blocks/Value_Props",
@@ -55,7 +57,9 @@ class StorageService:
                     return self.storage_path / "01_Internal_Materials/Sales_Enablement_Decks/By_Universe" / universe_name
             elif material_type == "product_portfolio":
                 return self.storage_path / "01_Internal_Materials/Product_Portfolio"
-        
+            elif material_type and material_type.startswith("gtm_"):
+                return self.storage_path / "01_Internal_Materials/GTM_Materials"
+
         elif audience == "customer_facing":
             if material_type == "sales_deck":
                 if universe_name:
@@ -67,7 +71,15 @@ class StorageService:
                     return self.storage_path / "02_Customer_Facing/Datasheets/By_Product" / product_name
             elif material_type == "product_catalog":
                 return self.storage_path / "02_Customer_Facing/Product_Catalog"
-        
+            elif material_type and material_type.startswith("gtm_"):
+                return self.storage_path / "02_Customer_Facing/GTM_Materials"
+        elif audience == "shared_asset":
+            if material_type and material_type.startswith("gtm_"):
+                return self.storage_path / "01_Internal_Materials/GTM_Materials"
+
+        if material_type and material_type.startswith("gtm_"):
+            return self.storage_path / "01_Internal_Materials/GTM_Materials"
+
         # Default fallback
         return self.storage_path / "04_Archive/Deprecated_Materials"
     

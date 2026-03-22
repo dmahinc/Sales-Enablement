@@ -155,13 +155,21 @@ export default function RoomView() {
 
   return (
     <div className="min-h-screen bg-[#f7fafc] dark:bg-slate-900">
-      {/* Compact header */}
+      {/* Compact header - customer logo or default OVH */}
       <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-800/95 backdrop-blur border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[#006dc7] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">OVH</span>
-            </div>
+            {room.customer_logo_url ? (
+              <img
+                src={room.customer_logo_url}
+                alt="Customer logo"
+                className="h-9 max-w-[140px] object-contain object-left"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-lg bg-[#006dc7] flex items-center justify-center">
+                <span className="text-white font-bold text-sm">OVH</span>
+              </div>
+            )}
             <div>
               <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100">{room.name}</h1>
               {room.company_name && (

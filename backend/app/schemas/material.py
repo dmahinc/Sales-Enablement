@@ -22,6 +22,15 @@ def convert_db_enum_to_frontend(db_value: str, enum_class) -> str:
         'PRODUCT_SALES_DECK': 'sales_deck',
         'PRODUCT_DATASHEET': 'datasheet',
         'PRODUCT_CATALOG': 'product_catalog',
+        'GTM_PLAYBOOK': 'gtm_playbook',
+        'GTM_SALES_DECK': 'gtm_sales_deck',
+        'CUSTOMER_STORY': 'customer_story',
+        'CHANNEL_ENABLEMENT_KIT': 'channel_enablement_kit',
+        'ROI_BUSINESS_CASE': 'roi_business_case',
+        'PERSONA_SELLING_GUIDE': 'persona_selling_guide',
+        'WIN_LOSS_SUMMARY': 'win_loss_summary',
+        'PRICING_SUMMARY': 'pricing_summary',
+        'MARKET_BRIEF': 'market_brief',
     }
     
     audience_mapping = {
@@ -75,6 +84,7 @@ class MaterialBase(BaseModel):
     product_id: Optional[int] = None
     product_name: Optional[str] = Field(None, max_length=255)
     universe_name: Optional[str] = Field(None, max_length=100)
+    segment_ids: Optional[List[int]] = Field(None, description="GTM segment IDs for GTM materials")
     status: Optional[str] = "draft"
     pmm_in_charge_id: Optional[int] = Field(None, description="ID of the PMM in charge of this material")
     tags: Optional[List[str]] = []
@@ -130,6 +140,7 @@ class MaterialUpdate(BaseModel):
     product_id: Optional[int] = None
     product_name: Optional[str] = Field(None, max_length=255)
     universe_name: Optional[str] = Field(None, max_length=100)
+    segment_ids: Optional[List[int]] = Field(None, description="GTM segment IDs for GTM materials")
     status: Optional[str] = None
     pmm_in_charge_id: Optional[int] = Field(None, description="ID of the PMM in charge of this material")
     tags: Optional[List[str]] = None

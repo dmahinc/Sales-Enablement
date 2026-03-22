@@ -2,8 +2,17 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import ProductHierarchySelector from './ProductHierarchySelector'
+import GTMHierarchySelector from './GTMHierarchySelector'
 import { useAuth } from '../contexts/AuthContext'
 import { FolderPlus, Plus, X } from 'lucide-react'
+import {
+  getMaterialCategory,
+  getDefaultAudienceForType,
+  canChangeAudience,
+  PRODUCT_MATERIAL_TYPES,
+  GTM_MATERIAL_TYPES,
+  type MaterialCategory,
+} from '../utils/materialTypes'
 
 interface MaterialFormProps {
   material?: any
@@ -35,6 +44,7 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
     product_id: null as number | null,
     product_name: '',
     universe_name: '',
+    segment_ids: [] as number[],
     status: 'draft',
     description: '',
     tags: '',
@@ -101,11 +111,14 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
         pain_points: Array.isArray(material.pain_points) ? material.pain_points.join(', ') : (material.pain_points || ''),
         product_name: material.product_name || '',
         universe_name: material.universe_name || '',
+        segment_ids: Array.isArray(material.segment_ids) ? material.segment_ids : [],
         pmm_in_charge_id: material.pmm_in_charge_id || null,
       }))
 
-      // Look up universe/category/product IDs if universe_name exists
-      if (material.universe_name) {
+      // For GTM materials, segment_ids are already set above; skip product hierarchy lookup
+      if (getMaterialCategory(material.material_type) === 'gtm') {
+        // segment_ids already set in prev block
+      } else if (material.universe_name && material.universe_name !== 'GTM') {
         // Look up universe ID from name
         api.get('/products/universes').then(res => {
           const universe = res.data.find((u: any) => u.name === material.universe_name || u.display_name === material.universe_name)
@@ -427,37 +440,50 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Validate required fields
-    if (!formData.universe_id) {
-      alert('Please select Universe')
-      return
+    const isGtm = getMaterialCategory(formData.material_type) === 'gtm'
+
+    if (isGtm) {
+      if (!formData.segment_ids?.length) {
+        alert('Please select at least one GTM segment')
+        return
+      }
+    } else {
+      if (!formData.universe_id) {
+        alert('Please select Universe')
+        return
+      }
+      if (!formData.category_id) {
+        alert('Please select Category')
+        return
+      }
+      if (!formData.product_id) {
+        alert('Please select Product')
+        return
+      }
     }
-    if (!formData.category_id) {
-      alert('Please select Category')
-      return
-    }
-    if (!formData.product_id) {
-      alert('Please select Product')
-      return
-    }
-    
+
     const submitData: any = {
       name: formData.name,
       material_type: formData.material_type,
       audience: formData.audience,
       pmm_in_charge_id: formData.pmm_in_charge_id || null,
-      universe_id: formData.universe_id,
-      category_id: formData.category_id,
-      product_id: formData.product_id,
-      product_name: formData.product_name,
-      universe_name: formData.universe_name,
       status: formData.status,
       description: formData.description,
       tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : [],
       keywords: formData.keywords ? formData.keywords.split(',').map(k => k.trim()).filter(k => k) : [],
       use_cases: formData.use_cases ? formData.use_cases.split(',').map(uc => uc.trim()).filter(uc => uc) : [],
       pain_points: formData.pain_points ? formData.pain_points.split(',').map(pp => pp.trim()).filter(pp => pp) : [],
+    }
+    if (isGtm) {
+      submitData.segment_ids = formData.segment_ids
+      submitData.product_name = 'GTM'
+      submitData.universe_name = 'GTM'
+    } else {
+      submitData.universe_id = formData.universe_id
+      submitData.category_id = formData.category_id
+      submitData.product_id = formData.product_id
+      submitData.product_name = formData.product_name
+      submitData.universe_name = formData.universe_name
     }
     
     if (formData.material_type === 'other' && formData.other_type_description) {
@@ -472,8 +498,8 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
     if (material) {
       updateMutation.mutate(submitData)
     } else {
-      // Check for duplicates first (skip for 'other' type)
-      if (formData.material_type !== 'other') {
+      // Check for duplicates first (skip for 'other' and GTM - GTM uses different product_name)
+      if (formData.material_type !== 'other' && !isGtm) {
         try {
           const duplicateCheck = await checkDuplicateMutation.mutateAsync(submitData)
           if (duplicateCheck.exists) {
@@ -483,7 +509,6 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
             return
           }
         } catch (error) {
-          // If check fails, proceed with creation
           console.error('Duplicate check failed:', error)
         }
       }
@@ -507,47 +532,79 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Material Type *</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Material Category *</label>
           <select
             required
-            value={formData.material_type}
+            value={getMaterialCategory(formData.material_type)}
             onChange={(e) => {
-              const newMaterialType = e.target.value
-              // Auto-set audience based on material type
-              let newAudience = formData.audience
-              if (newMaterialType === 'product_brief' || newMaterialType === 'sales_enablement_deck') {
-                newAudience = 'internal'
-              } else if (newMaterialType === 'datasheet' || newMaterialType === 'sales_deck') {
-                newAudience = 'customer_facing'
-              }
-              setFormData({ 
-                ...formData, 
-                material_type: newMaterialType, 
-                audience: newAudience,
-                other_type_description: newMaterialType === 'other' ? formData.other_type_description : '' 
+              const category = e.target.value as MaterialCategory
+              const firstType = category === 'product' ? 'product_brief' : category === 'gtm' ? 'gtm_playbook' : 'other'
+              setFormData({
+                ...formData,
+                material_type: firstType,
+                audience: getDefaultAudienceForType(firstType),
+                other_type_description: category === 'other' ? formData.other_type_description : '',
+                ...(category === 'gtm' ? { universe_id: null, category_id: null, product_id: null, product_name: '', universe_name: '' } : {}),
+                ...(category === 'product' ? { segment_ids: [] } : {}),
               })
             }}
             className="input-ovh"
           >
-            <option value="product_brief">Product Brief</option>
-            <option value="sales_enablement_deck">Sales Enablement Deck</option>
-            <option value="sales_deck">Sales Deck</option>
-            <option value="datasheet">Datasheet</option>
+            <option value="product">Product Material</option>
+            <option value="gtm">GTM Material</option>
             <option value="other">Other</option>
           </select>
-          {formData.material_type === 'other' && (
-            <div className="mt-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Describe the material type *
-              </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Material Type *</label>
+          {getMaterialCategory(formData.material_type) === 'product' ? (
+            <select
+              required
+              value={formData.material_type}
+              onChange={(e) => {
+                const newMaterialType = e.target.value
+                setFormData({
+                  ...formData,
+                  material_type: newMaterialType,
+                  audience: getDefaultAudienceForType(newMaterialType),
+                })
+              }}
+              className="input-ovh"
+            >
+              {PRODUCT_MATERIAL_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          ) : getMaterialCategory(formData.material_type) === 'gtm' ? (
+            <select
+              required
+              value={formData.material_type}
+              onChange={(e) => {
+                const newMaterialType = e.target.value
+                setFormData({
+                  ...formData,
+                  material_type: newMaterialType,
+                  audience: getDefaultAudienceForType(newMaterialType),
+                })
+              }}
+              className="input-ovh"
+            >
+              {GTM_MATERIAL_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          ) : (
+            <div>
               <input
                 type="text"
-                required={formData.material_type === 'other'}
+                required
                 value={formData.other_type_description}
                 onChange={(e) => setFormData({ ...formData, other_type_description: e.target.value })}
                 placeholder="e.g., Case Study, Whitepaper, Video"
-                className="input-ovh text-sm"
+                className="input-ovh"
               />
+              <p className="mt-1 text-xs text-slate-500">Describe the material type</p>
             </div>
           )}
         </div>
@@ -558,33 +615,33 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
             required
             value={formData.audience}
             onChange={(e) => {
-              // Prevent sales_deck from being set to internal
               const newAudience = e.target.value
-              if (formData.material_type === 'sales_deck' && newAudience === 'internal') {
-                return // Don't allow changing sales_deck to internal
-              }
+              if (formData.material_type === 'sales_deck' && newAudience === 'internal') return
               setFormData({ ...formData, audience: newAudience })
             }}
-            disabled={formData.material_type !== 'other' && formData.material_type !== 'sales_deck'}
-            className={`input-ovh ${formData.material_type !== 'other' && formData.material_type !== 'sales_deck' ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+            disabled={!canChangeAudience(formData.material_type)}
+            className={`input-ovh ${!canChangeAudience(formData.material_type) ? 'bg-slate-100 cursor-not-allowed' : ''}`}
           >
             <option value="internal">Internal</option>
             <option value="customer_facing">Customer Facing</option>
           </select>
-          {formData.material_type !== 'other' && formData.material_type !== 'sales_deck' && (
-            <p className="mt-1 text-xs text-slate-500">
-              Automatically set based on material type
-            </p>
+          {!canChangeAudience(formData.material_type) && (
+            <p className="mt-1 text-xs text-slate-500">Set by material type</p>
           )}
           {formData.material_type === 'sales_deck' && (
-            <p className="mt-1 text-xs text-slate-500">
-              Sales decks are customer-facing materials and can be shared with customers
-            </p>
+            <p className="mt-1 text-xs text-slate-500">Sales decks are customer-facing</p>
           )}
         </div>
       </div>
 
-      {/* Product Hierarchy Selection */}
+      {/* Product or GTM Hierarchy Selection */}
+      {getMaterialCategory(formData.material_type) === 'gtm' ? (
+        <GTMHierarchySelector
+          segmentIds={formData.segment_ids}
+          onSegmentIdsChange={(ids) => setFormData(prev => ({ ...prev, segment_ids: ids }))}
+          required={true}
+        />
+      ) : (
       <ProductHierarchySelector
         universeId={formData.universe_id}
         categoryId={formData.category_id}
@@ -916,6 +973,7 @@ export default function MaterialForm({ material, onClose }: MaterialFormProps) {
           ) : null
         }
       />
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>

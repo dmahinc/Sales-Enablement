@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon, Sparkles, Target, Layers } from 'lucide-react'
+import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon, Sparkles, Target, Layers, Users, Check, Globe } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
 import ProductIcon from '../components/ProductIcon'
 
@@ -888,7 +888,6 @@ function getMaterialTypeIcon(materialType: string | null | undefined): LucideIco
   
   const type = materialType.toLowerCase().trim()
   
-  // Handle both database format (PRODUCT_DATASHEET) and frontend format (datasheet)
   switch (type) {
     case 'product_brief':
       return ClipboardList
@@ -901,6 +900,28 @@ function getMaterialTypeIcon(materialType: string | null | undefined): LucideIco
     case 'datasheet':
     case 'product_datasheet':
       return FileSpreadsheet
+    case 'product_portfolio':
+      return Layers
+    case 'product_catalog':
+      return Folder
+    case 'gtm_playbook':
+      return ClipboardList
+    case 'gtm_sales_deck':
+      return Presentation
+    case 'customer_story':
+      return Users
+    case 'channel_enablement_kit':
+      return GraduationCap
+    case 'roi_business_case':
+      return FileSpreadsheet
+    case 'persona_selling_guide':
+      return Target
+    case 'win_loss_summary':
+      return Check
+    case 'pricing_summary':
+      return FileText
+    case 'market_brief':
+      return Globe
     default:
       return FileText
   }
@@ -1013,6 +1034,27 @@ function getMaterialTypeColors(materialType: string | null | undefined): { bg: s
     case 'datasheet':
     case 'product_datasheet':
       return { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'border-orange-200' }
+    case 'product_portfolio':
+    case 'product_catalog':
+      return { bg: 'bg-slate-50', icon: 'text-slate-600', border: 'border-slate-200' }
+    case 'gtm_playbook':
+      return { bg: 'bg-violet-50', icon: 'text-violet-600', border: 'border-violet-200' }
+    case 'gtm_sales_deck':
+      return { bg: 'bg-indigo-50', icon: 'text-indigo-600', border: 'border-indigo-200' }
+    case 'customer_story':
+      return { bg: 'bg-cyan-50', icon: 'text-cyan-600', border: 'border-cyan-200' }
+    case 'channel_enablement_kit':
+      return { bg: 'bg-amber-50', icon: 'text-amber-600', border: 'border-amber-200' }
+    case 'roi_business_case':
+      return { bg: 'bg-rose-50', icon: 'text-rose-600', border: 'border-rose-200' }
+    case 'persona_selling_guide':
+      return { bg: 'bg-sky-50', icon: 'text-sky-600', border: 'border-sky-200' }
+    case 'win_loss_summary':
+      return { bg: 'bg-lime-50', icon: 'text-lime-600', border: 'border-lime-200' }
+    case 'pricing_summary':
+      return { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'border-emerald-200' }
+    case 'market_brief':
+      return { bg: 'bg-fuchsia-50', icon: 'text-fuchsia-600', border: 'border-fuchsia-200' }
     default:
       return { bg: 'bg-slate-50', icon: 'text-slate-500', border: 'border-slate-200' }
   }

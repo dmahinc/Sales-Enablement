@@ -52,6 +52,7 @@ class DealRoomCreate(BaseModel):
     welcome_message: Optional[str] = None
     executive_summary: Optional[str] = None
     welcome_video_url: Optional[str] = Field(None, max_length=500)
+    customer_logo_url: Optional[str] = Field(None, max_length=500)
     expires_in_days: int = Field(default=90, ge=1, le=365)
     materials: List[DealRoomMaterialCreate] = []
     action_plan: List[ActionPlanItemCreate] = []
@@ -67,6 +68,7 @@ class DealRoomUpdate(BaseModel):
     welcome_message: Optional[str] = None
     executive_summary: Optional[str] = None
     welcome_video_url: Optional[str] = Field(None, max_length=500)
+    customer_logo_url: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
     expires_in_days: Optional[int] = Field(None, ge=1, le=365)
 
@@ -129,6 +131,7 @@ class DealRoomResponse(BaseModel):
     welcome_message: Optional[str] = None
     executive_summary: Optional[str] = None
     welcome_video_url: Optional[str] = None
+    customer_logo_url: Optional[str] = None
     expires_at: datetime
     is_active: bool
     access_count: int
@@ -153,6 +156,7 @@ class DealRoomPublicResponse(BaseModel):
     welcome_message: Optional[str] = None
     executive_summary: Optional[str] = None
     welcome_video_url: Optional[str] = None
+    customer_logo_url: Optional[str] = None
     expires_at: datetime
     room_url: str
     materials_by_section: dict  # {section_name: [RoomMaterialResponse]}

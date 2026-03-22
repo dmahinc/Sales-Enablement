@@ -40,7 +40,19 @@ function getMaterialTypeIcon(materialType: string | null | undefined): LucideIco
   if (type === 'datasheet' || type === 'product_datasheet' || type.includes('datasheet')) {
     return FileSpreadsheet
   }
-  
+  if (type.includes('product_portfolio') || type === 'product_portfolio') return Layers
+  if (type.includes('product_catalog') || type === 'product_catalog') return Folder
+  // GTM types
+  if (type.includes('gtm_playbook') || type === 'gtm_playbook') return ClipboardList
+  if (type.includes('gtm_sales_deck') || type === 'gtm_sales_deck') return Presentation
+  if (type.includes('customer_story') || type === 'customer_story') return Users
+  if (type.includes('channel_enablement') || type === 'channel_enablement_kit') return GraduationCap
+  if (type.includes('roi_business_case') || type === 'roi_business_case') return FileSpreadsheet
+  if (type.includes('persona_selling') || type === 'persona_selling_guide') return Target
+  if (type.includes('win_loss') || type === 'win_loss_summary') return Check
+  if (type.includes('pricing_summary') || type === 'pricing_summary') return FileText
+  if (type.includes('market_brief') || type === 'market_brief') return Globe
+
   return FileText
 }
 
@@ -60,6 +72,27 @@ function getMaterialTypeBgColor(materialType: string | null | undefined): string
     case 'datasheet':
     case 'product_datasheet':
       return 'bg-orange-50'
+    case 'product_portfolio':
+    case 'product_catalog':
+      return 'bg-slate-50'
+    case 'gtm_playbook':
+      return 'bg-violet-50'
+    case 'gtm_sales_deck':
+      return 'bg-indigo-50'
+    case 'customer_story':
+      return 'bg-cyan-50'
+    case 'channel_enablement_kit':
+      return 'bg-amber-50'
+    case 'roi_business_case':
+      return 'bg-rose-50'
+    case 'persona_selling_guide':
+      return 'bg-sky-50'
+    case 'win_loss_summary':
+      return 'bg-lime-50'
+    case 'pricing_summary':
+      return 'bg-emerald-50'
+    case 'market_brief':
+      return 'bg-fuchsia-50'
     default:
       return 'bg-slate-50'
   }
@@ -92,6 +125,27 @@ function getMaterialTypeColors(materialType: string | null | undefined): { bg: s
     case 'datasheet':
     case 'product_datasheet':
       return { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'border-orange-200' }
+    case 'product_portfolio':
+    case 'product_catalog':
+      return { bg: 'bg-slate-50', icon: 'text-slate-600', border: 'border-slate-200' }
+    case 'gtm_playbook':
+      return { bg: 'bg-violet-50', icon: 'text-violet-600', border: 'border-violet-200' }
+    case 'gtm_sales_deck':
+      return { bg: 'bg-indigo-50', icon: 'text-indigo-600', border: 'border-indigo-200' }
+    case 'customer_story':
+      return { bg: 'bg-cyan-50', icon: 'text-cyan-600', border: 'border-cyan-200' }
+    case 'channel_enablement_kit':
+      return { bg: 'bg-amber-50', icon: 'text-amber-600', border: 'border-amber-200' }
+    case 'roi_business_case':
+      return { bg: 'bg-rose-50', icon: 'text-rose-600', border: 'border-rose-200' }
+    case 'persona_selling_guide':
+      return { bg: 'bg-sky-50', icon: 'text-sky-600', border: 'border-sky-200' }
+    case 'win_loss_summary':
+      return { bg: 'bg-lime-50', icon: 'text-lime-600', border: 'border-lime-200' }
+    case 'pricing_summary':
+      return { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'border-emerald-200' }
+    case 'market_brief':
+      return { bg: 'bg-fuchsia-50', icon: 'text-fuchsia-600', border: 'border-fuchsia-200' }
     default:
       return { bg: 'bg-slate-50', icon: 'text-slate-500', border: 'border-slate-200' }
   }
@@ -797,7 +851,6 @@ export default function Materials() {
   // Hierarchy mode: 'product' (universe > category > product) or 'gtm' (segments)
   const [hierarchyMode, setHierarchyMode] = useState<'product' | 'gtm'>('product')
   const [browseSelectedSegmentId, setBrowseSelectedSegmentId] = useState<number | null>(null)
-  const [listSelectedSegmentIds, setListSelectedSegmentIds] = useState<number[]>([])
   // Browse view state
   const [browseSelectedUniverseId, setBrowseSelectedUniverseId] = useState<number | null>(null)
   const [browseSelectedCategoryId, setBrowseSelectedCategoryId] = useState<number | null>(null)
@@ -2210,6 +2263,15 @@ export default function Materials() {
                       { value: 'sales_deck', label: 'Sales Deck' },
                       { value: 'datasheet', label: 'Datasheet' },
                       { value: 'product_catalog', label: 'Product Catalog' },
+                      { value: 'gtm_playbook', label: 'GTM Playbook' },
+                      { value: 'gtm_sales_deck', label: 'GTM Sales Deck' },
+                      { value: 'customer_story', label: 'Customer Story' },
+                      { value: 'channel_enablement_kit', label: 'Channel Enablement Kit' },
+                      { value: 'roi_business_case', label: 'ROI / Business Case' },
+                      { value: 'persona_selling_guide', label: 'Persona Selling Guide' },
+                      { value: 'win_loss_summary', label: 'Win/Loss Summary' },
+                      { value: 'pricing_summary', label: 'Pricing Summary' },
+                      { value: 'market_brief', label: 'Market Brief' },
                     ]}
                     selectedValues={filterTypes}
                     onChange={(values) => setFilterTypes(values as string[])}
@@ -2520,100 +2582,6 @@ export default function Materials() {
             </div>
           </div>
 
-          {/* Universe Overview Cards - Always visible, clickable to filter */}
-          {Object.keys(allMaterialsByUniverse).length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-sm font-semibold text-slate-600 mb-3">Product Universes</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {UNIVERSES.filter(u => u.id !== 'all').map((universe) => {
-                  // Always use total count from all materials, not filtered
-                  const universeMaterials = allMaterialsByUniverse[universe.id] || []
-                  const count = universeMaterials.length
-                  const publishedCount = universeMaterials.filter((m: any) => m.status === 'published').length
-                  const isSelected = selectedUniverses.includes(universe.id)
-                  
-                  return (
-                    <button
-                      key={universe.id}
-                      onClick={() => {
-                        setSelectedUniverses(prev => 
-                          prev.includes(universe.id)
-                            ? prev.filter(id => id !== universe.id) // Remove if already selected
-                            : [...prev, universe.id] // Add if not selected
-                        )
-                      }}
-                      className={`card-ovh p-4 text-left hover:shadow-md transition-all border-2 ${
-                        isSelected 
-                          ? `${universe.borderColor} border-primary-500 bg-primary-50 ring-2 ring-primary-200` 
-                          : `${universe.borderColor} hover:border-primary-300`
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className={`${universe.bgColor} p-2 rounded-lg`}>
-                          <universe.icon className={`h-6 w-6 ${universe.color}`} />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {isSelected && (
-                            <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center shadow-sm">
-                              <Check className="w-4 h-4 text-white" strokeWidth={3} />
-                            </div>
-                          )}
-                          <span className={`text-2xl font-bold ${universe.color}`}>{count}</span>
-                        </div>
-                      </div>
-                      <h3 className="font-semibold text-slate-900 mb-1">{universe.name}</h3>
-                      <p className="text-xs text-slate-500">
-                        {publishedCount} published • {count - publishedCount} in progress
-                      </p>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* GTM Segments - List View */}
-          {hierarchyMode === 'gtm' && segments.length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-sm font-semibold text-slate-600 mb-3">GTM Segments</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {segments.map((segment: any) => {
-                  const isSelected = listSelectedSegmentIds.includes(segment.id)
-                  return (
-                    <button
-                      key={segment.id}
-                      onClick={() => {
-                        setListSelectedSegmentIds(prev =>
-                          prev.includes(segment.id)
-                            ? prev.filter(id => id !== segment.id)
-                            : [...prev, segment.id]
-                        )
-                      }}
-                      className={`card-ovh p-4 text-left hover:shadow-md transition-all border-2 ${
-                        isSelected
-                          ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200'
-                          : 'border-slate-200 hover:border-primary-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="bg-violet-100 p-2 rounded-lg">
-                          <Target className="h-6 w-6 text-violet-600" />
-                        </div>
-                        {isSelected && (
-                          <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center shadow-sm">
-                            <Check className="w-4 h-4 text-white" strokeWidth={3} />
-                          </div>
-                        )}
-                      </div>
-                      <h3 className="font-semibold text-slate-900 mb-1">{segment.name}</h3>
-                      <p className="text-xs text-slate-500">{segment.industry || 'All Industries'}</p>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Filters */}
           <div className="card-ovh p-4 mb-6">
             <div className="space-y-4">
@@ -2685,6 +2653,15 @@ export default function Materials() {
                     { value: 'sales_deck', label: 'Sales Deck' },
                     { value: 'datasheet', label: 'Datasheet' },
                     { value: 'product_catalog', label: 'Product Catalog' },
+                    { value: 'gtm_playbook', label: 'GTM Playbook' },
+                    { value: 'gtm_sales_deck', label: 'GTM Sales Deck' },
+                    { value: 'customer_story', label: 'Customer Story' },
+                    { value: 'channel_enablement_kit', label: 'Channel Enablement Kit' },
+                    { value: 'roi_business_case', label: 'ROI / Business Case' },
+                    { value: 'persona_selling_guide', label: 'Persona Selling Guide' },
+                    { value: 'win_loss_summary', label: 'Win/Loss Summary' },
+                    { value: 'pricing_summary', label: 'Pricing Summary' },
+                    { value: 'market_brief', label: 'Market Brief' },
                   ]}
                   selectedValues={filterTypes}
                   onChange={(values) => setFilterTypes(values as string[])}
@@ -2744,8 +2721,8 @@ export default function Materials() {
           {filteredMaterials.length > 0 ? (
             <>
               {selectedUniverses.length === 0 ? (
-                // Grouped by Universe View - show all when no filters
-                <div className="space-y-6">
+                // Grouped by Universe View - bento 2 columns
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {Object.entries(materialsByUniverse)
                     .sort(([a], [b]) => {
                       // Sort universes: known universes first, then alphabetically
@@ -2828,15 +2805,15 @@ export default function Materials() {
                     })}
                 </div>
               ) : (
-                // Filtered View - show materials from selected universes
-                <div className="card-ovh overflow-hidden">
-                  <div className="divide-y divide-slate-100">
-                    {filteredMaterials.map((material: any) => (
-                      <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
+                // Filtered View - materials in 2-column bento
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredMaterials.map((material: any) => (
+                    <div key={material.id} className="card-ovh overflow-hidden">
+                      <div className="p-4 hover:bg-slate-50/50 transition-colors">
                         {renderMaterialRow(material)}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </>

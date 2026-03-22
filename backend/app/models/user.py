@@ -25,6 +25,9 @@ class User(BaseModel):
     
     # Role
     role = Column(String(50), default="pmm")  # pmm, director, sales, admin, customer
+
+    # Profile picture
+    avatar_url = Column(String(500), nullable=True)  # URL path e.g. /api/avatars/123.png
     
     # Customer assignment (for customer role)
     assigned_sales_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # Sales person assigned to this customer

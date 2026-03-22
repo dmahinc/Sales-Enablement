@@ -5,8 +5,9 @@ import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from fastapi.responses import FileResponse
+from pathlib import Path
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -34,6 +35,10 @@ from app.schemas.deal_room import (
     ActionPlanItemResponse,
 )
 from app.services.storage import storage_service
+from app.core.config import settings
+
+DEAL_ROOM_LOGOS_DIR = Path(settings.STORAGE_PATH) / "deal_room_logos"
+DEAL_ROOM_LOGOS_DIR.mkdir(parents=True, exist_ok=True)
 
 router = APIRouter(prefix="/api/deal-rooms", tags=["deal-rooms"])
 
@@ -198,11 +203,67 @@ async def update_deal_room(
         room.executive_summary = data.executive_summary
     if getattr(data, "welcome_video_url", None) is not None:
         room.welcome_video_url = data.welcome_video_url
+    if getattr(data, "customer_logo_url", None) is not None:
+        room.customer_logo_url = data.customer_logo_url
     if data.is_active is not None:
         room.is_active = data.is_active
     if data.expires_in_days is not None:
         room.expires_at = datetime.utcnow() + timedelta(days=data.expires_in_days)
 
+    db.commit()
+    db.refresh(room)
+    return _room_to_response(room, db)
+
+
+@router.post("/{room_id}/logo", response_model=DealRoomResponse)
+async def upload_room_logo(
+    room_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Upload or replace customer logo for deal room header. PNG, JPEG, GIF, WebP. Max 2MB."""
+    _ensure_sales_or_above(current_user)
+    room = _get_room_for_edit(room_id, current_user, db)
+    allowed = (".png", ".jpg", ".jpeg", ".gif", ".webp")
+    ext = "." + (file.filename or "").split(".")[-1].lower() if "." in (file.filename or "") else ""
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Allowed formats: {', '.join(allowed)}")
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:  # 2MB
+        raise HTTPException(status_code=400, detail="File too large (max 2MB)")
+    # Remove old logo file if exists
+    if room.customer_logo_url:
+        old_name = room.customer_logo_url.split("/")[-1] if "/" in (room.customer_logo_url or "") else None
+        if old_name and old_name.startswith("room_"):
+            old_path = DEAL_ROOM_LOGOS_DIR / old_name
+            if old_path.exists():
+                old_path.unlink(missing_ok=True)
+    filename = f"room_{room.id}{ext}"
+    path = DEAL_ROOM_LOGOS_DIR / filename
+    path.write_bytes(content)
+    room.customer_logo_url = f"/api/deal-room-logos/{filename}"
+    db.commit()
+    db.refresh(room)
+    return _room_to_response(room, db)
+
+
+@router.delete("/{room_id}/logo", response_model=DealRoomResponse)
+async def remove_room_logo(
+    room_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Remove customer logo from deal room header."""
+    _ensure_sales_or_above(current_user)
+    room = _get_room_for_edit(room_id, current_user, db)
+    if room.customer_logo_url:
+        old_name = room.customer_logo_url.split("/")[-1] if "/" in (room.customer_logo_url or "") else None
+        if old_name and old_name.startswith("room_"):
+            old_path = DEAL_ROOM_LOGOS_DIR / old_name
+            if old_path.exists():
+                old_path.unlink(missing_ok=True)
+    room.customer_logo_url = None
     db.commit()
     db.refresh(room)
     return _room_to_response(room, db)
@@ -554,6 +615,7 @@ async def get_room_by_token(
         welcome_message=room.welcome_message,
         executive_summary=getattr(room, "executive_summary", None),
         welcome_video_url=getattr(room, "welcome_video_url", None),
+        customer_logo_url=getattr(room, "customer_logo_url", None),
         expires_at=room.expires_at,
         room_url=_get_room_url(token),
         materials_by_section=ordered_sections,
@@ -840,6 +902,7 @@ def _room_to_response(room: DealRoom, db: Session) -> DealRoomResponse:
         welcome_message=room.welcome_message,
         executive_summary=getattr(room, "executive_summary", None),
         welcome_video_url=getattr(room, "welcome_video_url", None),
+        customer_logo_url=getattr(room, "customer_logo_url", None),
         expires_at=room.expires_at,
         is_active=room.is_active,
         access_count=room.access_count,

@@ -3,7 +3,16 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Upload, X, FileText, CheckCircle, FolderPlus, Plus } from 'lucide-react'
 import ProductHierarchySelector from './ProductHierarchySelector'
+import GTMHierarchySelector from './GTMHierarchySelector'
 import { useAuth } from '../contexts/AuthContext'
+import {
+  getMaterialCategory,
+  getDefaultAudienceForType,
+  canChangeAudience,
+  PRODUCT_MATERIAL_TYPES,
+  GTM_MATERIAL_TYPES,
+  type MaterialCategory,
+} from '../utils/materialTypes'
 
 interface FileUploadModalProps {
   isOpen: boolean
@@ -25,6 +34,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
     const today = new Date()
     return today.toISOString().split('T')[0]
   }
+  const [materialCategory, setMaterialCategory] = useState<MaterialCategory>('product')
   const [formData, setFormData] = useState({
     material_type: 'product_brief',
     other_type_description: '',
@@ -36,6 +46,7 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
     product_id: null as number | null,
     product_name: '',
     universe_name: '',
+    segment_ids: [] as number[],
     send_notification: true,
   })
   const [uploading, setUploading] = useState(false)
@@ -380,6 +391,9 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
               if (formData.universe_name) {
                 formDataToStore.append('universe_name', formData.universe_name)
               }
+              if (formData.segment_ids?.length) {
+                formDataToStore.append('segment_ids', JSON.stringify(formData.segment_ids))
+              }
               setPendingFormData(formDataToStore)
             }
             setShowReplaceDialog(true)
@@ -454,19 +468,26 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
       return
     }
     
-    // Validate required fields (skip if optional sorting is allowed)
+    const isGtm = getMaterialCategory(formData.material_type) === 'gtm'
     if (!allowOptionalSorting) {
-      if (!formData.universe_id) {
-        alert('Please select Universe')
-        return
-      }
-      if (!formData.category_id) {
-        alert('Please select Category')
-        return
-      }
-      if (!formData.product_id) {
-        alert('Please select Product')
-        return
+      if (isGtm) {
+        if (!formData.segment_ids?.length) {
+          alert('Please select at least one GTM segment')
+          return
+        }
+      } else {
+        if (!formData.universe_id) {
+          alert('Please select Universe')
+          return
+        }
+        if (!formData.category_id) {
+          alert('Please select Category')
+          return
+        }
+        if (!formData.product_id) {
+          alert('Please select Product')
+          return
+        }
       }
     }
     
@@ -486,28 +507,31 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
     formDataToSend.append('freshness_date', formData.freshness_date)
     formDataToSend.append('status', formData.status)
     
-    // Only append universe/category/product if provided
-    if (formData.universe_id) {
-      formDataToSend.append('universe_id', formData.universe_id.toString())
-    }
-    if (formData.category_id) {
-      formDataToSend.append('category_id', formData.category_id.toString())
-    }
-    if (formData.product_id) {
-      formDataToSend.append('product_id', formData.product_id.toString())
-    }
-    if (formData.product_name) {
-      formDataToSend.append('product_name', formData.product_name)
-    }
-    if (formData.universe_name) {
-      formDataToSend.append('universe_name', formData.universe_name)
+    if (isGtm && formData.segment_ids?.length) {
+      formDataToSend.append('segment_ids', JSON.stringify(formData.segment_ids))
+    } else {
+      if (formData.universe_id) {
+        formDataToSend.append('universe_id', formData.universe_id.toString())
+      }
+      if (formData.category_id) {
+        formDataToSend.append('category_id', formData.category_id.toString())
+      }
+      if (formData.product_id) {
+        formDataToSend.append('product_id', formData.product_id.toString())
+      }
+      if (formData.product_name) {
+        formDataToSend.append('product_name', formData.product_name)
+      }
+      if (formData.universe_name) {
+        formDataToSend.append('universe_name', formData.universe_name)
+      }
     }
     if (isDirector || isPMM) {
       formDataToSend.append('send_notification', formData.send_notification ? 'true' : 'false')
     }
 
-    // Check for duplicates first (skip for 'other' type and when optional sorting is enabled without product_id)
-    if (formData.material_type !== 'other' && file && formData.product_id) {
+    // Check for duplicates first (skip for 'other', GTM, and when optional sorting is enabled without product_id)
+    if (formData.material_type !== 'other' && !isGtm && file && formData.product_id) {
       try {
         // Ensure uploading is false before checking
         setUploading(false)
@@ -626,6 +650,9 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
       if (formData.universe_name) {
         formDataToSend.append('universe_name', formData.universe_name)
       }
+      if (formData.segment_ids?.length) {
+        formDataToSend.append('segment_ids', JSON.stringify(formData.segment_ids))
+      }
     }
     
     // Add replace_existing flag as string 'true' (FastAPI Form() will parse it as boolean)
@@ -678,12 +705,14 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
     setShowReplaceDialog(false)
     setExistingMaterial(null)
     setPendingFormData(null)
+    setMaterialCategory('product')
     setFormData({
       material_type: 'product_brief',
       other_type_description: '',
       audience: 'internal',
       status: defaultStatus,
       freshness_date: getTodayDate(),
+      segment_ids: [],
       universe_id: null,
       category_id: null,
       product_id: null,
@@ -794,53 +823,83 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Material Type *
+                  Material Category *
                 </label>
                 <select
                   required
-                  value={formData.material_type}
+                  value={materialCategory}
                   onChange={(e) => {
-                    const newMaterialType = e.target.value
-                    // Auto-set audience based on material type
-                    // Sales decks are always customer-facing
-                    let newAudience = formData.audience
-                    if (newMaterialType === 'product_brief' || newMaterialType === 'sales_enablement_deck') {
-                      newAudience = 'internal'
-                    } else if (newMaterialType === 'datasheet' || newMaterialType === 'sales_deck') {
-                      newAudience = 'customer_facing'
-                    }
-                    // Ensure sales_deck is always customer_facing (can't be changed to internal)
-                    if (newMaterialType === 'sales_deck' && newAudience === 'internal') {
-                      newAudience = 'customer_facing'
-                    }
-                    setFormData({ 
-                      ...formData, 
-                      material_type: newMaterialType, 
-                      audience: newAudience,
-                      other_type_description: newMaterialType === 'other' ? formData.other_type_description : '' 
+                    const category = e.target.value as MaterialCategory
+                    const firstType = category === 'product' ? 'product_brief' : category === 'gtm' ? 'gtm_playbook' : 'other'
+                    setMaterialCategory(category)
+                    setFormData({
+                      ...formData,
+                      material_type: firstType,
+                      audience: getDefaultAudienceForType(firstType),
+                      other_type_description: category === 'other' ? formData.other_type_description : '',
+                      ...(category === 'gtm' ? { universe_id: null, category_id: null, product_id: null, product_name: '', universe_name: '' } : {}),
+                      ...(category === 'product' ? { segment_ids: [] } : {}),
                     })
                   }}
                   className="input-ovh"
                 >
-                  <option value="product_brief">Product Brief</option>
-                  <option value="sales_enablement_deck">Sales Enablement Deck</option>
-                  <option value="sales_deck">Sales Deck</option>
-                  <option value="datasheet">Datasheet</option>
+                  <option value="product">Product Material</option>
+                  <option value="gtm">GTM Material</option>
                   <option value="other">Other</option>
                 </select>
-                {formData.material_type === 'other' && (
-                  <div className="mt-2">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Describe the material type *
-                    </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Material Type *
+                </label>
+                {materialCategory === 'product' ? (
+                  <select
+                    required
+                    value={formData.material_type}
+                    onChange={(e) => {
+                      const newMaterialType = e.target.value
+                      setFormData({
+                        ...formData,
+                        material_type: newMaterialType,
+                        audience: getDefaultAudienceForType(newMaterialType),
+                      })
+                    }}
+                    className="input-ovh"
+                  >
+                    {PRODUCT_MATERIAL_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                ) : materialCategory === 'gtm' ? (
+                  <select
+                    required
+                    value={formData.material_type}
+                    onChange={(e) => {
+                      const newMaterialType = e.target.value
+                      setFormData({
+                        ...formData,
+                        material_type: newMaterialType,
+                        audience: getDefaultAudienceForType(newMaterialType),
+                      })
+                    }}
+                    className="input-ovh"
+                  >
+                    {GTM_MATERIAL_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div>
                     <input
                       type="text"
-                      required={formData.material_type === 'other'}
+                      required
                       value={formData.other_type_description}
                       onChange={(e) => setFormData({ ...formData, other_type_description: e.target.value })}
                       placeholder="e.g., Case Study, Whitepaper, Video"
-                      className="input-ovh text-sm"
+                      className="input-ovh"
                     />
+                    <p className="mt-1 text-xs text-slate-500">Describe the material type</p>
                   </div>
                 )}
               </div>
@@ -853,28 +912,21 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
                   required
                   value={formData.audience}
                   onChange={(e) => {
-                    // Prevent sales_deck from being set to internal
                     const newAudience = e.target.value
-                    if (formData.material_type === 'sales_deck' && newAudience === 'internal') {
-                      return // Don't allow changing sales_deck to internal
-                    }
+                    if (formData.material_type === 'sales_deck' && newAudience === 'internal') return
                     setFormData({ ...formData, audience: newAudience })
                   }}
-                  disabled={formData.material_type !== 'other' && formData.material_type !== 'sales_deck'}
-                  className={`input-ovh ${formData.material_type !== 'other' && formData.material_type !== 'sales_deck' ? 'bg-slate-100 cursor-not-allowed' : ''}`}
+                  disabled={!canChangeAudience(formData.material_type)}
+                  className={`input-ovh ${!canChangeAudience(formData.material_type) ? 'bg-slate-100 cursor-not-allowed' : ''}`}
                 >
                   <option value="internal">Internal</option>
                   <option value="customer_facing">Customer Facing</option>
                 </select>
-                {formData.material_type !== 'other' && formData.material_type !== 'sales_deck' && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    Automatically set based on material type
-                  </p>
+                {!canChangeAudience(formData.material_type) && (
+                  <p className="mt-1 text-xs text-slate-500">Set by material type</p>
                 )}
                 {formData.material_type === 'sales_deck' && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    Sales decks are customer-facing materials and can be shared with customers
-                  </p>
+                  <p className="mt-1 text-xs text-slate-500">Sales decks are customer-facing</p>
                 )}
               </div>
             </div>
@@ -933,11 +985,23 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
               </div>
             )}
 
-            {/* Product Hierarchy Selection */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Product Hierarchy {allowOptionalSorting ? '(Optional)' : '*'}
-              </label>
+            {/* Product or GTM Hierarchy Selection */}
+            {materialCategory === 'gtm' ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  GTM Segments {allowOptionalSorting ? '(Optional)' : '*'}
+                </label>
+                <GTMHierarchySelector
+                  segmentIds={formData.segment_ids}
+                  onSegmentIdsChange={(ids) => setFormData(prev => ({ ...prev, segment_ids: ids }))}
+                  required={!allowOptionalSorting}
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Product Hierarchy {allowOptionalSorting ? '(Optional)' : '*'}
+                </label>
               <ProductHierarchySelector
                 universeId={formData.universe_id}
                 categoryId={formData.category_id}
@@ -1269,7 +1333,8 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
                 ) : null
               }
             />
-            </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">

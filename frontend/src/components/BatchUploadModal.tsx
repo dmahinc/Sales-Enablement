@@ -1,9 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
+import {
+  getMaterialCategory,
+  getDefaultAudienceForType,
+  PRODUCT_MATERIAL_TYPES,
+  GTM_MATERIAL_TYPES,
+  type MaterialCategory,
+} from '../utils/materialTypes'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { Upload, X, CheckCircle, AlertCircle, Loader2, Sparkles, Check, FolderPlus, Plus, FileText } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import ProductHierarchySelector from './ProductHierarchySelector'
+import GTMHierarchySelector from './GTMHierarchySelector'
 
 interface FileSuggestion {
   filename: string
@@ -19,6 +27,7 @@ interface FileSuggestion {
   audience?: string | null
   other_type_description?: string | null
   pmm_in_charge_id?: number | null
+  segment_ids?: number[] | null
 }
 
 interface BatchUploadModalProps {
@@ -443,6 +452,7 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
       audience: 'internal', // Default value
       other_type_description: null,
       pmm_in_charge_id: isPMM && user?.id ? user.id : null,
+      segment_ids: null,
     }))
     
     setSuggestions(emptySuggestions)
@@ -560,18 +570,28 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
         const suggestion = data.suggestions[i]
         
         try {
-          // Validate suggestion has required fields
-          if (!suggestion.universe_id || !suggestion.category_id || !suggestion.product_id || !suggestion.material_type || !suggestion.audience) {
+          const isGtm = getMaterialCategory(suggestion.material_type) === 'gtm'
+          const hasProductFields = !!(suggestion.universe_id && suggestion.category_id && suggestion.product_id)
+          const hasGtmFields = !!(suggestion.segment_ids && suggestion.segment_ids.length > 0)
+          if (!suggestion.material_type || !suggestion.audience) {
             results.failure_count += 1
-            results.failures.push({ filename: file.name, error: 'Missing required fields' })
-            setUploadProgress(prev => ({
-              ...prev,
-              [file.name]: { progress: 0, status: 'error', error: 'Missing required fields' }
-            }))
+            results.failures.push({ filename: file.name, error: 'Missing material type or audience' })
+            setUploadProgress(prev => ({ ...prev, [file.name]: { progress: 0, status: 'error', error: 'Missing material type or audience' } }))
             continue
           }
-          
-          // Create FormData for single file upload endpoint
+          if (isGtm && !hasGtmFields) {
+            results.failure_count += 1
+            results.failures.push({ filename: file.name, error: 'GTM materials require at least one segment' })
+            setUploadProgress(prev => ({ ...prev, [file.name]: { progress: 0, status: 'error', error: 'GTM materials require at least one segment' } }))
+            continue
+          }
+          if (!isGtm && !hasProductFields) {
+            results.failure_count += 1
+            results.failures.push({ filename: file.name, error: 'Missing universe, category, or product' })
+            setUploadProgress(prev => ({ ...prev, [file.name]: { progress: 0, status: 'error', error: 'Missing required fields' } }))
+            continue
+          }
+
           const singleFormData = new FormData()
           singleFormData.append('file', file)
           singleFormData.append('material_type', suggestion.material_type)
@@ -579,17 +599,19 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
             singleFormData.append('pmm_in_charge_id', suggestion.pmm_in_charge_id.toString())
           }
           singleFormData.append('audience', suggestion.audience)
-          singleFormData.append('universe_id', suggestion.universe_id.toString())
-          singleFormData.append('category_id', suggestion.category_id.toString())
-          singleFormData.append('product_id', suggestion.product_id.toString())
+          if (isGtm && suggestion.segment_ids?.length) {
+            singleFormData.append('segment_ids', JSON.stringify(suggestion.segment_ids))
+          } else {
+            singleFormData.append('universe_id', suggestion.universe_id!.toString())
+            singleFormData.append('category_id', suggestion.category_id!.toString())
+            singleFormData.append('product_id', suggestion.product_id!.toString())
+          }
           // Batch upload defaults to 'published' status
           singleFormData.append('status', 'published')
           
-          if (suggestion.product_name) {
-            singleFormData.append('product_name', suggestion.product_name)
-          }
-          if (suggestion.universe_name) {
-            singleFormData.append('universe_name', suggestion.universe_name)
+          if (!isGtm) {
+            if (suggestion.product_name) singleFormData.append('product_name', suggestion.product_name)
+            if (suggestion.universe_name) singleFormData.append('universe_name', suggestion.universe_name)
           }
           if (suggestion.other_type_description) {
             singleFormData.append('other_type_description', suggestion.other_type_description)
@@ -724,12 +746,10 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
     
     files.forEach((file, index) => {
       const suggestion = suggestions[index]
-      if (suggestion && 
-          suggestion.universe_id && 
-          suggestion.category_id && 
-          suggestion.product_id &&
-          suggestion.material_type &&
-          suggestion.audience) {
+      const isGtm = suggestion && getMaterialCategory(suggestion.material_type) === 'gtm'
+      const hasProduct = suggestion?.universe_id && suggestion?.category_id && suggestion?.product_id
+      const hasGtm = suggestion?.segment_ids && suggestion.segment_ids.length > 0
+      if (suggestion && suggestion.material_type && suggestion.audience && (isGtm ? hasGtm : hasProduct)) {
         // Check threshold only for AI-suggested files (confidence > 0)
         // Manual entries (confidence = 0) are always included if they have required fields
         const isManualEntry = suggestion.confidence === 0
@@ -747,9 +767,14 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
         const suggestion = suggestions[index]
         if (!suggestion) return file.name
         const missing: string[] = []
-        if (!suggestion.universe_id) missing.push('universe')
-        if (!suggestion.category_id) missing.push('category')
-        if (!suggestion.product_id) missing.push('product')
+        const isGtmSuggestion = getMaterialCategory(suggestion.material_type) === 'gtm'
+        if (isGtmSuggestion) {
+          if (!suggestion.segment_ids?.length) missing.push('GTM segments')
+        } else {
+          if (!suggestion.universe_id) missing.push('universe')
+          if (!suggestion.category_id) missing.push('category')
+          if (!suggestion.product_id) missing.push('product')
+        }
         if (!suggestion.material_type) missing.push('material type')
         if (!suggestion.audience) missing.push('audience')
         if (missing.length > 0) {
@@ -986,11 +1011,12 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                   <tbody>
                     {suggestions.map((suggestion, index) => {
                       const isManualEntry = suggestion.confidence === 0
-                      const hasRequiredFields = suggestion.universe_id && 
-                                                suggestion.category_id && 
-                                                suggestion.product_id &&
-                                                suggestion.material_type &&
-                                                suggestion.audience
+                      const isGtmRow = getMaterialCategory(suggestion.material_type) === 'gtm'
+                      const hasRequiredFields = suggestion.material_type && suggestion.audience && (
+                        isGtmRow
+                          ? (suggestion.segment_ids && suggestion.segment_ids.length > 0)
+                          : (suggestion.universe_id && suggestion.category_id && suggestion.product_id)
+                      )
                       // For manual entries, skip threshold check
                       const meetsThreshold = isManualEntry || suggestion.confidence >= autoApplyThreshold
                       const isReady = hasRequiredFields && meetsThreshold
@@ -1002,6 +1028,13 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                           <tr key={index} className="bg-teal-50">
                             <td className="border border-slate-300 px-4 py-2 text-sm">{suggestion.filename}</td>
                             <td colSpan={3} className="border border-slate-300 px-4 py-3">
+                              {getMaterialCategory(editFormData.material_type) === 'gtm' ? (
+                                <GTMHierarchySelector
+                                  segmentIds={editFormData.segment_ids || []}
+                                  onSegmentIdsChange={(ids) => setEditFormData(prev => prev ? { ...prev, segment_ids: ids } : null)}
+                                  required={true}
+                                />
+                              ) : (
                               <ProductHierarchySelector
                                 key={`hierarchy-${index}-${editFormData.universe_id || 'none'}-${editFormData.category_id || 'none'}-${editFormData.product_id || 'none'}`}
                                 universeId={editFormData.universe_id || null}
@@ -1347,46 +1380,87 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                                   ) : null
                                 }
                               />
+                              )}
                             </td>
                             <td className="border border-slate-300 px-4 py-2 text-sm">
-                              <select
-                                value={editFormData.material_type || 'product_brief'}
-                                onChange={(e) => {
-                                  const newMaterialType = e.target.value
-                                  // Auto-set audience based on material type
-                                  let newAudience = editFormData.audience || 'internal'
-                                  if (newMaterialType === 'product_brief' || newMaterialType === 'sales_enablement_deck') {
-                                    newAudience = 'internal'
-                                  } else if (newMaterialType === 'datasheet' || newMaterialType === 'sales_deck') {
-                                    newAudience = 'customer_facing'
-                                  }
-                                  setEditFormData({ 
-                                    ...editFormData, 
-                                    material_type: newMaterialType, 
-                                    audience: newAudience,
-                                    other_type_description: newMaterialType === 'other' ? editFormData.other_type_description || '' : ''
-                                  })
-                                }}
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                              >
-                                <option value="product_brief">Product Brief</option>
-                                <option value="sales_enablement_deck">Sales Enablement Deck</option>
-                                <option value="sales_deck">Sales Deck</option>
-                                <option value="datasheet">Datasheet</option>
-                                <option value="other">Other</option>
-                              </select>
-                              {editFormData.material_type === 'other' && (
-                                <div className="mt-2">
-                                  <input
-                                    type="text"
-                                    value={editFormData.other_type_description || ''}
-                                    onChange={(e) => setEditFormData({ ...editFormData, other_type_description: e.target.value })}
-                                    placeholder="Describe the material type (required)"
+                              <div className="space-y-2">
+                                <div>
+                                  <label className="block text-xs text-slate-500 mb-0.5">Category</label>
+                                  <select
+                                    value={getMaterialCategory(editFormData.material_type)}
+                                    onChange={(e) => {
+                                      const category = e.target.value as MaterialCategory
+                                      const firstType = category === 'product' ? 'product_brief' : category === 'gtm' ? 'gtm_playbook' : 'other'
+                                      setEditFormData(prev => prev ? {
+                                        ...prev,
+                                        material_type: firstType,
+                                        audience: getDefaultAudienceForType(firstType),
+                                        other_type_description: category === 'other' ? (prev.other_type_description || '') : '',
+                                        ...(category === 'gtm' ? { universe_id: null, category_id: null, product_id: null, universe_name: null, category_name: null, product_name: null } : {}),
+                                        ...(category === 'product' ? { segment_ids: [] } : {}),
+                                      } : null)
+                                    }}
                                     className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                                    required
-                                  />
+                                  >
+                                    <option value="product">Product</option>
+                                    <option value="gtm">GTM</option>
+                                    <option value="other">Other</option>
+                                  </select>
                                 </div>
-                              )}
+                                {getMaterialCategory(editFormData.material_type) === 'product' ? (
+                                  <div>
+                                    <label className="block text-xs text-slate-500 mb-0.5">Type</label>
+                                    <select
+                                      value={editFormData.material_type || 'product_brief'}
+                                      onChange={(e) => {
+                                        const newMaterialType = e.target.value
+                                        setEditFormData({
+                                          ...editFormData,
+                                          material_type: newMaterialType,
+                                          audience: getDefaultAudienceForType(newMaterialType),
+                                        })
+                                      }}
+                                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                    >
+                                      {PRODUCT_MATERIAL_TYPES.map(t => (
+                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : getMaterialCategory(editFormData.material_type) === 'gtm' ? (
+                                  <div>
+                                    <label className="block text-xs text-slate-500 mb-0.5">Type</label>
+                                    <select
+                                      value={editFormData.material_type || 'gtm_playbook'}
+                                      onChange={(e) => {
+                                        const newMaterialType = e.target.value
+                                        setEditFormData({
+                                          ...editFormData,
+                                          material_type: newMaterialType,
+                                          audience: getDefaultAudienceForType(newMaterialType),
+                                        })
+                                      }}
+                                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                    >
+                                      {GTM_MATERIAL_TYPES.map(t => (
+                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <label className="block text-xs text-slate-500 mb-0.5">Describe type</label>
+                                    <input
+                                      type="text"
+                                      value={editFormData.other_type_description || ''}
+                                      onChange={(e) => setEditFormData({ ...editFormData, other_type_description: e.target.value })}
+                                      placeholder="e.g., Case Study, Whitepaper"
+                                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                                      required
+                                    />
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="border border-slate-300 px-4 py-2 text-sm">
                               <select
@@ -1499,12 +1573,12 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
               </div>
 
               {(() => {
-                const readyCount = suggestions.filter(s => 
-                  s.universe_id && s.category_id && s.product_id && s.confidence >= autoApplyThreshold
-                ).length
-                const needsReviewCount = suggestions.filter(s => 
-                  s.universe_id && s.category_id && s.product_id && s.confidence < autoApplyThreshold
-                ).length
+                const hasRequired = (s: FileSuggestion) => {
+                  const isGtm = getMaterialCategory(s.material_type) === 'gtm'
+                  return isGtm ? (s.segment_ids && s.segment_ids.length > 0) : (s.universe_id && s.category_id && s.product_id)
+                }
+                const readyCount = suggestions.filter(s => hasRequired(s) && s.confidence >= autoApplyThreshold).length
+                const needsReviewCount = suggestions.filter(s => hasRequired(s) && s.confidence < autoApplyThreshold).length
                 
                 if (readyCount > 0 || needsReviewCount > 0) {
                   return (
@@ -1567,9 +1641,11 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
               ) : (
                 <>
                   <Upload className="h-5 w-5" />
-                  Upload {suggestions.filter(s => 
-                    s.universe_id && s.category_id && s.product_id && s.confidence >= autoApplyThreshold
-                  ).length} Files
+                  Upload {suggestions.filter(s => {
+                    const isGtm = getMaterialCategory(s.material_type) === 'gtm'
+                    const hasReq = isGtm ? (s.segment_ids && s.segment_ids.length > 0) : (s.universe_id && s.category_id && s.product_id)
+                    return hasReq && s.confidence >= autoApplyThreshold
+                  }).length} Files
                 </>
               )}
             </button>

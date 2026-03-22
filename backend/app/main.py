@@ -252,6 +252,8 @@ app.include_router(tracks.router)
 app.include_router(users.router)
 app.include_router(shared_links.router)
 app.include_router(deal_rooms.router)
+from app.api import deal_room_logos
+app.include_router(deal_room_logos.router)
 app.include_router(product_releases.router)
 app.include_router(marketing_updates.router)
 try:

@@ -11,7 +11,9 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool
     is_superuser: Optional[bool] = False
-    
+    avatar_url: Optional[str] = None
+    avatar_data_url: Optional[str] = None  # base64 data URL - no separate request needed
+
     class Config:
         from_attributes = True
 

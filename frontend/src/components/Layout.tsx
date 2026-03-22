@@ -181,6 +181,9 @@ export default function Layout() {
     .toUpperCase()
     .slice(0, 2)
 
+  // Prefer avatar_data_url (base64) - no separate HTTP request, avoids 404/CORS issues
+  const avatarSrc = user?.avatar_data_url || user?.avatar_url || ''
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex transition-colors duration-300">
       {/* Sidebar */}
@@ -209,7 +212,7 @@ export default function Layout() {
               if ('type' in item && item.type === 'section') {
                 if (sidebarCollapsed) return null // Hide section labels when collapsed
                 return (
-                  <div key={`section-${index}`} className="px-3 pt-5 pb-1.5 first:pt-0">
+                  <div key={`section-${index}`} className="px-3 pt-6 pb-2 first:pt-0">
                     <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-[0.08em]">
                       {item.label}
                     </span>
@@ -287,12 +290,20 @@ export default function Layout() {
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
-                <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center ring-2 ring-primary-200/50 dark:ring-primary-700/30">
-                  <span className="text-primary-600 dark:text-primary-400 font-semibold text-xs">
-                    {initials}
-                  </span>
+                <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center ring-2 ring-primary-200/50 dark:ring-primary-700/30 overflow-hidden">
+                  {avatarSrc ? (
+                    <img
+                      src={avatarSrc}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-primary-600 dark:text-primary-400 font-semibold text-sm">
+                      {initials}
+                    </span>
+                  )}
                 </div>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`} />
               </button>
               
               {/* Dropdown Menu */}
