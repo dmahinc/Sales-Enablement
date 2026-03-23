@@ -26,6 +26,7 @@ class MaterialType(str, Enum):
     WIN_LOSS_SUMMARY = "win_loss_summary"
     PRICING_SUMMARY = "pricing_summary"
     MARKET_BRIEF = "market_brief"
+    CAMPAIGN_CONTENT = "campaign_content"
 
 class MaterialAudience(str, Enum):
     INTERNAL = "internal"

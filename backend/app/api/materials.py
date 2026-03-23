@@ -103,6 +103,7 @@ def _check_existing_material_by_type(
         'WIN_LOSS_SUMMARY': 'win_loss_summary',
         'PRICING_SUMMARY': 'pricing_summary',
         'MARKET_BRIEF': 'market_brief',
+        'CAMPAIGN_CONTENT': 'campaign_content',
     }
     
     # Normalize the input material_type
@@ -413,6 +414,7 @@ async def create_material(
     GTM_MATERIAL_TYPES = {
         'gtm_playbook', 'gtm_sales_deck', 'customer_story', 'channel_enablement_kit',
         'roi_business_case', 'persona_selling_guide', 'win_loss_summary', 'pricing_summary', 'market_brief',
+        'campaign_content',
     }
     material_type_val = (material_data.material_type or '').lower()
     is_gtm = material_type_val in GTM_MATERIAL_TYPES
@@ -650,6 +652,7 @@ async def update_material(
             'win_loss_summary': 'WIN_LOSS_SUMMARY',
             'pricing_summary': 'PRICING_SUMMARY',
             'market_brief': 'MARKET_BRIEF',
+            'campaign_content': 'CAMPAIGN_CONTENT',
         }
         
         audience_mapping = {
@@ -853,6 +856,7 @@ async def upload_material_file(
     GTM_MATERIAL_TYPES = {
         'gtm_playbook', 'gtm_sales_deck', 'customer_story', 'channel_enablement_kit',
         'roi_business_case', 'persona_selling_guide', 'win_loss_summary', 'pricing_summary', 'market_brief',
+        'campaign_content',
     }
     material_type_lower = (material_type or '').lower()
     is_gtm = material_type_lower in GTM_MATERIAL_TYPES
@@ -969,6 +973,7 @@ async def upload_material_file(
             'win_loss_summary': 'WIN_LOSS_SUMMARY',
             'pricing_summary': 'PRICING_SUMMARY',
             'market_brief': 'MARKET_BRIEF',
+            'campaign_content': 'CAMPAIGN_CONTENT',
             'other': 'other',  # Store as-is for "other" type
         }
         
@@ -1630,6 +1635,7 @@ async def batch_upload_materials(
         GTM_MATERIAL_TYPES = {
             'gtm_playbook', 'gtm_sales_deck', 'customer_story', 'channel_enablement_kit',
             'roi_business_case', 'persona_selling_guide', 'win_loss_summary', 'pricing_summary', 'market_brief',
+            'campaign_content',
         }
 
         for i, (file, suggestion) in enumerate(zip(files, suggestions)):
@@ -1763,6 +1769,7 @@ async def batch_upload_materials(
                     'win_loss_summary': 'WIN_LOSS_SUMMARY',
                     'pricing_summary': 'PRICING_SUMMARY',
                     'market_brief': 'MARKET_BRIEF',
+                    'campaign_content': 'CAMPAIGN_CONTENT',
                     'other': 'other',
                 }
                 

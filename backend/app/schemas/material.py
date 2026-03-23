@@ -31,6 +31,7 @@ def convert_db_enum_to_frontend(db_value: str, enum_class) -> str:
         'WIN_LOSS_SUMMARY': 'win_loss_summary',
         'PRICING_SUMMARY': 'pricing_summary',
         'MARKET_BRIEF': 'market_brief',
+        'CAMPAIGN_CONTENT': 'campaign_content',
     }
     
     audience_mapping = {

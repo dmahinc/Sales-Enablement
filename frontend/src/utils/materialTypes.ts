@@ -20,6 +20,7 @@ export const GTM_MATERIAL_TYPES = [
   { value: 'win_loss_summary', label: 'Win/Loss Summary' },
   { value: 'pricing_summary', label: 'Pricing Summary' },
   { value: 'market_brief', label: 'Market Brief' },
+  { value: 'campaign_content', label: 'Campaign content' },
 ] as const
 
 const PRODUCT_VALUES = new Set(PRODUCT_MATERIAL_TYPES.map(t => t.value))
@@ -41,6 +42,7 @@ export function getDefaultAudienceForType(materialType: string): 'internal' | 'c
     'product_brief', 'sales_enablement_deck', 'product_portfolio', 'product_catalog',
     'gtm_playbook', 'gtm_sales_deck', 'channel_enablement_kit', 'roi_business_case',
     'persona_selling_guide', 'win_loss_summary', 'pricing_summary', 'market_brief',
+    'campaign_content',
   ])
   if (internalTypes.has(t)) return 'internal'
   if (['datasheet', 'sales_deck', 'customer_story'].includes(t)) return 'customer_facing'

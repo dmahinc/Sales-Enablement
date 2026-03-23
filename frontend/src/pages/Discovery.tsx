@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon, Sparkles, Target, Layers, Users, Check, Globe } from 'lucide-react'
+import { Search, FileText, ChevronRight, ChevronDown, Home, Folder, FolderOpen, Download, Share2, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Eye, X, Calendar, Clock, Grid3x3, List as ListIcon, Sparkles, Target, Layers, Users, Check, Globe, Megaphone } from 'lucide-react'
 import ShareLinkModal from '../components/ShareLinkModal'
 import ProductIcon from '../components/ProductIcon'
 import { getMaterialCategory } from '../utils/materialTypes'
@@ -938,6 +938,8 @@ function getMaterialTypeIcon(materialType: string | null | undefined): LucideIco
       return FileText
     case 'market_brief':
       return Globe
+    case 'campaign_content':
+      return Megaphone
     default:
       return FileText
   }
@@ -1071,6 +1073,8 @@ function getMaterialTypeColors(materialType: string | null | undefined): { bg: s
       return { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'border-emerald-200' }
     case 'market_brief':
       return { bg: 'bg-fuchsia-50', icon: 'text-fuchsia-600', border: 'border-fuchsia-200' }
+    case 'campaign_content':
+      return { bg: 'bg-pink-50', icon: 'text-pink-600', border: 'border-pink-200' }
     default:
       return { bg: 'bg-slate-50', icon: 'text-slate-500', border: 'border-slate-200' }
   }

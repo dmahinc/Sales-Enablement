@@ -57,7 +57,7 @@ class StorageService:
                     return self.storage_path / "01_Internal_Materials/Sales_Enablement_Decks/By_Universe" / universe_name
             elif material_type == "product_portfolio":
                 return self.storage_path / "01_Internal_Materials/Product_Portfolio"
-            elif material_type and material_type.startswith("gtm_"):
+            elif (material_type and material_type.startswith("gtm_")) or material_type == "campaign_content":
                 return self.storage_path / "01_Internal_Materials/GTM_Materials"
 
         elif audience == "customer_facing":
@@ -71,13 +71,13 @@ class StorageService:
                     return self.storage_path / "02_Customer_Facing/Datasheets/By_Product" / product_name
             elif material_type == "product_catalog":
                 return self.storage_path / "02_Customer_Facing/Product_Catalog"
-            elif material_type and material_type.startswith("gtm_"):
+            elif (material_type and material_type.startswith("gtm_")) or material_type == "campaign_content":
                 return self.storage_path / "02_Customer_Facing/GTM_Materials"
         elif audience == "shared_asset":
-            if material_type and material_type.startswith("gtm_"):
+            if (material_type and material_type.startswith("gtm_")) or material_type == "campaign_content":
                 return self.storage_path / "01_Internal_Materials/GTM_Materials"
 
-        if material_type and material_type.startswith("gtm_"):
+        if (material_type and material_type.startswith("gtm_")) or material_type == "campaign_content":
             return self.storage_path / "01_Internal_Materials/GTM_Materials"
 
         # Default fallback

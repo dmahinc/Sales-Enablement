@@ -47,6 +47,7 @@ MATERIAL_TYPE_MAP = {
     "win_loss_summary": "WIN_LOSS_SUMMARY",
     "pricing_summary": "PRICING_SUMMARY",
     "market_brief": "MARKET_BRIEF",
+    "campaign_content": "CAMPAIGN_CONTENT",
 }
 
 def calculate_freshness_score(material: Material) -> int:

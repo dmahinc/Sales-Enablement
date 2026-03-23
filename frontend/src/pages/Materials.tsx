@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Clock, Calendar, Globe, Archive, Target, Layers } from 'lucide-react'
+import { FileText, Upload, Plus, Edit, Trash2, Download, Filter, Cloud, Server, HardDrive, Users, FolderOpen, Share2, X, Check, Search, Sparkles, Eye, EyeOff, List, Grid, ChevronRight, ChevronDown, Home, Folder, ClipboardList, Presentation, GraduationCap, FileSpreadsheet, LucideIcon, Clock, Calendar, Globe, Archive, Target, Layers, Megaphone } from 'lucide-react'
 import Modal from '../components/Modal'
 import MaterialForm from '../components/MaterialForm'
 import FileUploadModal from '../components/FileUploadModal'
@@ -53,6 +53,7 @@ function getMaterialTypeIcon(materialType: string | null | undefined): LucideIco
   if (type.includes('win_loss') || type === 'win_loss_summary') return Check
   if (type.includes('pricing_summary') || type === 'pricing_summary') return FileText
   if (type.includes('market_brief') || type === 'market_brief') return Globe
+  if (type.includes('campaign_content') || type === 'campaign_content') return Megaphone
 
   return FileText
 }
@@ -147,6 +148,8 @@ function getMaterialTypeColors(materialType: string | null | undefined): { bg: s
       return { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'border-emerald-200' }
     case 'market_brief':
       return { bg: 'bg-fuchsia-50', icon: 'text-fuchsia-600', border: 'border-fuchsia-200' }
+    case 'campaign_content':
+      return { bg: 'bg-pink-50', icon: 'text-pink-600', border: 'border-pink-200' }
     default:
       return { bg: 'bg-slate-50', icon: 'text-slate-500', border: 'border-slate-200' }
   }
