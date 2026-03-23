@@ -3000,10 +3000,100 @@ export default function Materials() {
           {/* Materials List */}
           {filteredMaterials.length > 0 ? (
             <>
-              {hierarchyMode === 'product' && selectedUniverses.length === 0 ? (
+              {hierarchyMode === 'gtm' ? (
+                // GTM: Grouped by Segment View - bento 2 columns (always when in GTM mode)
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {(() => {
+                    const segsWithMaterials = segmentsForBento.filter(seg => (materialsBySegment[seg.id]?.length ?? 0) > 0)
+                    if (segsWithMaterials.length === 0) {
+                      return (
+                        <div key="all-gtm" className="card-ovh overflow-hidden col-span-full">
+                          <div className="bg-violet-50 px-6 py-4 border-b-2 border-violet-200">
+                            <div className="flex items-center space-x-3">
+                              <Target className="h-6 w-6 text-violet-600" />
+                              <div>
+                                <h3 className="text-lg font-semibold text-slate-900">GTM Materials</h3>
+                                <p className="text-sm text-slate-600">{filteredMaterials.length} material{filteredMaterials.length !== 1 ? 's' : ''}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {filteredMaterials.slice(0, 10).map((material: any) => (
+                              <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                {renderMaterialRow(material)}
+                              </div>
+                            ))}
+                            {filteredMaterials.length > 10 && (
+                              <div className="p-4 text-center text-sm text-slate-500">
+                                + {filteredMaterials.length - 10} more. Assign segments to materials to group by segment.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
+                    return segsWithMaterials.map((seg) => {
+                      const segMaterials = materialsBySegment[seg.id] || []
+                      const segInfo = getSegmentInfo(seg.id)
+                      const SegmentIcon = segInfo.icon
+                      const allSegMaterials = allMaterialsBySegment[seg.id] || []
+                      const hasArchived = allSegMaterials.some((m: any) => m.status === 'archived')
+                      const showArchived = showArchivedBySegment[seg.id] || false
+                      return (
+                        <div key={seg.id} className="card-ovh overflow-hidden">
+                          <div className={`${segInfo.bgColor} px-6 py-4 border-b-2 ${segInfo.borderColor}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <SegmentIcon className={`h-6 w-6 ${segInfo.color}`} />
+                                <div>
+                                  <h3 className="text-lg font-semibold text-slate-900">
+                                    {seg.parentDisplayName || seg.parentName ? `${seg.parentDisplayName || seg.parentName} » ${seg.displayName}` : seg.displayName}
+                                  </h3>
+                                  <p className="text-sm text-slate-600">{segMaterials.length} material{segMaterials.length !== 1 ? 's' : ''}</p>
+                                </div>
+                              </div>
+                              {hasArchived && (
+                                <button
+                                  onClick={() => setShowArchivedBySegment(prev => ({ ...prev, [seg.id]: !showArchived }))}
+                                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all"
+                                  title={showArchived ? 'Hide archived materials' : 'Show archived materials'}
+                                >
+                                  {showArchived ? (
+                                    <><EyeOff className="h-4 w-4" /><span>Hide Archived</span></>
+                                  ) : (
+                                    <><Eye className="h-4 w-4" /><span>Show Archived</span></>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {segMaterials.slice(0, 5).map((material: any) => (
+                              <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                {renderMaterialRow(material)}
+                              </div>
+                            ))}
+                            {segMaterials.length > 5 && (
+                              <div className="p-4 text-center">
+                                <button
+                                  onClick={() => setFilterSegmentIds([seg.id])}
+                                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                                >
+                                  View {segMaterials.length - 5} more materials →
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              ) : hierarchyMode === 'product' && selectedUniverses.length === 0 ? (
                 // Product: Grouped by Universe View - bento 2 columns
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {Object.entries(materialsByUniverse)
+                    .filter(([, mats]) => (mats as any[]).length > 0)
                     .sort(([a], [b]) => {
                       // Sort universes: known universes first, then alphabetically
                       const aIndex = UNIVERSES.findIndex(u => u.id === a)
@@ -3083,97 +3173,6 @@ export default function Materials() {
                         </div>
                       )
                     })}
-                </div>
-              ) : hierarchyMode === 'gtm' && filterSegmentIds.length === 0 ? (
-                // GTM: Grouped by Segment View - bento 2 columns
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {(() => {
-                    const segsWithMaterials = segmentsForBento.filter(seg => (materialsBySegment[seg.id]?.length ?? 0) > 0)
-                    if (segsWithMaterials.length === 0 && filteredMaterials.length > 0) {
-                      return (
-                        <div key="all-gtm" className="card-ovh overflow-hidden col-span-full">
-                          <div className="bg-violet-50 px-6 py-4 border-b-2 border-violet-200">
-                            <div className="flex items-center space-x-3">
-                              <Target className="h-6 w-6 text-violet-600" />
-                              <div>
-                                <h3 className="text-lg font-semibold text-slate-900">GTM Materials</h3>
-                                <p className="text-sm text-slate-600">{filteredMaterials.length} material{filteredMaterials.length !== 1 ? 's' : ''}</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="divide-y divide-slate-100">
-                            {filteredMaterials.slice(0, 10).map((material: any) => (
-                              <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
-                                {renderMaterialRow(material)}
-                              </div>
-                            ))}
-                            {filteredMaterials.length > 10 && (
-                              <div className="p-4 text-center text-sm text-slate-500">
-                                + {filteredMaterials.length - 10} more. Assign segments to materials to group by segment.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return segsWithMaterials.map((seg) => {
-                      const segMaterials = materialsBySegment[seg.id] || []
-                      const segInfo = getSegmentInfo(seg.id)
-                      const SegmentIcon = segInfo.icon
-                      const allSegMaterials = allMaterialsBySegment[seg.id] || []
-                      const hasArchived = allSegMaterials.some((m: any) => m.status === 'archived')
-                      const showArchived = showArchivedBySegment[seg.id] || false
-                      return (
-                        <div key={seg.id} className="card-ovh overflow-hidden">
-                          <div className={`${segInfo.bgColor} px-6 py-4 border-b-2 ${segInfo.borderColor}`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <SegmentIcon className={`h-6 w-6 ${segInfo.color}`} />
-                                <div>
-                                  <h3 className="text-lg font-semibold text-slate-900">
-                                    {seg.parentDisplayName || seg.parentName ? `${seg.parentDisplayName || seg.parentName} » ${seg.displayName}` : seg.displayName}
-                                  </h3>
-                                  <p className="text-sm text-slate-600">{segMaterials.length} material{segMaterials.length !== 1 ? 's' : ''}</p>
-                                </div>
-                              </div>
-                              {hasArchived && (
-                                <button
-                                  onClick={() => {
-                                    setShowArchivedBySegment(prev => ({ ...prev, [seg.id]: !showArchived }))
-                                  }}
-                                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all"
-                                  title={showArchived ? 'Hide archived materials' : 'Show archived materials'}
-                                >
-                                  {showArchived ? (
-                                    <><EyeOff className="h-4 w-4" /><span>Hide Archived</span></>
-                                  ) : (
-                                    <><Eye className="h-4 w-4" /><span>Show Archived</span></>
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <div className="divide-y divide-slate-100">
-                            {segMaterials.slice(0, 5).map((material: any) => (
-                              <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
-                                {renderMaterialRow(material)}
-                              </div>
-                            ))}
-                            {segMaterials.length > 5 && (
-                              <div className="p-4 text-center">
-                                <button
-                                  onClick={() => setFilterSegmentIds([seg.id])}
-                                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                                >
-                                  View {segMaterials.length - 5} more materials →
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })
-                  })()}
                 </div>
               ) : (
                 // Filtered View - materials in 2-column bento
