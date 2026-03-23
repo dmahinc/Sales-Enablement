@@ -9,6 +9,7 @@ from datetime import datetime
 class SegmentBase(BaseModel):
     """Base schema for Segment"""
     name: str = Field(..., min_length=1, max_length=100)
+    display_name: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
     industry: Optional[str] = Field(None, max_length=100)
     company_size: Optional[str] = Field(None, max_length=50)
@@ -26,6 +27,7 @@ class SegmentCreate(SegmentBase):
 class SegmentUpdate(BaseModel):
     """Schema for updating a segment"""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
+    display_name: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
     industry: Optional[str] = Field(None, max_length=100)
     company_size: Optional[str] = Field(None, max_length=50)
@@ -39,6 +41,7 @@ class SegmentResponse(SegmentBase):
     """Schema for segment response"""
     id: int
     parent_segment_id: Optional[int] = None
+    display_name: Optional[str] = None  # Human-readable display name (preferred over name for UI)
     created_at: datetime
     updated_at: datetime
 

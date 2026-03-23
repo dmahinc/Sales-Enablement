@@ -850,6 +850,8 @@ export default function Materials() {
   const [isSemanticSearching, setIsSemanticSearching] = useState(false)
   // Track which universes have archived materials visible (default: all hidden)
   const [showArchivedByUniverse, setShowArchivedByUniverse] = useState<Record<string, boolean>>({})
+  // Track which GTM segments have archived materials visible (default: all hidden)
+  const [showArchivedBySegment, setShowArchivedBySegment] = useState<Record<number, boolean>>({})
   // View toggle: 'list' or 'browse'
   const [viewMode, setViewMode] = useState<'list' | 'browse'>('list')
   // Hierarchy mode: 'product' (universe > category > product) or 'gtm' (segments)
@@ -1047,12 +1049,14 @@ export default function Materials() {
         if (matCategory !== 'gtm') return false
       }
 
-      // Archived filter - hide archived by default unless explicitly shown for this universe
+      // Archived filter - hide archived by default unless explicitly shown
       if (m.status === 'archived') {
-        const universeName = m.universe_name || 'Uncategorized'
-        // If archived materials are not explicitly shown for this universe, hide them
-        if (!showArchivedByUniverse[universeName]) {
-          return false
+        if (hierarchyMode === 'product') {
+          const universeName = m.universe_name || 'Uncategorized'
+          if (!showArchivedByUniverse[universeName]) return false
+        } else {
+          const segIds = m.segment_ids || []
+          if (segIds.length === 0 || !segIds.some((sid: number) => showArchivedBySegment[sid])) return false
         }
       }
       
@@ -1103,7 +1107,7 @@ export default function Materials() {
       
       return true
     })
-  }, [materials, hierarchyMode, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, filterSegmentIds, searchQuery, allProducts, showArchivedByUniverse])
+  }, [materials, hierarchyMode, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, filterSegmentIds, searchQuery, allProducts, showArchivedByUniverse, showArchivedBySegment])
 
   // Track search actions for sales users
   useEffect(() => {
@@ -1145,6 +1149,83 @@ export default function Materials() {
     acc[universe].push(material)
     return acc
   }, {})
+
+  // Level 2 GTM segments: children, or parents with no children (for display labels)
+  const level2Segments = useMemo(() => {
+    const result: Array<{ id: number; name: string; parentName?: string }> = []
+    gtmTree.forEach((parent: any) => {
+      const children = parent.children || []
+      if (children.length > 0) {
+        children.forEach((child: any) => {
+          result.push({ id: child.id, name: child.name, parentName: parent.name })
+        })
+      } else {
+        result.push({ id: parent.id, name: parent.name })
+      }
+    })
+    return result
+  }, [gtmTree])
+
+  // All segments for bento: parents + children (so materials tagged with either show up)
+  // Use display_name when available; fallback to name for UI display
+  const segmentsForBento = useMemo(() => {
+    const result: Array<{ id: number; name: string; displayName: string; parentName?: string; parentDisplayName?: string }> = []
+    gtmTree.forEach((parent: any) => {
+      const pName = parent.display_name || parent.name
+      result.push({ id: parent.id, name: parent.name, displayName: pName })
+      ;(parent.children || []).forEach((child: any) => {
+        const cName = child.display_name || child.name
+        result.push({ id: child.id, name: child.name, displayName: cName, parentName: parent.name, parentDisplayName: pName })
+      })
+    })
+    return result
+  }, [gtmTree])
+
+  // Group ALL GTM materials by segment (for card counts / has archived)
+  const allMaterialsBySegment = useMemo(() => {
+    const acc: Record<number, any[]> = {}
+    const gtmMaterials = (materials || []).filter((m: any) => getMaterialCategory(m.material_type) === 'gtm')
+    gtmMaterials.forEach((material: any) => {
+      const segIds = material.segment_ids || []
+      segIds.forEach((sid: number) => {
+        if (!acc[sid]) acc[sid] = []
+        acc[sid].push(material)
+      })
+    })
+    return acc
+  }, [materials])
+
+  // Group FILTERED GTM materials by segment (for bento display)
+  // For archived materials, only include in segment card if that segment has showArchived enabled
+  const materialsBySegment = useMemo(() => {
+    const acc: Record<number, any[]> = {}
+    filteredMaterials.forEach((material: any) => {
+      const segIds = material.segment_ids || []
+      segIds.forEach((sid: number) => {
+        if (material.status === 'archived' && !showArchivedBySegment[sid]) return
+        if (!acc[sid]) acc[sid] = []
+        acc[sid].push(material)
+      })
+    })
+    return acc
+  }, [filteredMaterials, showArchivedBySegment])
+
+  // Get segment info helper (icon, colors for bento cards)
+  const getSegmentInfo = (segmentId: number) => {
+    const seg = segmentsForBento.find(s => s.id === segmentId)
+    const name = seg?.displayName || seg?.name || `Segment ${segmentId}`
+    const colors = [
+      { color: 'text-violet-600', bgColor: 'bg-violet-50', borderColor: 'border-violet-200' },
+      { color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200' },
+      { color: 'text-cyan-600', bgColor: 'bg-cyan-50', borderColor: 'border-cyan-200' },
+      { color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
+      { color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
+      { color: 'text-rose-600', bgColor: 'bg-rose-50', borderColor: 'border-rose-200' },
+    ]
+    const idx = segmentsForBento.findIndex(s => s.id === segmentId)
+    const c = colors[Math.max(0, idx % colors.length)]
+    return { id: segmentId, name, icon: Target, ...c }
+  }
 
   // Get universe info helper
   const getUniverseInfo = (universeName: string) => {
@@ -1418,16 +1499,21 @@ export default function Materials() {
     // Filter archived materials
     filtered = filtered.filter((m: any) => {
       if (m.status === 'archived') {
-        const universeName = m.universe_name || 'Uncategorized'
-        return showArchivedByUniverse[universeName] || false
+        if (hierarchyMode === 'product') {
+          const universeName = m.universe_name || 'Uncategorized'
+          return showArchivedByUniverse[universeName] || false
+        } else {
+          const segIds = m.segment_ids || []
+          return segIds.length > 0 && segIds.some((sid: number) => showArchivedBySegment[sid])
+        }
       }
       return true
     })
 
     return filtered
-  }, [materials, hierarchyMode, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, browseSelectedSegmentId, searchQuery, debouncedSearchQuery, semanticSearchResults, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, filterSegmentIds])
+  }, [materials, hierarchyMode, browseSelectedUniverseId, browseSelectedCategoryId, browseSelectedProductId, browseSelectedSegmentId, searchQuery, debouncedSearchQuery, semanticSearchResults, effectiveUniverses, allCategories, allProducts, showArchivedByUniverse, showArchivedBySegment, selectedUniverses, filterTypes, filterStatuses, filterCategoryIds, filterProductIds, filterSegmentIds])
 
-  // Browse view materials grouped by universe
+  // Browse view materials grouped by universe (Product mode)
   const browseMaterialsByUniverse = useMemo(() => {
     const grouped: Record<string, any[]> = {}
     browseFilteredMaterials.forEach((material: any) => {
@@ -1439,6 +1525,27 @@ export default function Materials() {
     })
     return grouped
   }, [browseFilteredMaterials])
+
+  // Browse view materials grouped by segment (GTM mode, level 2)
+  const browseMaterialsBySegment = useMemo(() => {
+    const grouped: Record<number, any[]> = {}
+    browseFilteredMaterials.forEach((material: any) => {
+      const segIds = material.segment_ids || []
+      segIds.forEach((sid: number) => {
+        if (material.status === 'archived' && !showArchivedBySegment[sid]) return
+        if (!grouped[sid]) grouped[sid] = []
+        grouped[sid].push(material)
+      })
+    })
+    return grouped
+  }, [browseFilteredMaterials, showArchivedBySegment])
+
+  // Sorted browse materials by segment (follow segmentsForBento order)
+  const sortedBrowseMaterialsBySegment = useMemo(() => {
+    return segmentsForBento
+      .filter(seg => (browseMaterialsBySegment[seg.id]?.length ?? 0) > 0)
+      .map(seg => [seg.id, browseMaterialsBySegment[seg.id]] as [number, any[]])
+  }, [browseMaterialsBySegment, segmentsForBento])
 
   // Universe display order (matching menu order) - include GTM for GTM materials
   const universeDisplayOrder = [
@@ -1940,9 +2047,11 @@ export default function Materials() {
                     setBrowseSelectedUniverseId(null)
                     setBrowseSelectedCategoryId(null)
                     setBrowseSelectedProductId(null)
+                    setBrowseSelectedSegmentId(null)
                     setSelectedUniverses([])
                     setFilterCategoryIds([])
                     setFilterProductIds([])
+                    setFilterSegmentIds([])
                   }}
                   className={`flex-1 px-3 py-2 text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
                     hierarchyMode === 'gtm' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-100'
@@ -2366,28 +2475,112 @@ export default function Materials() {
               </div>
             ) : (
               <>
-                {/* Show grouped by universe/segment if no specific selection */}
+                {/* Show grouped by universe (Product) or segment (GTM) if no specific selection */}
                 {!searchQuery && (
                   (hierarchyMode === 'product' && !browseSelectedUniverseId && !browseSelectedCategoryId && !browseSelectedProductId) ||
                   (hierarchyMode === 'gtm' && !browseSelectedSegmentId)
                 ) ? (
-                  sortedBrowseMaterialsByUniverse.map(([universeName, universeMaterials]) => (
-                    <div key={universeName} className="mb-8">
-                      <h2 className="text-xl font-semibold text-slate-900 mb-4">{universeName}</h2>
+                  hierarchyMode === 'product' ? (
+                    sortedBrowseMaterialsByUniverse.map(([universeName, universeMaterials]) => (
+                      <div key={universeName} className="mb-8">
+                        <h2 className="text-xl font-semibold text-slate-900 mb-4">{universeName}</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {universeMaterials.map((material: any) => (
+                            <BrowseMaterialCard 
+                              key={material.id} 
+                              material={material}
+                              onDownload={handleDownload}
+                              onShare={(material) => {
+                                setSharingMaterial(material)
+                                setIsShareModalOpen(true)
+                              }}
+                              onEdit={canEditDelete ? (material) => setEditingMaterial(material) : undefined}
+                              onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
+                              onArchive={canArchive ? (id) => handleArchive(id) : undefined}
+                              onPreview={(material) => setPreviewMaterial(material)}
+                              canEditDelete={canEditDelete}
+                              isSales={isSales}
+                              canArchive={canArchive}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : sortedBrowseMaterialsBySegment.length > 0 ? (
+                    sortedBrowseMaterialsBySegment.map(([segmentId, segmentMaterials]) => {
+                      const seg = segmentsForBento.find(s => s.id === segmentId)
+                      const segInfo = getSegmentInfo(segmentId)
+                      const SegmentIcon = segInfo.icon
+                      const allSegMaterials = allMaterialsBySegment[segmentId] || []
+                      const hasArchived = allSegMaterials.some((m: any) => m.status === 'archived')
+                      const showArchived = showArchivedBySegment[segmentId] || false
+                      return (
+                        <div key={segmentId} className="mb-8">
+                          <div className={`${segInfo.bgColor} rounded-lg px-5 py-4 border-b-2 ${segInfo.borderColor} mb-4`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <SegmentIcon className={`h-6 w-6 ${segInfo.color}`} />
+                                <h2 className="text-xl font-semibold text-slate-900">
+                                  {seg?.parentDisplayName || seg?.parentName ? `${seg.parentDisplayName || seg.parentName} » ${seg.displayName}` : seg?.displayName || seg?.name}
+                                </h2>
+                              </div>
+                              {hasArchived && (
+                                <button
+                                  onClick={() => setShowArchivedBySegment(prev => ({ ...prev, [segmentId]: !showArchived }))}
+                                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all"
+                                  title={showArchived ? 'Hide archived materials' : 'Show archived materials'}
+                                >
+                                  {showArchived ? (
+                                    <><EyeOff className="h-4 w-4" /><span>Hide Archived</span></>
+                                  ) : (
+                                    <><Eye className="h-4 w-4" /><span>Show Archived</span></>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {segmentMaterials.map((material: any) => (
+                              <BrowseMaterialCard 
+                                key={material.id} 
+                                material={material}
+                                onDownload={handleDownload}
+                                onShare={(material) => {
+                                  setSharingMaterial(material)
+                                  setIsShareModalOpen(true)
+                                }}
+                                onEdit={canEditDelete ? (material) => setEditingMaterial(material) : undefined}
+                                onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
+                                onArchive={canArchive ? (id) => handleArchive(id) : undefined}
+                                onPreview={(material) => setPreviewMaterial(material)}
+                                canEditDelete={canEditDelete}
+                                isSales={isSales}
+                                canArchive={canArchive}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="mb-8">
+                      <div className="bg-violet-50 rounded-lg px-5 py-4 border-b-2 border-violet-200 mb-4">
+                        <div className="flex items-center space-x-3">
+                          <Target className="h-6 w-6 text-violet-600" />
+                          <h2 className="text-xl font-semibold text-slate-900">GTM Materials</h2>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {universeMaterials.map((material: any) => (
-                          <BrowseMaterialCard 
-                            key={material.id} 
+                        {browseFilteredMaterials.map((material: any) => (
+                          <BrowseMaterialCard
+                            key={material.id}
                             material={material}
                             onDownload={handleDownload}
-                            onShare={(material) => {
-                              setSharingMaterial(material)
-                              setIsShareModalOpen(true)
-                            }}
-                            onEdit={canEditDelete ? (material) => setEditingMaterial(material) : undefined}
+                            onShare={(m) => { setSharingMaterial(m); setIsShareModalOpen(true) }}
+                            onEdit={canEditDelete ? (m) => setEditingMaterial(m) : undefined}
                             onDelete={canEditDelete ? (id) => handleDelete(id) : undefined}
                             onArchive={canArchive ? (id) => handleArchive(id) : undefined}
-                            onPreview={(material) => setPreviewMaterial(material)}
+                            onPreview={(m) => setPreviewMaterial(m)}
                             canEditDelete={canEditDelete}
                             isSales={isSales}
                             canArchive={canArchive}
@@ -2395,7 +2588,7 @@ export default function Materials() {
                         ))}
                       </div>
                     </div>
-                  ))
+                  )
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {browseFilteredMaterials.map((material: any) => (
@@ -2649,6 +2842,7 @@ export default function Materials() {
                 setSelectedUniverses([])
                 setFilterCategoryIds([])
                 setFilterProductIds([])
+                setFilterSegmentIds([])
                 setFilterTypes((prev) => prev.filter(t => GTM_MATERIAL_TYPES.some(gt => gt.value === t)))
               }}
               className={`card-ovh p-5 text-left transition-all duration-200 ${
@@ -2806,8 +3000,8 @@ export default function Materials() {
           {/* Materials List */}
           {filteredMaterials.length > 0 ? (
             <>
-              {selectedUniverses.length === 0 ? (
-                // Grouped by Universe View - bento 2 columns
+              {hierarchyMode === 'product' && selectedUniverses.length === 0 ? (
+                // Product: Grouped by Universe View - bento 2 columns
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {Object.entries(materialsByUniverse)
                     .sort(([a], [b]) => {
@@ -2889,6 +3083,97 @@ export default function Materials() {
                         </div>
                       )
                     })}
+                </div>
+              ) : hierarchyMode === 'gtm' && filterSegmentIds.length === 0 ? (
+                // GTM: Grouped by Segment View - bento 2 columns
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {(() => {
+                    const segsWithMaterials = segmentsForBento.filter(seg => (materialsBySegment[seg.id]?.length ?? 0) > 0)
+                    if (segsWithMaterials.length === 0 && filteredMaterials.length > 0) {
+                      return (
+                        <div key="all-gtm" className="card-ovh overflow-hidden col-span-full">
+                          <div className="bg-violet-50 px-6 py-4 border-b-2 border-violet-200">
+                            <div className="flex items-center space-x-3">
+                              <Target className="h-6 w-6 text-violet-600" />
+                              <div>
+                                <h3 className="text-lg font-semibold text-slate-900">GTM Materials</h3>
+                                <p className="text-sm text-slate-600">{filteredMaterials.length} material{filteredMaterials.length !== 1 ? 's' : ''}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {filteredMaterials.slice(0, 10).map((material: any) => (
+                              <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                {renderMaterialRow(material)}
+                              </div>
+                            ))}
+                            {filteredMaterials.length > 10 && (
+                              <div className="p-4 text-center text-sm text-slate-500">
+                                + {filteredMaterials.length - 10} more. Assign segments to materials to group by segment.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
+                    return segsWithMaterials.map((seg) => {
+                      const segMaterials = materialsBySegment[seg.id] || []
+                      const segInfo = getSegmentInfo(seg.id)
+                      const SegmentIcon = segInfo.icon
+                      const allSegMaterials = allMaterialsBySegment[seg.id] || []
+                      const hasArchived = allSegMaterials.some((m: any) => m.status === 'archived')
+                      const showArchived = showArchivedBySegment[seg.id] || false
+                      return (
+                        <div key={seg.id} className="card-ovh overflow-hidden">
+                          <div className={`${segInfo.bgColor} px-6 py-4 border-b-2 ${segInfo.borderColor}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <SegmentIcon className={`h-6 w-6 ${segInfo.color}`} />
+                                <div>
+                                  <h3 className="text-lg font-semibold text-slate-900">
+                                    {seg.parentDisplayName || seg.parentName ? `${seg.parentDisplayName || seg.parentName} » ${seg.displayName}` : seg.displayName}
+                                  </h3>
+                                  <p className="text-sm text-slate-600">{segMaterials.length} material{segMaterials.length !== 1 ? 's' : ''}</p>
+                                </div>
+                              </div>
+                              {hasArchived && (
+                                <button
+                                  onClick={() => {
+                                    setShowArchivedBySegment(prev => ({ ...prev, [seg.id]: !showArchived }))
+                                  }}
+                                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all"
+                                  title={showArchived ? 'Hide archived materials' : 'Show archived materials'}
+                                >
+                                  {showArchived ? (
+                                    <><EyeOff className="h-4 w-4" /><span>Hide Archived</span></>
+                                  ) : (
+                                    <><Eye className="h-4 w-4" /><span>Show Archived</span></>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {segMaterials.slice(0, 5).map((material: any) => (
+                              <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                {renderMaterialRow(material)}
+                              </div>
+                            ))}
+                            {segMaterials.length > 5 && (
+                              <div className="p-4 text-center">
+                                <button
+                                  onClick={() => setFilterSegmentIds([seg.id])}
+                                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                                >
+                                  View {segMaterials.length - 5} more materials →
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()}
                 </div>
               ) : (
                 // Filtered View - materials in 2-column bento

@@ -10,6 +10,7 @@ interface SegmentFormProps {
 export default function SegmentForm({ segment, onClose }: SegmentFormProps) {
   const [formData, setFormData] = useState({
     name: '',
+    display_name: '',
     description: '',
     industry: '',
     company_size: '',
@@ -25,6 +26,7 @@ export default function SegmentForm({ segment, onClose }: SegmentFormProps) {
     if (segment) {
       setFormData({
         name: segment.name || '',
+        display_name: segment.display_name || '',
         description: segment.description || '',
         industry: segment.industry || '',
         company_size: segment.company_size || '',
@@ -73,6 +75,18 @@ export default function SegmentForm({ segment, onClose }: SegmentFormProps) {
           className="input-ovh"
           placeholder="e.g., Enterprise Financial Services"
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Display Name (Materials bento)</label>
+        <input
+          type="text"
+          value={formData.display_name}
+          onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+          className="input-ovh"
+          placeholder="e.g., Blockchain & Web3"
+        />
+        <p className="mt-1 text-xs text-slate-500">Shown in Materials bento when different from Segment Name</p>
       </div>
 
       <div>
