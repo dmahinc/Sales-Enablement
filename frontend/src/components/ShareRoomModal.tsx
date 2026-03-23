@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../services/api'
-import { Send, Copy, Check, X } from 'lucide-react'
+import { Send, Copy, Check, X, Plus } from 'lucide-react'
 import Modal from './Modal'
 
 interface ShareRoomModalProps {
@@ -114,8 +114,18 @@ export default function ShareRoomModal({
               placeholder="Add email address..."
               className="flex-1 min-w-[180px] px-2 py-1 border-0 focus:ring-0 focus:outline-none text-sm"
             />
+            <button
+              type="button"
+              onClick={addRecipient}
+              disabled={!recipientInput.trim() || !recipientInput.includes('@')}
+              className="btn-ovh-secondary flex items-center gap-1 px-3 py-1.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Add recipient"
+            >
+              <Plus className="w-4 h-4" />
+              Add
+            </button>
           </div>
-          <p className="text-xs text-warm-600 mt-1">Press Enter to add. You can add multiple recipients.</p>
+          <p className="text-xs text-warm-600 mt-1">Add at least one recipient (Enter or click Add). Subject and message are optional.</p>
         </div>
 
         {/* Send logic */}

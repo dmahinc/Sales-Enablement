@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers, ClipboardList, Building2, Camera, Trash2 } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers, ClipboardList, Building2, Camera } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import AgentPanel from './AgentPanel'
 import { useQuery } from '@tanstack/react-query'
@@ -233,6 +233,11 @@ export default function Layout() {
 
   // Prefer avatar_data_url (base64) - no separate HTTP request, avoids 404/CORS issues
   const avatarSrc = user?.avatar_data_url || user?.avatar_url || ''
+  const [avatarError, setAvatarError] = useState(false)
+
+  useEffect(() => {
+    setAvatarError(false)
+  }, [avatarSrc])
 
   return (
     <div className="min-h-screen bg-[var(--ovh-bg)] dark:bg-slate-900 flex transition-colors duration-300">
@@ -328,9 +333,9 @@ export default function Layout() {
               aria-label="Toggle theme"
             >
               {theme === 'dark' ? (
-                <Sun className="w-5 h-5" />
+                <Sun className="w-7 h-7 shrink-0" />
               ) : (
-                <Moon className="w-5 h-5" />
+                <Moon className="w-7 h-7 shrink-0" />
               )}
             </button>
             <NotificationBell />
@@ -350,15 +355,16 @@ export default function Layout() {
                 aria-expanded={userMenuOpen}
                 aria-haspopup="true"
               >
-                <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center ring-2 ring-primary-200/50 dark:ring-primary-700/30 overflow-hidden">
-                  {avatarSrc ? (
+                <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center ring-2 ring-primary-200/50 dark:ring-primary-700/30 overflow-hidden shrink-0" style={{ minWidth: 64, minHeight: 64 }}>
+                  {avatarSrc && !avatarError ? (
                     <img
                       src={avatarSrc}
                       alt=""
                       className="w-full h-full object-cover"
+                      onError={() => setAvatarError(true)}
                     />
                   ) : (
-                    <span className="text-primary-600 dark:text-primary-400 font-semibold text-sm">
+                    <span className="text-primary-600 dark:text-primary-400 font-semibold text-base">
                       {initials}
                     </span>
                   )}
@@ -377,34 +383,58 @@ export default function Layout() {
                   }}
                 >
                   <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                      {user?.full_name}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mb-2">
                       {user?.email}
                     </p>
-                    <span className="inline-flex items-center mt-1.5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400">
-                      {user?.role || 'user'}
-                    </span>
+                    {/* Avatar with Gmail-style camera overlay */}
+                    <div className="flex flex-col items-center">
+                      <div className="relative group">
+                        <div className="w-20 h-20 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center ring-2 ring-primary-200/50 dark:ring-primary-700/30 overflow-hidden shrink-0">
+                          {avatarSrc && !avatarError ? (
+                            <img
+                              src={avatarSrc}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={() => setAvatarError(true)}
+                            />
+                          ) : (
+                            <span className="text-primary-600 dark:text-primary-400 font-semibold text-2xl">
+                              {initials}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (!avatarUploading) avatarInputRef.current?.click()
+                          }}
+                          disabled={avatarUploading}
+                          className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white dark:bg-slate-700 shadow-md border border-slate-200 dark:border-slate-600 flex items-center justify-center text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                          title="Change picture"
+                          aria-label="Change picture"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-2">
+                        {user?.full_name}
+                      </p>
+                      <span className="inline-flex items-center mt-1 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400">
+                        {user?.role || 'user'}
+                      </span>
+                      {avatarSrc && !avatarError && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleAvatarRemove() }}
+                          disabled={avatarUploading}
+                          className="mt-2 text-xs text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+                        >
+                          Remove picture
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => avatarInputRef.current?.click()}
-                    disabled={avatarUploading}
-                    className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
-                  >
-                    <Camera className="w-5 h-5 mr-2.5" />
-                    <span>{avatarUploading ? 'Uploading…' : 'Change picture'}</span>
-                  </button>
-                  {avatarSrc && (
-                    <button
-                      onClick={handleAvatarRemove}
-                      disabled={avatarUploading}
-                      className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors disabled:opacity-50"
-                    >
-                      <Trash2 className="w-5 h-5 mr-2.5" />
-                      <span>Remove picture</span>
-                    </button>
-                  )}
                   <button
                     onClick={logout}
                     className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"

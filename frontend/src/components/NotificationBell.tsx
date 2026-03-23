@@ -41,23 +41,33 @@ export default function NotificationBell() {
   const { user } = useAuth()
   const isCustomer = user?.role === 'customer'
 
-  // Fetch notifications
-  const { data: notifications = [], refetch, error } = useQuery<Notification[]>({
+  // Fetch notifications (graceful fallback if API unavailable)
+  const { data: notificationsRaw, refetch, error } = useQuery<unknown>({
     queryKey: ['notifications'],
-    queryFn: () => api.get('/notifications?unread_only=false').then(res => {
-      console.log('Notifications API response:', res.data)
-      return res.data
-    }).catch(err => {
-      console.error('Error fetching notifications:', err)
-      throw err
-    }),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    queryFn: async () => {
+      try {
+        const res = await api.get('/notifications?unread_only=false')
+        return res.data
+      } catch (err) {
+        console.error('Error fetching notifications:', err)
+        return []
+      }
+    },
+    refetchInterval: 30000,
   })
+  const notifications: Notification[] = Array.isArray(notificationsRaw) ? notificationsRaw : []
 
-  // Fetch unread count
-  const { data: unreadData } = useQuery<{ unread_count: number }>({
+  // Fetch unread count (graceful fallback)
+  const { data: unreadData } = useQuery<{ unread_count?: number }>({
     queryKey: ['notifications', 'unread-count'],
-    queryFn: () => api.get('/notifications/unread-count').then(res => res.data),
+    queryFn: async () => {
+      try {
+        const res = await api.get('/notifications/unread-count')
+        return res.data
+      } catch {
+        return { unread_count: 0 }
+      }
+    },
     refetchInterval: 30000,
   })
 
@@ -148,7 +158,7 @@ export default function NotificationBell() {
         className="relative p-2 text-slate-600 hover:text-primary-600 transition-colors"
         aria-label="Notifications"
       >
-        <Bell className="h-6 w-6" />
+        <Bell className="h-7 w-7 shrink-0" />
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
             {unreadCount > 9 ? '9+' : unreadCount}

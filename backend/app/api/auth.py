@@ -195,7 +195,9 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
     **Returns:**
     - Current user object with profile information
     """
-    return current_user
+    data = UserResponse.model_validate(current_user).model_dump()
+    data["avatar_data_url"] = get_avatar_data_url(current_user)
+    return UserResponse(**data)
 
 @router.get(
     "/v2/me",
@@ -213,9 +215,9 @@ async def read_users_me_v2(current_user: User = Depends(get_current_active_user)
     
     Same as /me but with v2 prefix for frontend compatibility.
     """
-    return current_user
-
-    return current_user
+    data = UserResponse.model_validate(current_user).model_dump()
+    data["avatar_data_url"] = get_avatar_data_url(current_user)
+    return UserResponse(**data)
 
 
 AVATARS_DIR = Path("/app/avatars")

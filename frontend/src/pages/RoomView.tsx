@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, AlertCircle, Loader, Calendar, MessageSquare, Send, Eye, Check } from 'lucide-react'
+import { Download, AlertCircle, Loader, Calendar, MessageSquare, Send, Eye, Check, Users, Activity } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import ContentViewerModal from '../components/ContentViewerModal'
