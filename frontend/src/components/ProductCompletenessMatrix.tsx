@@ -235,7 +235,7 @@ export default function ProductCompletenessMatrix() {
               onClick={() => setShowFreshnessModal(true)}
               className="btn-ovh-primary mt-4 md:mt-0"
             >
-              <Leaf className="w-4 h-4 mr-2" />
+              <Leaf className="w-5 h-5 mr-2" />
               Manage Freshness
             </button>
           )}
@@ -363,7 +363,7 @@ export default function ProductCompletenessMatrix() {
       <div className="card-ovh p-4">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
               placeholder="Search products..."
@@ -374,7 +374,7 @@ export default function ProductCompletenessMatrix() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-slate-400" />
+            <Filter className="w-5 h-5 text-slate-400" />
             <select
               value={selectedUniverse || ''}
               onChange={(e) => {
@@ -407,7 +407,7 @@ export default function ProductCompletenessMatrix() {
               type="checkbox"
               checked={showIncompleteOnly}
               onChange={(e) => setShowIncompleteOnly(e.target.checked)}
-              className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
             />
             <span className="text-sm text-slate-700">Show incomplete only</span>
           </label>
@@ -461,9 +461,9 @@ export default function ProductCompletenessMatrix() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-slate-500" />
+                              <ChevronUp className="w-5 h-5 text-slate-500" />
                             ) : (
-                              <ChevronDown className="w-4 h-4 text-slate-500" />
+                              <ChevronDown className="w-5 h-5 text-slate-500" />
                             )}
                             <span className="font-semibold text-slate-900">
                               {rows[0]?.universe_name || 'Unknown'}

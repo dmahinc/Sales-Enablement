@@ -108,7 +108,7 @@ export default function PMMDashboard() {
               </div>
               <div className="mt-4 flex items-center text-sm text-primary-500 group-hover:text-primary-600">
                 <span>View details</span>
-                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
           )
@@ -122,7 +122,7 @@ export default function PMMDashboard() {
           <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-primary-700">Recent Uploads</h2>
             <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
-              View all <ArrowRight className="w-4 h-4 ml-1" />
+              View all <ArrowRight className="w-5 h-5 ml-1" />
             </Link>
           </div>
           <div className="divide-y divide-slate-100">

@@ -82,13 +82,13 @@ export default function Segments() {
                 <div className="grid grid-cols-2 gap-4">
                   {segment.company_size && (
                     <div className="flex items-center space-x-2">
-                      <Building2 className="w-4 h-4 text-slate-400" />
+                      <Building2 className="w-5 h-5 text-slate-400" />
                       <span className="text-sm text-slate-600">{segment.company_size}</span>
                     </div>
                   )}
                   {segment.region && (
                     <div className="flex items-center space-x-2">
-                      <MapPin className="w-4 h-4 text-slate-400" />
+                      <MapPin className="w-5 h-5 text-slate-400" />
                       <span className="text-sm text-slate-600">{segment.region}</span>
                     </div>
                   )}
@@ -96,7 +96,7 @@ export default function Segments() {
                 
                 {segment.key_drivers && (
                   <div className="flex items-start space-x-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <TrendingUp className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-xs font-medium text-slate-500 uppercase">Key Drivers</p>
                       <p className="text-sm text-slate-700 line-clamp-2">{segment.key_drivers}</p>

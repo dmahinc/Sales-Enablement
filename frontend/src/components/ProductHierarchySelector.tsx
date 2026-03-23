@@ -171,14 +171,14 @@ export default function ProductHierarchySelector({
             <span className={selectedUniverse ? 'text-slate-900' : 'text-slate-400'}>
               {selectedUniverse ? selectedUniverse.display_name : 'Select Universe'}
             </span>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${universeDropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${universeDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
           
           {universeDropdownOpen && (
             <div className="absolute z-[100] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="p-2 border-b border-slate-200">
                 <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <input
                     type="text"
                     placeholder="Search universes..."
@@ -256,14 +256,14 @@ export default function ProductHierarchySelector({
                     ? selectedCategory.display_name 
                     : 'Select Category'}
             </span>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
             
             {categoryDropdownOpen && universeId && (
               <div className="absolute z-[100] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="p-2 border-b border-slate-200">
                   <div className="relative">
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="text"
                       placeholder="Search categories..."
@@ -351,14 +351,14 @@ export default function ProductHierarchySelector({
                       : 'Select Product'}
               </span>
             </div>
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform flex-shrink-0 ${productDropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform flex-shrink-0 ${productDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
             
             {productDropdownOpen && universeId && (
               <div className="absolute z-[100] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="p-2 border-b border-slate-200">
                   <div className="relative">
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
                       type="text"
                       placeholder="Search products..."

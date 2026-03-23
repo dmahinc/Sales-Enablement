@@ -486,7 +486,7 @@ export default function Discovery() {
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            <Home className="w-4 h-4" />
+            <Home className="w-5 h-5" />
             <span>All Materials</span>
           </button>
 
@@ -520,12 +520,12 @@ export default function Discovery() {
                             }}
                             className="p-0.5"
                           >
-                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                            {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                           </button>
                         ) : (
-                          <div className="w-4 h-4" />
+                          <div className="w-5 h-5" />
                         )}
-                        <Target className="w-4 h-4" />
+                        <Target className="w-5 h-5" />
                         <span className="flex-1">{parent.name}</span>
                         <span className="text-xs text-slate-400">
                           {materials.filter((m: any) => (m.segment_ids || []).includes(parent.id)).length}
@@ -539,7 +539,7 @@ export default function Discovery() {
                             selectedSegmentId === child.id ? 'bg-primary-50 text-primary-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
                           }`}
                         >
-                          <FileText className="w-4 h-4" />
+                          <FileText className="w-5 h-5" />
                           <span className="flex-1">{child.name}</span>
                           <span className="text-xs text-slate-400">
                             {materials.filter((m: any) => (m.segment_ids || []).includes(child.id)).length}
@@ -578,15 +578,15 @@ export default function Discovery() {
                       className="p-0.5"
                     >
                       {isExpanded ? (
-                        <ChevronDown className="w-4 h-4" />
+                        <ChevronDown className="w-5 h-5" />
                       ) : (
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="w-5 h-5" />
                       )}
                     </button>
                   ) : (
-                    <div className="w-4 h-4" />
+                    <div className="w-5 h-5" />
                   )}
-                  <FolderOpen className="w-4 h-4" />
+                  <FolderOpen className="w-5 h-5" />
                   <span className="flex-1">{universe.display_name}</span>
                   <span className="text-xs text-slate-400">
                     {materials.filter(m => m.universe_name === universe.name).length}
@@ -618,15 +618,15 @@ export default function Discovery() {
                             className="p-0.5"
                           >
                             {isCategoryExpanded ? (
-                              <ChevronDown className="w-4 h-4" />
+                              <ChevronDown className="w-5 h-5" />
                             ) : (
-                              <ChevronRight className="w-4 h-4" />
+                              <ChevronRight className="w-5 h-5" />
                             )}
                           </button>
                         ) : (
-                          <div className="w-4 h-4" />
+                          <div className="w-5 h-5" />
                         )}
-                        <Folder className="w-4 h-4" />
+                        <Folder className="w-5 h-5" />
                         <span className="flex-1">{category.display_name}</span>
                         <span className="text-xs text-slate-400">
                           {materials.filter(m => {
@@ -650,7 +650,7 @@ export default function Discovery() {
                                 : 'text-slate-600 hover:bg-slate-100'
                             }`}
                           >
-                            <FileText className="w-4 h-4" />
+                            <FileText className="w-5 h-5" />
                             <span className="flex-1">{product.display_name}</span>
                             <span className="text-xs text-slate-400">
                               {materials.filter(m => 
@@ -678,7 +678,7 @@ export default function Discovery() {
             <div className="flex items-center space-x-2">
               {breadcrumbs.map((crumb, index) => (
                 <div key={index} className="flex items-center space-x-2">
-                  {index > 0 && <ChevronRight className="w-4 h-4 text-slate-400" />}
+                  {index > 0 && <ChevronRight className="w-5 h-5 text-slate-400" />}
                   {crumb.onClick ? (
                     <button
                       onClick={crumb.onClick}
@@ -704,7 +704,7 @@ export default function Discovery() {
                 }`}
                 title="Gallery View"
               >
-                <Grid3x3 className="w-4 h-4" />
+                <Grid3x3 className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
@@ -715,7 +715,7 @@ export default function Discovery() {
                 }`}
                 title="List View"
               >
-                <ListIcon className="w-4 h-4" />
+                <ListIcon className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -732,7 +732,7 @@ export default function Discovery() {
             />
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5">
               {isSearching && (
-                <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
               )}
               {searchMode === 'semantic' && debouncedQuery && !isSearching && (
                 <span className="flex items-center gap-1 text-[10px] font-semibold text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded-full">
@@ -1162,7 +1162,7 @@ function MaterialGalleryCard({ material, onDownload, onShare, onPreview, isSales
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
           <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
-            <Eye className="w-4 h-4 text-slate-700" />
+            <Eye className="w-5 h-5 text-slate-700" />
             <span className="text-sm font-medium text-slate-700">Preview</span>
           </div>
         </div>
@@ -1337,7 +1337,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 <div>
                   <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Last Updated</h4>
                   <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <Calendar className="w-5 h-5 text-slate-400" />
                     <p className="text-sm text-slate-900">
                       {new Date(material.last_updated).toLocaleDateString()}
                     </p>
@@ -1348,7 +1348,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 <div>
                   <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Freshness</h4>
                   <div className="flex items-center space-x-2">
-                    <Clock className={`w-4 h-4 ${freshness.color}`} />
+                    <Clock className={`w-5 h-5 ${freshness.color}`} />
                     <p className={`text-sm font-medium ${freshness.color}`}>
                       {freshness.label} ({freshness.days} days)
                     </p>
@@ -1385,7 +1385,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 onClick={() => onShare(material)}
                 className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center space-x-2"
               >
-                <Share2 className="w-4 h-4" />
+                <Share2 className="w-5 h-5" />
                 <span>Share</span>
               </button>
             )}

@@ -187,7 +187,7 @@ export default function MaterialRequests() {
                 type="checkbox"
                 checked={assignedToMe}
                 onChange={(e) => setAssignedToMe(e.target.checked)}
-                className="w-4 h-4 text-primary-500 rounded focus:ring-primary-500"
+                className="w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
               />
               <span className="text-sm text-slate-700">Assigned to me</span>
             </label>

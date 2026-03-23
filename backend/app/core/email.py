@@ -497,3 +497,61 @@ This is an automated message. Please do not reply directly to this email.
         html_body=html_body,
         text_body=text_body
     )
+
+
+def send_deal_room_notification(
+    to_email: str,
+    subject: str,
+    room_name: str,
+    room_url: str,
+    shared_by_name: str,
+    custom_message: str = "",
+    platform_url: str = "http://localhost:3003"
+) -> bool:
+    """
+    Send email when a Digital Sales Room is shared with a recipient.
+
+    Args:
+        to_email: Recipient email address
+        subject: Email subject line
+        room_name: Name of the deal room
+        room_url: URL to access the room
+        shared_by_name: Name of the person sharing
+        custom_message: Optional personalized message (HTML-safe)
+        platform_url: Base platform URL
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    safe_message = (custom_message or "").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
+    body_content = f"<p>{safe_message}</p>" if safe_message else ""
+    body_content += f"""
+            <p style="margin-top: 20px;">Your sales representative has curated a Digital Sales Room for you with materials and next steps.</p>
+            <div style="background: white; border: 2px solid #0050d7; border-radius: 6px; padding: 20px; margin: 20px 0; text-align: center;">
+                <div style="font-size: 18px; font-weight: bold; color: #0050d7; margin-bottom: 10px;">{room_name}</div>
+                <p style="margin: 10px 0; color: #6b7280; font-size: 14px;">Access your personalized room</p>
+            </div>
+            <p style="text-align: center; margin: 25px 0;">
+                <a href="{room_url}" style="display: inline-block; background-color: #0050d7; color: #ffffff; padding: 14px 35px; text-decoration: none; border-radius: 6px; font-weight: bold;">Open Digital Sales Room</a>
+            </p>
+            <p>Shared by <strong>{shared_by_name}</strong>.</p>
+    """
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #0050d7 0%, #003d9e 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1>OVHcloud</h1>
+        </div>
+        <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb;">
+            {body_content}
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
+                © 2026 OVHcloud. This is an automated message.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    text_body = f"OVHcloud - Digital Sales Room\n\n{room_name}\n\nShared by {shared_by_name}.\n\nAccess: {room_url}"
+    return send_email(to_email=to_email, subject=subject, html_body=html_body, text_body=text_body)

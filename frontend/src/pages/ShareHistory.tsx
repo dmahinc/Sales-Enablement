@@ -200,7 +200,7 @@ export default function ShareHistory() {
                 onClick={handleDateFilterClear}
                 className="text-sm text-slate-500 hover:text-slate-700 px-3 py-1.5 flex items-center space-x-1"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
                 <span>Clear</span>
               </button>
             )}
@@ -388,7 +388,7 @@ export default function ShareHistory() {
       <div className="card-ovh p-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-slate-400" />
+            <Filter className="w-5 h-5 text-slate-400" />
             <span className="text-sm font-medium text-slate-600">Filter:</span>
           </div>
           <select

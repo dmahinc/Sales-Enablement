@@ -355,7 +355,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
           {emailSent && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
               <p className="text-sm text-emerald-700">
-                <Check className="w-4 h-4 inline mr-2" />
+                <Check className="w-5 h-5 inline mr-2" />
                 Email sent successfully! The customer will receive an invitation to discover the document.
               </p>
             </div>
@@ -447,7 +447,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
                   cursor: (!customerEmail.trim() || sendingEmail) ? 'not-allowed' : 'pointer'
                 }}
               >
-                <Send className="w-4 h-4 mr-2 inline" />
+                <Send className="w-5 h-5 mr-2 inline" />
                 {sendingEmail ? 'Sending...' : 'Send Link by Email'}
               </button>
               <button
@@ -495,12 +495,12 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
               >
                 {copied ? (
                   <>
-                    <Check className="w-4 h-4 mr-2" />
+                    <Check className="w-5 h-5 mr-2" />
                     Copied!
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4 mr-2" />
+                    <Copy className="w-5 h-5 mr-2" />
                     Copy
                   </>
                 )}
@@ -549,12 +549,12 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
                     </>
                   ) : emailSent ? (
                     <>
-                      <Check className="w-4 h-4 mr-2" />
+                      <Check className="w-5 h-5 mr-2" />
                       Sent!
                     </>
                   ) : (
                     <>
-                      <Send className="w-4 h-4 mr-2" />
+                      <Send className="w-5 h-5 mr-2" />
                       Send Link by Email
                     </>
                   )}
@@ -563,7 +563,7 @@ export default function ShareLinkModal({ materialId, materialName, isOpen, onClo
               {emailSent && (
                 <div className="mt-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                   <p className="text-sm text-emerald-700">
-                    <Check className="w-4 h-4 inline mr-2" />
+                    <Check className="w-5 h-5 inline mr-2" />
                     Email sent successfully! The customer will receive an invitation to discover the document.
                   </p>
                 </div>

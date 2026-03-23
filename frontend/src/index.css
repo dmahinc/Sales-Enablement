@@ -4,29 +4,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Warm Minimal Design System — Light Mode (warmer, less grey) */
+/* Modern Colorful Design System — Light Mode */
 :root {
   --ovh-primary: #0050d7;
-  --ovh-primary-dark: #00185e;
-  --ovh-primary-light: #007bff;
+  --ovh-primary-dark: #003d9e;
+  --ovh-primary-light: #3b82f6;
   --ovh-secondary: #0d9488;
   --ovh-accent: #e6f0ff;
+  --ovh-coral: #f97316;
+  --ovh-violet: #7c3aed;
+  --ovh-emerald: #10b981;
   --ovh-white: #ffffff;
   --ovh-black: #1a1a1a;
-  /* Warmer neutrals – less cold grey */
-  --ovh-gray-100: #faf9f7;
-  --ovh-gray-200: #f5f4f1;
-  --ovh-gray-300: #ebe9e5;
-  --ovh-gray-400: #d4d1cc;
-  --ovh-gray-500: #78716c;
-  --ovh-border: #e8e6e2;
-  --ovh-shadow: 0 1px 3px rgba(28, 25, 23, 0.04), 0 0 0 1px rgba(28, 25, 23, 0.02);
-  --ovh-shadow-hover: 0 4px 14px rgba(28, 25, 23, 0.08);
+  /* Warmer neutrals – cream/warm instead of cold grey */
+  --ovh-gray-100: #fcf9f5;
+  --ovh-gray-200: #f7f2eb;
+  --ovh-gray-300: #efe8de;
+  --ovh-gray-400: #dfd4c4;
+  --ovh-gray-500: #8b7d6b;
+  --ovh-border: #e8e2d8;
+  --ovh-shadow: 0 2px 8px rgba(45, 38, 33, 0.06), 0 0 0 1px rgba(45, 38, 33, 0.04);
+  --ovh-shadow-hover: 0 8px 24px rgba(45, 38, 33, 0.1);
   --ovh-radius: 12px;
-  --ovh-bg: #faf9f7;
+  --ovh-bg: #fcf9f5;
   --ovh-bg-card: #ffffff;
-  --ovh-text: #1c1917;
-  --ovh-text-secondary: #57534e;
+  --ovh-text: #2d2621;
+  --ovh-text-secondary: #6b5f52;
 }
 
 /* Warm Minimal Design System — Dark Mode */
@@ -129,6 +132,7 @@ h1, h2, h3, h4, h5, h6 {
   }
   .card-ovh:hover {
     box-shadow: var(--ovh-shadow-hover);
+    border-color: rgba(0, 80, 215, 0.12);
   }
 
   /* Navigation */
@@ -168,42 +172,44 @@ h1, h2, h3, h4, h5, h6 {
   /* Sidebar */
   .sidebar-ovh {
     @apply transition-colors duration-300;
-    background-color: var(--ovh-bg-card);
+    background: linear-gradient(180deg, var(--ovh-bg-card) 0%, var(--ovh-gray-100) 100%);
     border-right: 1px solid var(--ovh-border);
+    box-shadow: 2px 0 12px rgba(0, 80, 215, 0.04);
   }
   .sidebar-item-ovh {
-    @apply flex items-center px-4 py-3 text-sm font-medium rounded-md transition-all duration-200;
+    @apply flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200;
     color: var(--ovh-text-secondary);
   }
   .sidebar-item-ovh:hover {
     background-color: var(--ovh-gray-200);
-    color: var(--ovh-text);
+    color: var(--ovh-primary);
   }
   .sidebar-item-ovh.active {
-    background-color: var(--ovh-accent);
+    background: linear-gradient(90deg, var(--ovh-accent) 0%, rgba(0, 80, 215, 0.06) 100%);
     color: var(--ovh-primary);
     border-left: 3px solid var(--ovh-primary);
+    font-weight: 600;
   }
 
   /* Badge */
   .badge-ovh {
-    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
+    @apply inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full;
   }
   .badge-ovh-primary {
     background-color: var(--ovh-accent);
     color: var(--ovh-primary);
   }
   .badge-ovh-success {
-    @apply bg-emerald-50 text-emerald-700;
+    @apply bg-emerald-100 text-emerald-800;
   }
   .badge-ovh-warning {
-    @apply bg-amber-50 text-amber-700;
+    @apply bg-amber-100 text-amber-800;
   }
   .badge-ovh-gray {
-    @apply bg-stone-100 text-stone-600;
+    @apply bg-warm-200 text-warm-700;
   }
   .badge-ovh-info {
-    @apply bg-teal-50 text-teal-700;
+    @apply bg-teal-100 text-teal-800;
   }
 
   /* Table */

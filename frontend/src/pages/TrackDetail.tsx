@@ -80,7 +80,7 @@ export default function TrackDetail() {
           to="/tracks"
           className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#006dc7] hover:bg-[#005294] dark:bg-[#21dadb] dark:hover:bg-[#1cc0c1] text-white font-semibold"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-5 h-5" />
           Back to Tracks
         </Link>
       </div>
@@ -132,7 +132,7 @@ export default function TrackDetail() {
               to={`/tracks/${track.id}/edit`}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium text-sm transition-colors"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-5 h-5" />
               Manage Learning Path
             </Link>
           )}
@@ -145,11 +145,11 @@ export default function TrackDetail() {
           </h1>
           <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-slate-600 dark:text-slate-400">
             <span className="inline-flex items-center gap-2">
-              <FileText className="w-4 h-4" />
+              <FileText className="w-5 h-5" />
               {totalMaterials} {totalMaterials === 1 ? 'material' : 'materials'}
             </span>
             <span className="inline-flex items-center gap-2">
-              <Award className="w-4 h-4" />
+              <Award className="w-5 h-5" />
               Certificate upon completion
             </span>
           </div>
@@ -276,7 +276,7 @@ export default function TrackDetail() {
                                 type="checkbox"
                                 checked={isCompleted}
                                 onChange={(e) => handleMaterialComplete(tm.material_id, e.target.checked)}
-                                className="w-4 h-4 rounded text-[#006dc7] focus:ring-[#006dc7]/30"
+                                className="w-5 h-5 rounded text-[#006dc7] focus:ring-[#006dc7]/30"
                               />
                               <span className="text-sm text-slate-600 dark:text-slate-400">Mark complete</span>
                             </label>

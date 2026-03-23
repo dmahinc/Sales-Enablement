@@ -23,7 +23,7 @@ export default function RoomAnalytics() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <Link to="/deal-rooms" className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-6">
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft className="w-5 h-5" />
         Back to Deal Rooms
       </Link>
 
@@ -33,21 +33,21 @@ export default function RoomAnalytics() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="card-ovh p-4">
           <div className="flex items-center gap-2 text-slate-500 mb-1">
-            <Eye className="w-4 h-4" />
+            <Eye className="w-5 h-5" />
             <span className="text-sm">Total views</span>
           </div>
           <p className="text-2xl font-semibold text-slate-800">{analytics.access_count}</p>
         </div>
         <div className="card-ovh p-4">
           <div className="flex items-center gap-2 text-slate-500 mb-1">
-            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-5 h-5" />
             <span className="text-sm">Unique visitors</span>
           </div>
           <p className="text-2xl font-semibold text-slate-800">{analytics.unique_visitors}</p>
         </div>
         <div className="card-ovh p-4">
           <div className="flex items-center gap-2 text-slate-500 mb-1">
-            <Download className="w-4 h-4" />
+            <Download className="w-5 h-5" />
             <span className="text-sm">Total downloads</span>
           </div>
           <p className="text-2xl font-semibold text-slate-800">{analytics.total_downloads}</p>

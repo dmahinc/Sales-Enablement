@@ -161,7 +161,7 @@ export default function ManageFreshnessModal({ onClose }: Props) {
         {/* Toolbar */}
         <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
               placeholder="Search materials…"
@@ -234,13 +234,13 @@ export default function ManageFreshnessModal({ onClose }: Props) {
                       <td className="px-6 py-3">
                         <div className="flex items-start gap-2">
                           {justAcknowledged && (
-                            <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                            <CheckCircle className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
                           )}
                           {!justAcknowledged && currentScore < 40 && (
-                            <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                            <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
                           )}
                           {!justAcknowledged && currentScore >= 40 && currentScore < 70 && (
-                            <Clock className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                            <Clock className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                           )}
                           <div>
                             <p className="font-medium text-slate-900 leading-snug line-clamp-2 max-w-[220px]">

@@ -370,7 +370,7 @@ export default function ProductHierarchy() {
                         return (
                           <div key={category.id} className="pl-4 border-l-2 border-slate-200">
                             <div className="flex items-center space-x-2">
-                              <Folder className="w-4 h-4 text-slate-500" />
+                              <Folder className="w-5 h-5 text-slate-500" />
                               <span className="text-sm font-medium text-slate-700">{category.display_name}</span>
                               <span className="text-xs text-slate-500">({categoryProducts.length} products)</span>
                               <button

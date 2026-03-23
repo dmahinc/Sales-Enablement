@@ -405,7 +405,7 @@ export default function AgentPanel({ onToggle, isOpen: isOpenProp }: AgentPanelP
                 className="rounded-xl bg-primary-500 px-3.5 py-2.5 text-white hover:bg-primary-600 disabled:opacity-40 transition-all duration-150 hover:shadow-md"
                 aria-label="Send"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
               </button>
             </div>
           </div>

@@ -38,6 +38,8 @@ class DealRoom(BaseModel):
     # Lifecycle
     expires_at = Column(DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(days=90))
     is_active = Column(Boolean, default=True, nullable=False)
+    password_protected = Column(Boolean, default=False, nullable=True)
+    password_hash = Column(String(255), nullable=True)
 
     # Engagement tracking
     access_count = Column(Integer, default=0, nullable=False)

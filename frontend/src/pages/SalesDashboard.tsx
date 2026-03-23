@@ -196,7 +196,7 @@ export default function SalesDashboard() {
               </div>
               <div className="mt-4 flex items-center text-sm text-primary-500 group-hover:text-primary-600">
                 <span>Explore</span>
-                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
           )
@@ -213,7 +213,7 @@ export default function SalesDashboard() {
               <h2 className="text-lg font-semibold text-primary-700 dark:text-primary-400">Recommended for You</h2>
             </div>
             <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center gap-1">
-              See all <ArrowRight className="w-4 h-4" />
+              See all <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
           <div className="px-6 py-4">
@@ -410,7 +410,7 @@ export default function SalesDashboard() {
             <p className="text-sm text-slate-500 mt-1">Track when materials are shared, viewed, and downloaded by customers</p>
           </div>
           <Link to="/sharing" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
-            View all <ArrowRight className="w-4 h-4 ml-1" />
+            View all <ArrowRight className="w-5 h-5 ml-1" />
           </Link>
         </div>
         <div className="p-6">
@@ -427,7 +427,7 @@ export default function SalesDashboard() {
           <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-primary-700">Popular Materials</h2>
             <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
-              View all <ArrowRight className="w-4 h-4 ml-1" />
+              View all <ArrowRight className="w-5 h-5 ml-1" />
             </Link>
           </div>
           <div className="divide-y divide-slate-100">
@@ -468,7 +468,7 @@ export default function SalesDashboard() {
           <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-primary-700">Recently Viewed</h2>
             <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
-              View all <ArrowRight className="w-4 h-4 ml-1" />
+              View all <ArrowRight className="w-5 h-5 ml-1" />
             </Link>
           </div>
           <div className="divide-y divide-slate-100">

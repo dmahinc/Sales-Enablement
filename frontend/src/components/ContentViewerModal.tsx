@@ -142,7 +142,7 @@ export default function ContentViewerModal({
           <div className="flex items-center gap-2">
             {onDownload && (
               <button onClick={onDownload} className="btn-ovh-secondary text-sm py-1.5 px-3 flex items-center gap-2">
-                <Download className="w-4 h-4" />
+                <Download className="w-5 h-5" />
                 Download
               </button>
             )}
@@ -204,7 +204,18 @@ export default function ContentViewerModal({
             <div ref={pptxContainerRef} className="min-h-[500px] bg-slate-100 dark:bg-slate-900 rounded-lg" />
           )}
 
-          {!loading && !error && blobUrl && !['pdf', 'pptx'].includes(fmt) && (
+          {!loading && !error && blobUrl && ['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(fmt) && (
+            <video
+              src={blobUrl}
+              controls
+              className="w-full max-h-[70vh] rounded-lg bg-black"
+              playsInline
+            >
+              Your browser does not support video playback.
+            </video>
+          )}
+
+          {!loading && !error && blobUrl && !['pdf', 'pptx', 'mp4', 'webm', 'mov', 'avi', 'mkv'].includes(fmt) && (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500">
               <FileText className="w-12 h-12 mb-4 opacity-50" />
               <p>Preview not available for this file type.</p>

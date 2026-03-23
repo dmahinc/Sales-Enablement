@@ -196,7 +196,7 @@ async def health_check():
 
 # Import routers
 # Import routers - handle missing modules gracefully
-from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, deal_rooms, session, product_releases, marketing_updates, customers, material_requests, help, email
+from app.api import materials, personas, segments, auth, health, discovery, analytics, tracks, users, shared_links, deal_rooms, deal_room_templates, session, product_releases, marketing_updates, customers, material_requests, help, email
 import logging
 
 logger = logging.getLogger(__name__)
@@ -251,6 +251,8 @@ app.include_router(analytics.router)
 app.include_router(tracks.router)
 app.include_router(users.router)
 app.include_router(shared_links.router)
+# Templates router must come before deal_rooms so /templates is not matched by /{room_id}
+app.include_router(deal_room_templates.router)
 app.include_router(deal_rooms.router)
 from app.api import deal_room_logos
 app.include_router(deal_room_logos.router)

@@ -174,7 +174,7 @@ export default function CustomerEngagementTimeline({
     <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 mb-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-2">
-          <Filter className="w-4 h-4 text-slate-500" />
+          <Filter className="w-5 h-5 text-slate-500" />
           <h3 className="text-sm font-medium text-slate-900">Filters</h3>
         </div>
         {hasActiveFilters && (
@@ -408,7 +408,7 @@ export default function CustomerEngagementTimeline({
               {/* Date Header */}
               <div className="bg-slate-50 px-6 py-3 border-b border-slate-200">
                 <div className="flex items-center space-x-2">
-                  <Clock className="w-4 h-4 text-slate-500" />
+                  <Clock className="w-5 h-5 text-slate-500" />
                   <h3 className="text-sm font-semibold text-slate-900">
                     {group.dateLabel}
                   </h3>

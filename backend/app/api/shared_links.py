@@ -357,6 +357,8 @@ async def view_shared_material(
         'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
+        'avi': 'video/x-msvideo', 'mkv': 'video/x-matroska',
     }
     media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
     filename = material.file_name or f"material_{material.id}.{file_format}"
@@ -485,6 +487,8 @@ async def download_shared_material(
         'doc': 'application/msword',
         'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'xls': 'application/vnd.ms-excel',
+        'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
+        'avi': 'video/x-msvideo', 'mkv': 'video/x-matroska',
     }
     media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
     

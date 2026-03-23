@@ -94,7 +94,7 @@ export default function MultiSelect({
             </div>
           )}
         </div>
-        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && !disabled && (
@@ -111,7 +111,7 @@ export default function MultiSelect({
                     isSelected ? 'bg-primary-50 text-primary-600 font-medium' : 'text-slate-700'
                   }`}
                 >
-                  <div className={`w-4 h-4 border-2 rounded mr-2 flex items-center justify-center ${
+                  <div className={`w-5 h-5 border-2 rounded mr-2 flex items-center justify-center ${
                     isSelected ? 'border-primary-500 bg-primary-500' : 'border-slate-300'
                   }`}>
                     {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}

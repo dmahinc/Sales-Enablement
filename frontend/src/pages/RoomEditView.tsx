@@ -18,6 +18,12 @@ import {
   ArrowLeft,
   ImagePlus,
   ImageIcon,
+  FileSpreadsheet,
+  Presentation,
+  Video,
+  GripVertical,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
@@ -103,6 +109,7 @@ export default function RoomEditView() {
   const [viewerMaterial, setViewerMaterial] = useState<{ id: number; name: string; fileFormat?: string } | null>(null)
   const [downloading, setDownloading] = useState<number | null>(null)
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null)
+  const [recentsExpanded, setRecentsExpanded] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
 
   const { data: room, isLoading, error } = useQuery<Room>({
@@ -319,7 +326,7 @@ export default function RoomEditView() {
       {/* Edit mode banner */}
       <div className="bg-amber-500 text-white px-4 py-3 flex items-center justify-between gap-4">
         <span className="font-medium flex items-center gap-2 shrink-0">
-          <Pencil className="w-4 h-4" />
+          <Pencil className="w-5 h-5" />
           Editing mode — changes are saved as you edit
         </span>
         <div className="flex items-center gap-3 flex-wrap">
@@ -329,14 +336,14 @@ export default function RoomEditView() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-white/80 bg-transparent hover:bg-white/20 text-white font-semibold text-sm transition-colors"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-5 h-5" />
             Preview
           </a>
           <button
             onClick={() => navigate('/deal-rooms')}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-white/60 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5" />
             Back to list
           </button>
           <button
@@ -344,7 +351,7 @@ export default function RoomEditView() {
             disabled={updateRoomMutation.isPending}
             className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-white text-amber-600 hover:bg-amber-50 font-bold text-sm shadow-md transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {updateRoomMutation.isPending ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {updateRoomMutation.isPending ? <Loader className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
             Save
           </button>
           {saveFeedback && (
@@ -405,9 +412,9 @@ export default function RoomEditView() {
                 title="Upload customer logo"
               >
                 {uploadLogoMutation.isPending ? (
-                  <Loader className="w-4 h-4 animate-spin" />
+                  <Loader className="w-5 h-5 animate-spin" />
                 ) : (
-                  <ImagePlus className="w-4 h-4" />
+                  <ImagePlus className="w-5 h-5" />
                 )}
               </button>
             )}
@@ -433,11 +440,15 @@ export default function RoomEditView() {
       </header>
 
       {/* Hero - editable, bento layout */}
-      <section className="bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900/30 border-b border-slate-200 dark:border-slate-700">
+      <section className="bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900/30 border-b border-slate-200 dark:border-slate-700 pb-8 md:pb-10">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
             {videoEmbed && (
-              <div className="lg:col-span-8">
+              <div className="lg:col-span-8 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Video className="w-5 h-5 text-slate-500" />
+                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Video</span>
+                </div>
                 <div className="rounded-xl overflow-hidden shadow-lg bg-slate-100 dark:bg-slate-800 aspect-video">
                 {videoEmbed.type === 'direct' ? (
                   <video src={videoEmbed.embedUrl} controls className="w-full h-full" />
@@ -453,50 +464,97 @@ export default function RoomEditView() {
                 </div>
               </div>
             )}
+            {/* Block: Text */}
             <div className={videoEmbed ? 'lg:col-span-4' : 'lg:col-span-12'}>
-              <div className="h-full p-4 md:p-5 rounded-xl bg-[#e4f1fb]/80 dark:bg-[#003b6b]/20 border border-[#006dc7]/20 dark:border-[#006dc7]/30">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-[#006dc7] dark:text-[#21dadb] mb-2">
-                  Executive Summary
-                </h2>
-                <textarea
-                  value={roomData?.executive_summary ?? room.executive_summary ?? ''}
-                  onChange={e => handleFieldChange('executive_summary', e.target.value)}
-                  onBlur={handleSaveRoom}
-                  placeholder="What we heard from you / Why us — short paragraph for buyers."
-                  className="w-full bg-transparent text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap border-0 focus:ring-0 focus:outline-none resize-none min-h-[60px]"
-                  rows={4}
-                />
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-5 h-5 text-slate-500" />
+                <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Text</span>
               </div>
-              <div className="mt-3 space-y-2">
-                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Welcome video URL</label>
-                <input
-                  type="url"
-                  value={roomData?.welcome_video_url ?? room.welcome_video_url ?? ''}
-                  onChange={e => handleFieldChange('welcome_video_url', e.target.value)}
-                  onBlur={handleSaveRoom}
-                  placeholder="Loom, YouTube, or Vimeo URL"
-                  className="input-ovh w-full text-sm"
-                />
-                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">Welcome message (optional)</label>
-                <textarea
-                  value={roomData?.welcome_message ?? room.welcome_message ?? ''}
-                  onChange={e => handleFieldChange('welcome_message', e.target.value)}
-                  onBlur={handleSaveRoom}
-                  placeholder="Short welcome text"
-                  className="input-ovh w-full text-sm"
-                  rows={2}
-                />
+              <div className="space-y-4">
+                <div className="p-4 md:p-5 rounded-xl bg-[#e4f1fb]/80 dark:bg-[#003b6b]/20 border border-[#006dc7]/20 dark:border-[#006dc7]/30">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-[#006dc7] dark:text-[#21dadb] mb-2">
+                    Executive Summary
+                  </h2>
+                  <textarea
+                    value={roomData?.executive_summary ?? room.executive_summary ?? ''}
+                    onChange={e => handleFieldChange('executive_summary', e.target.value)}
+                    onBlur={handleSaveRoom}
+                    placeholder="What we heard from you / Why us — short paragraph for buyers."
+                    className="w-full bg-transparent text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap border-0 focus:ring-0 focus:outline-none resize-none min-h-[60px]"
+                    rows={4}
+                  />
+                </div>
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Welcome video URL</label>
+                    <input
+                      type="url"
+                      value={roomData?.welcome_video_url ?? room.welcome_video_url ?? ''}
+                      onChange={e => handleFieldChange('welcome_video_url', e.target.value)}
+                      onBlur={handleSaveRoom}
+                      placeholder="Loom, YouTube, or Vimeo URL"
+                      className="input-ovh w-full text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Welcome message (optional)</label>
+                    <textarea
+                      value={roomData?.welcome_message ?? room.welcome_message ?? ''}
+                      onChange={e => handleFieldChange('welcome_message', e.target.value)}
+                      onBlur={handleSaveRoom}
+                      placeholder="Short welcome text"
+                      className="input-ovh w-full text-sm"
+                      rows={2}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {/* Materials - WYSIWYG bento grid (matches RoomView) */}
-        <section className="mb-8">
+      {/* Floating add bar */}
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 mt-4 mb-4">
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 mr-2">Add content:</span>
+          <button
+            onClick={() => setAddMaterialSection(addMaterialSection || JOURNEY_SECTIONS[0])}
+            className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 text-slate-600 dark:text-slate-400 hover:text-primary-600"
+            title="Add document"
+          >
+            <FileText className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {
+              const name = `New section ${emptySections.length + 1}`
+              setEmptySections(prev => [...prev, name])
+              setAddMaterialSection(name)
+            }}
+            className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 text-slate-600 dark:text-slate-400 hover:text-primary-600"
+            title="Add section"
+          >
+            <Presentation className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-8 md:pt-4 md:pb-10">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8">
+          <div className="xl:col-span-9">
+        {/* Block: Documents */}
+        <section className="mb-8 pt-2">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Materials & Documents</h2>
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-slate-500" />
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Documents</h2>
+            </div>
+            <button
+              onClick={() => setAddMaterialSection(JOURNEY_SECTIONS[0])}
+              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+            >
+              + Add content
+            </button>
           </div>
 
           {(roomData?.materials?.length ?? 0) === 0 && emptySections.length === 0 ? (
@@ -509,7 +567,7 @@ export default function RoomEditView() {
                     onClick={() => setAddMaterialSection(s)}
                     className="btn-ovh-secondary text-sm py-2 px-4 flex items-center gap-2"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-5 h-5" />
                     Add to {s}
                   </button>
                 ))}
@@ -521,7 +579,7 @@ export default function RoomEditView() {
                   }}
                   className="btn-ovh-secondary text-sm py-2 px-4 flex items-center gap-2"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-5 h-5" />
                   Add new section
                 </button>
               </div>
@@ -659,7 +717,7 @@ export default function RoomEditView() {
                       : 'bg-slate-200 dark:bg-slate-600'
                   }`}
                 >
-                  {item.status === 'completed' ? <Check className="w-4 h-4" /> : null}
+                  {item.status === 'completed' ? <Check className="w-5 h-5" /> : null}
                 </div>
                 <div className="flex-1 min-w-0 space-y-2">
                   <input
@@ -774,7 +832,7 @@ export default function RoomEditView() {
                   className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
                   title="Remove"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
             ))}
@@ -783,7 +841,7 @@ export default function RoomEditView() {
               disabled={addActionPlanMutation.isPending}
               className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-[#006dc7] hover:text-[#006dc7] transition-colors"
             >
-              {addActionPlanMutation.isPending ? <Loader className="w-4 h-4 animate-spin" /> : <Plus className="w-5 h-5" />}
+              {addActionPlanMutation.isPending ? <Loader className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
               Add milestone
             </button>
           </div>
@@ -799,6 +857,70 @@ export default function RoomEditView() {
             </span>
           </div>
         </footer>
+          </div>
+
+          {/* Recents sidebar - collapsed by default */}
+          <aside className="xl:col-span-3">
+            <div className="sticky top-24 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setRecentsExpanded(!recentsExpanded)}
+                className="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {recentsExpanded ? <ChevronDown className="w-4 h-4 text-slate-500" /> : <ChevronRight className="w-4 h-4 text-slate-500" />}
+                  <GripVertical className="w-4 h-4 text-slate-400" />
+                  <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Recents</h3>
+                  {availableMaterials.length > 0 && !recentsExpanded && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">({availableMaterials.length})</span>
+                  )}
+                </div>
+              </button>
+              {recentsExpanded && (
+              <div className="px-4 pb-4 border-t border-slate-200 dark:border-slate-700">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 mb-3">
+                  Available materials — click to add to a section
+                </p>
+                <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                {availableMaterials.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-2">All materials added</p>
+                ) : (
+                  availableMaterials.slice(0, 20).map((m: any) => {
+                    const isPdf = (m.file_format || m.file_name || '').toLowerCase().includes('pdf')
+                    const isSheet = (m.file_format || m.file_name || '').toLowerCase().match(/xlsx|xls|csv/)
+                    const isPres = (m.file_format || m.file_name || '').toLowerCase().match(/pptx|ppt/)
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => addMaterialMutation.mutate({ section: JOURNEY_SECTIONS[0], materialId: m.id })}
+                        disabled={addMaterialMutation.isPending}
+                        className="w-full flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-left group"
+                      >
+                        <GripVertical className="w-4 h-4 text-slate-400 shrink-0 opacity-0 group-hover:opacity-100" />
+                        <span
+                          className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${
+                            isPres
+                              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600'
+                              : isSheet
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'
+                              : isPdf
+                              ? 'bg-red-100 dark:bg-red-900/30 text-red-600'
+                              : 'bg-slate-100 dark:bg-slate-700 text-slate-600'
+                          }`}
+                        >
+                          {isPres ? <Presentation className="w-4 h-4" /> : isSheet ? <FileSpreadsheet className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                        </span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate flex-1">{m.name}</span>
+                      </button>
+                    )
+                  })
+                )}
+                </div>
+              </div>
+              )}
+            </div>
+          </aside>
+        </div>
       </main>
 
       {/* Add material modal */}

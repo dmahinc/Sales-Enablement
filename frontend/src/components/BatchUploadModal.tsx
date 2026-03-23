@@ -854,14 +854,14 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
           {/* File Selection */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Select Files (PDF, PPTX, DOCX)
+              Select Files (PDF, PPTX, DOCX, MP4, WebM, MOV, AVI, MKV)
             </label>
             <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".pdf,.pptx,.ppt,.docx,.doc"
+                accept=".pdf,.pptx,.ppt,.docx,.doc,.mp4,.webm,.mov,.avi,.mkv"
                 onChange={handleFileSelect}
                 className="hidden"
                 id="batch-file-input"
@@ -996,9 +996,7 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                   <thead>
                     <tr className="bg-slate-100">
                       <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">File</th>
-                      <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Universe</th>
-                      <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Category</th>
-                      <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Product</th>
+                      <th colSpan={3} className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Product Hierarchy / GTM Segments</th>
                       <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Type</th>
                       <th className="border border-slate-300 px-4 py-2 text-left text-sm font-medium">Audience</th>
                       {(isDirector || isPMM) && (
@@ -1516,7 +1514,8 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                       }
                       
                       // Normal display row
-                      // Show green if ready (meets threshold + has fields), yellow if has fields but below threshold
+                      // For GTM rows: show inline GTM segment selector so user can select without clicking Edit
+                      // For Product rows: show Universe/Category/Product summary, or Edit prompt
                       return (
                         <tr key={index} className={
                           hasRequiredFields 
@@ -1524,14 +1523,34 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
                             : ''
                         }>
                           <td className="border border-slate-300 px-4 py-2 text-sm">{suggestion.filename}</td>
-                          <td className="border border-slate-300 px-4 py-2 text-sm">
-                            {suggestion.universe_name || '-'}
-                          </td>
-                          <td className="border border-slate-300 px-4 py-2 text-sm">
-                            {suggestion.category_name || '-'}
-                          </td>
-                          <td className="border border-slate-300 px-4 py-2 text-sm">
-                            {suggestion.product_name || '-'}
+                          <td colSpan={3} className="border border-slate-300 px-4 py-2 text-sm align-top">
+                            {isGtmRow ? (
+                              <div className="min-w-[200px]">
+                                <GTMHierarchySelector
+                                  segmentIds={suggestion.segment_ids || []}
+                                  onSegmentIdsChange={(ids) => {
+                                    const updated = [...suggestions]
+                                    updated[index] = { ...suggestion, segment_ids: ids }
+                                    setSuggestions(updated)
+                                  }}
+                                  required={true}
+                                  showLabels={false}
+                                />
+                              </div>
+                            ) : (
+                              suggestion.universe_id && suggestion.category_id && suggestion.product_id ? (
+                                `${suggestion.universe_name || '-'} / ${suggestion.category_name || '-'} / ${suggestion.product_name || '-'}`
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleEdit(index)}
+                                  className="text-primary-600 hover:text-primary-700 text-sm"
+                                  disabled={uploading}
+                                >
+                                  Click to select Universe, Category, Product
+                                </button>
+                              )
+                            )}
                           </td>
                           <td className="border border-slate-300 px-4 py-2 text-sm">
                             {suggestion.material_type || '-'}
@@ -1627,9 +1646,11 @@ export default function BatchUploadModal({ isOpen, onClose }: BatchUploadModalPr
               disabled={
                 uploading || 
                 analyzing || 
-                suggestions.filter(s => 
-                  s.universe_id && s.category_id && s.product_id && s.confidence >= autoApplyThreshold
-                ).length === 0
+                suggestions.filter(s => {
+                  const isGtm = getMaterialCategory(s.material_type) === 'gtm'
+                  const hasReq = isGtm ? (s.segment_ids && s.segment_ids.length > 0) : (s.universe_id && s.category_id && s.product_id)
+                  return hasReq && s.material_type && s.audience && s.confidence >= autoApplyThreshold
+                }).length === 0
               }
               className="btn-ovh-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >

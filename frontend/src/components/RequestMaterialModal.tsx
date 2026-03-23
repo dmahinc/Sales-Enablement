@@ -346,7 +346,7 @@ export default function RequestMaterialModal({ isOpen, onClose }: RequestMateria
                         type="checkbox"
                         checked={isCategorySelected}
                         onChange={() => toggleAudienceCategory(categoryKey)}
-                        className="w-4 h-4 text-primary-500 rounded focus:ring-primary-500"
+                        className="w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
                       />
                       <span className="text-sm font-medium text-slate-700">
                         {categoryData.label}
@@ -374,7 +374,7 @@ export default function RequestMaterialModal({ isOpen, onClose }: RequestMateria
                             type="checkbox"
                             checked={categoryPersonas.includes(persona)}
                             onChange={() => togglePersona(categoryKey, persona)}
-                            className="w-4 h-4 text-primary-500 rounded focus:ring-primary-500"
+                            className="w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
                           />
                           <span className="text-sm text-slate-600">{persona}</span>
                         </label>

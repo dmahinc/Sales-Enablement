@@ -180,47 +180,77 @@ export default function RoomView() {
         </div>
       </header>
 
-      {/* Bento hero - video + summary side by side on large screens */}
-      {(videoEmbed || room.executive_summary || room.welcome_message) && (
-        <section className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-800 dark:to-slate-900/30">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-              {videoEmbed && (
-                <div className={`flex flex-col ${room.executive_summary ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
-                  <div className="rounded-xl overflow-hidden shadow-lg bg-slate-100 dark:bg-slate-800 aspect-video">
-                    {videoEmbed.type === 'direct' ? (
-                      <video src={videoEmbed.embedUrl} controls className="w-full h-full" />
-                    ) : (
-                      <iframe
-                        src={videoEmbed.embedUrl}
-                        title="Welcome video"
-                        className="w-full h-full"
-                        allowFullScreen
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      />
-                    )}
-                  </div>
+      {/* Hero banner - personalized with Shared by avatar */}
+      <section className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-br from-primary-50 via-white to-teal-50/30 dark:from-slate-800 dark:to-slate-900/50">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          <div className="flex flex-wrap items-start gap-4">
+            {(room as any).created_by_name && (
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center overflow-hidden ring-2 ring-white dark:ring-slate-800 shadow">
+                  {(room as any).created_by_avatar_url ? (
+                    <img
+                      src={(room as any).created_by_avatar_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-primary-600 dark:text-primary-400 font-semibold text-lg">
+                      {((room as any).created_by_name || 'U').charAt(0).toUpperCase()}
+                    </span>
+                  )}
                 </div>
-              )}
-              {room.executive_summary && (
-                <div className={`flex flex-col ${videoEmbed ? 'lg:col-span-4' : 'lg:col-span-12'}`}>
-                  <div className="h-full p-4 md:p-5 rounded-xl bg-[#e4f1fb]/80 dark:bg-[#003b6b]/20 border border-[#006dc7]/20 dark:border-[#006dc7]/30">
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-[#006dc7] dark:text-[#21dadb] mb-2">
-                      Executive Summary
-                    </h2>
-                    <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
-                      {room.executive_summary}
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Shared by</p>
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{(room as any).created_by_name}</p>
                 </div>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
+                Hello {(room as any).customer_name || (room as any).company_name || 'Team'},
+              </h2>
+              {room.welcome_message && (
+                <p className="text-slate-700 dark:text-slate-300 mt-2 leading-relaxed whitespace-pre-wrap">
+                  {room.welcome_message}
+                </p>
               )}
             </div>
-            {room.welcome_message && (
-              <p className="text-slate-600 dark:text-slate-400 text-sm mt-3">{room.welcome_message}</p>
+          </div>
+
+          {/* Video + Executive Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 mt-6">
+            {videoEmbed && (
+              <div className={`flex flex-col ${room.executive_summary ? 'lg:col-span-8' : 'lg:col-span-12'}`}>
+                <div className="rounded-xl overflow-hidden shadow-lg bg-slate-100 dark:bg-slate-800 aspect-video">
+                  {videoEmbed.type === 'direct' ? (
+                    <video src={videoEmbed.embedUrl} controls className="w-full h-full" />
+                  ) : (
+                    <iframe
+                      src={videoEmbed.embedUrl}
+                      title="Welcome video"
+                      className="w-full h-full"
+                      allowFullScreen
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+            {room.executive_summary && (
+              <div className={`flex flex-col ${videoEmbed ? 'lg:col-span-4' : 'lg:col-span-12'}`}>
+                <div className="h-full p-4 md:p-5 rounded-xl bg-primary-50/80 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-primary-600 dark:text-primary-400 mb-2">
+                    Executive Summary
+                  </h2>
+                  <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
+                    {room.executive_summary}
+                  </p>
+                </div>
+              </div>
             )}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8">
@@ -358,8 +388,71 @@ export default function RoomView() {
 
           </div>
 
-          {/* Sidebar - messages + sign-in prompt */}
+          {/* Sidebar - People, Activity, Messages */}
           <aside className="xl:col-span-4 space-y-4">
+            {/* People */}
+            <div className="xl:sticky xl:top-24">
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary-500" />
+                People
+              </h2>
+              <div className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                {room.company_name && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      <span className="text-primary-600 dark:text-primary-400 font-semibold text-sm">
+                        {room.company_name.slice(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-800 dark:text-slate-200">{room.company_name}</p>
+                      {(room as any).customer_name && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{(room as any).customer_name}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {(room as any).created_by_name && (
+                  <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+                    <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      <span className="text-primary-600 text-xs font-semibold">
+                        {((room as any).created_by_name || 'U').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{(room as any).created_by_name}</p>
+                      <p className="text-xs text-slate-500">Sales</p>
+                    </div>
+                  </div>
+                )}
+                {!room.company_name && !(room as any).created_by_name && (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Stakeholders in this deal</p>
+                )}
+              </div>
+            </div>
+
+            {/* Activity */}
+            {(room as any).activity && (room as any).activity.length > 0 && (
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-primary-500" />
+                  Activity
+                </h2>
+                <div className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 space-y-2 max-h-48 overflow-y-auto">
+                  {(room as any).activity.map((a: any, i: number) => (
+                    <div key={i} className="text-sm">
+                      <p className="text-slate-800 dark:text-slate-200">
+                        <span className="font-medium">{a.material_name}</span> {a.action_label}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {a.used_at ? new Date(a.used_at).toLocaleString() : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!user ? (
               <div className="xl:sticky xl:top-24 p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                 <MessageSquare className="w-5 h-5 inline mr-2 text-slate-500" />
@@ -424,7 +517,7 @@ export default function RoomView() {
                           disabled={!messageText.trim() || sendMessageMutation.isPending}
                           className="px-4 py-2 rounded-lg bg-[#006dc7] hover:bg-[#005294] dark:bg-[#21dadb] dark:hover:bg-[#1cc0c1] text-white font-medium text-sm flex items-center gap-2 disabled:opacity-50 transition-colors"
                         >
-                          {sendMessageMutation.isPending ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                          {sendMessageMutation.isPending ? <Loader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                           Send
                         </button>
                       </div>

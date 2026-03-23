@@ -101,14 +101,14 @@ export default function GTMHierarchySelector({
               ? selectedLabels.join(', ')
               : 'Select GTM segments'}
           </span>
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform flex-shrink-0 ml-2 ${dropdownOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform flex-shrink-0 ml-2 ${dropdownOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {dropdownOpen && (
           <div className="absolute z-[100] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-2 border-b border-slate-200">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search segments..."
@@ -133,7 +133,7 @@ export default function GTMHierarchySelector({
                       }`}
                     >
                       {segmentIds.includes(parent.id) && (
-                        <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                        <Check className="w-5 h-5 text-primary-600 flex-shrink-0" />
                       )}
                       {!segmentIds.includes(parent.id) && <span className="w-4" />}
                       <span className="font-medium">{parent.name}</span>
@@ -148,7 +148,7 @@ export default function GTMHierarchySelector({
                         }`}
                       >
                         {segmentIds.includes(child.id) && (
-                          <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                          <Check className="w-5 h-5 text-primary-600 flex-shrink-0" />
                         )}
                         {!segmentIds.includes(child.id) && <span className="w-4" />}
                         <span className="text-slate-600">{child.name}</span>

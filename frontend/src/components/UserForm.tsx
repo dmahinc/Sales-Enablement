@@ -164,7 +164,7 @@ export default function UserForm({ user, onClose }: UserFormProps) {
             type="checkbox"
             checked={formData.is_active}
             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-            className="mr-2 w-4 h-4 text-primary-500 rounded focus:ring-primary-500"
+            className="mr-2 w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
           />
           <label className="text-sm text-slate-700">Active (user can login)</label>
         </div>
@@ -174,7 +174,7 @@ export default function UserForm({ user, onClose }: UserFormProps) {
             type="checkbox"
             checked={formData.is_superuser}
             onChange={(e) => setFormData({ ...formData, is_superuser: e.target.checked })}
-            className="mr-2 w-4 h-4 text-primary-500 rounded focus:ring-primary-500"
+            className="mr-2 w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
           />
           <label className="text-sm text-slate-700">Superuser (full admin privileges)</label>
         </div>

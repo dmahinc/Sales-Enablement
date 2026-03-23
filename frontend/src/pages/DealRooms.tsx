@@ -10,11 +10,12 @@ import {
   Trash2,
   Edit,
   Building2,
-  Calendar,
   FileText,
   X,
+  Share2,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import ShareRoomModal from '../components/ShareRoomModal'
 
 const JOURNEY_SECTIONS = [
   '1. Problem & Business Case',
@@ -41,7 +42,12 @@ type Room = {
 
 export default function DealRooms() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [showCreate, setShowCreate] = useState(false)
+  const [createMode, setCreateMode] = useState<'choice' | 'scratch'>('choice')
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false)
+  const [templateRoomName, setTemplateRoomName] = useState('')
+  const [shareRoom, setShareRoom] = useState<Room | null>(null)
   const [createForm, setCreateForm] = useState({
     name: '',
     description: '',
@@ -75,12 +81,34 @@ export default function DealRooms() {
     enabled: showCreate,
   })
 
+  const { data: templates = [], isLoading: templatesLoading, error: templatesError } = useQuery({
+    queryKey: ['deal-room-templates'],
+    queryFn: () => api.get('/deal-rooms/templates').then(res => res.data),
+    enabled: showCreate || showTemplateSelector,
+  })
+
   const createMutation = useMutation({
     mutationFn: (payload: any) => api.post('/deal-rooms', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deal-rooms'] })
       setShowCreate(false)
+      setCreateMode('choice')
       resetCreateForm()
+    },
+  })
+
+  const createFromTemplateMutation = useMutation({
+    mutationFn: ({ templateId, name }: { templateId: number; name: string }) =>
+      api.post(`/deal-rooms/from-template?template_id=${templateId}&name=${encodeURIComponent(name)}`),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['deal-rooms'] })
+      setShowTemplateSelector(false)
+      setTemplateRoomName('')
+      const roomId = res.data?.id
+      if (roomId) navigate(`/deal-rooms/${roomId}/edit`)
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.detail || 'Failed to create room from template')
     },
   })
 
@@ -247,11 +275,11 @@ export default function DealRooms() {
                 )}
                 <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-600">
                   <span className="flex items-center gap-1">
-                    <FileText className="w-4 h-4" />
+                    <FileText className="w-5 h-5" />
                     {room.materials?.length || 0} materials
                   </span>
                   <span className="flex items-center gap-1">
-                    <BarChart3 className="w-4 h-4" />
+                    <BarChart3 className="w-5 h-5" />
                     {room.access_count} views
                   </span>
                   {room.last_accessed_at && (
@@ -266,28 +294,35 @@ export default function DealRooms() {
                   rel="noopener noreferrer"
                   className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="w-5 h-5" />
                   Open
                 </a>
+                <button
+                  onClick={() => setShareRoom(room)}
+                  className="btn-ovh-primary text-sm py-2 px-3 flex items-center gap-2"
+                >
+                  <Share2 className="w-5 h-5" />
+                  Share
+                </button>
                 <button
                   onClick={() => copyUrl(`${platformUrl}/room/${room.unique_token}`)}
                   className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
                 >
-                  <Copy className="w-4 h-4" />
+                  <Copy className="w-5 h-5" />
                   Copy URL
                 </button>
                 <Link
                   to={`/deal-rooms/${room.id}/edit`}
                   className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
                 >
-                  <Edit className="w-4 h-4" />
+                  <Edit className="w-5 h-5" />
                   Edit
                 </Link>
                 <Link
                   to={`/deal-rooms/${room.id}/analytics`}
                   className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
                 >
-                  <BarChart3 className="w-4 h-4" />
+                  <BarChart3 className="w-5 h-5" />
                   Analytics
                 </Link>
                 <button
@@ -295,12 +330,23 @@ export default function DealRooms() {
                   className="p-2 text-red-600 hover:bg-red-50 rounded"
                   title="Deactivate room"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Share Room Modal */}
+      {shareRoom && (
+        <ShareRoomModal
+          roomId={shareRoom.id}
+          roomName={shareRoom.name}
+          roomUrl={`${platformUrl}/room/${shareRoom.unique_token}`}
+          isOpen={!!shareRoom}
+          onClose={() => setShareRoom(null)}
+        />
       )}
 
       {/* Create modal */}
@@ -310,7 +356,49 @@ export default function DealRooms() {
             <div className="p-6 border-b border-slate-200">
               <h2 className="text-xl font-semibold text-slate-800">Create Digital Sales Room</h2>
             </div>
+            {createMode === 'choice' && (
+              <div className="p-6 space-y-4">
+                <p className="text-warm-600">How would you like to create your room?</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setCreateMode('scratch')}
+                    className="p-6 rounded-xl border-2 border-warm-200 hover:border-primary-400 hover:bg-primary-50/50 transition-all text-left"
+                  >
+                    <div className="text-3xl mb-2">📝</div>
+                    <h3 className="font-semibold text-slate-800">Create from scratch</h3>
+                    <p className="text-sm text-warm-600 mt-1">Start with an empty room and add materials</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                    setShowCreate(false)
+                    setShowTemplateSelector(true)
+                  }}
+                    className="p-6 rounded-xl border-2 border-warm-200 hover:border-primary-400 hover:bg-primary-50/50 transition-all text-left"
+                  >
+                    <div className="text-3xl mb-2">📋</div>
+                    <h3 className="font-semibold text-slate-800">Use template</h3>
+                    <p className="text-sm text-warm-600 mt-1">Start from a pre-built marketing template</p>
+                  </button>
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => setShowCreate(false)} className="btn-ovh-secondary">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            {createMode === 'scratch' && (
+            <>
             <div className="p-6 space-y-4">
+              <button
+                type="button"
+                onClick={() => setCreateMode('choice')}
+                className="text-sm text-primary-600 hover:underline mb-2"
+              >
+                ← Back
+              </button>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Room name *</label>
                 <input
@@ -478,7 +566,7 @@ export default function DealRooms() {
                         onClick={() => removeActionPlanItem(i)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-5 h-5" />
                       </button>
                     </div>
                   ))}
@@ -487,7 +575,7 @@ export default function DealRooms() {
                     onClick={addActionPlanItem}
                     className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-5 h-5" />
                     Add milestone
                   </button>
                 </div>
@@ -513,9 +601,91 @@ export default function DealRooms() {
                 disabled={!createForm.name || createMutation.isPending}
                 className="btn-ovh-primary disabled:opacity-50 flex items-center gap-2"
               >
-                {createMutation.isPending && <Loader className="w-4 h-4 animate-spin" />}
+                {createMutation.isPending && <Loader className="w-5 h-5 animate-spin" />}
                 Create Room
               </button>
+            </div>
+            </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Template selector modal */}
+      {showTemplateSelector && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-slate-800">Select template</h2>
+              <button
+                onClick={() => {
+                  setShowTemplateSelector(false)
+                  setShowCreate(false)
+                }}
+                className="p-2 text-warm-600 hover:text-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <input
+                type="text"
+                placeholder="Search templates..."
+                className="input-ovh w-full"
+              />
+              <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
+                {templatesLoading ? (
+                  <div className="col-span-2 py-8 text-center text-slate-500">
+                    <Loader className="w-8 h-8 animate-spin mx-auto mb-2" />
+                    Loading templates...
+                  </div>
+                ) : templatesError ? (
+                  <div className="col-span-2 py-8 text-center text-red-600">
+                    Failed to load templates. Check your connection and try again.
+                  </div>
+                ) : !(templates as any[])?.length ? (
+                  <div className="col-span-2 py-8 text-center text-slate-500">
+                    No templates available.
+                  </div>
+                ) : (
+                (templates as any[]).map((t: any) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      const name = prompt('Enter room name:', t.name)
+                      if (name) {
+                        createFromTemplateMutation.mutate({ templateId: t.id, name })
+                      }
+                    }}
+                    disabled={createFromTemplateMutation.isPending}
+                    className="p-4 rounded-xl border border-warm-200 hover:border-primary-400 hover:bg-primary-50/30 text-left transition-all"
+                  >
+                    <div className="h-20 bg-warm-100 rounded-lg flex items-center justify-center mb-2 text-2xl">
+                      {t.thumbnail_url ? (
+                        <img src={t.thumbnail_url} alt="" className="w-full h-full object-cover rounded" />
+                      ) : (
+                        <span className="text-warm-500">+</span>
+                      )}
+                    </div>
+                    <h3 className="font-semibold text-slate-800 truncate">{t.name}</h3>
+                    <p className="text-xs text-warm-600 mt-0.5">{t.description || 'Last modified: —'}</p>
+                  </button>
+                ))
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  onClick={() => {
+                    setShowTemplateSelector(false)
+                    setShowCreate(true)
+                    setCreateMode('choice')
+                  }}
+                  className="btn-ovh-secondary"
+                >
+                  Back
+                </button>
+              </div>
             </div>
           </div>
         </div>

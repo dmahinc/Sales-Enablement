@@ -58,6 +58,14 @@ class DealRoomCreate(BaseModel):
     action_plan: List[ActionPlanItemCreate] = []
 
 
+class DealRoomShareRequest(BaseModel):
+    """Request to share a deal room via email"""
+    recipients: List[str] = Field(..., min_length=1, description="List of recipient email addresses")
+    subject: str = Field(..., min_length=1, max_length=255)
+    message: str = Field(default="")
+    send_separate: bool = Field(default=True, description="Send separate email to each recipient")
+
+
 class DealRoomUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = None
@@ -71,6 +79,7 @@ class DealRoomUpdate(BaseModel):
     customer_logo_url: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
     expires_in_days: Optional[int] = Field(None, ge=1, le=365)
+    password_protected: Optional[bool] = None
 
 
 class RoomMaterialResponse(BaseModel):
@@ -146,6 +155,31 @@ class DealRoomResponse(BaseModel):
         from_attributes = True
 
 
+class DealRoomTemplateResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    welcome_message: Optional[str] = None
+    executive_summary: Optional[str] = None
+    welcome_video_url: Optional[str] = None
+    materials_json: Optional[list] = None
+    action_plan_json: Optional[list] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DealRoomTemplateCreate(BaseModel):
+    name: str = Field(..., max_length=255)
+    description: Optional[str] = None
+    welcome_message: Optional[str] = None
+    executive_summary: Optional[str] = None
+    welcome_video_url: Optional[str] = None
+    materials_json: Optional[list] = None
+    action_plan_json: Optional[list] = None
+
+
 class DealRoomPublicResponse(BaseModel):
     """Public room view - no sensitive data"""
     id: int
@@ -153,6 +187,7 @@ class DealRoomPublicResponse(BaseModel):
     name: str
     description: Optional[str] = None
     company_name: Optional[str] = None
+    customer_name: Optional[str] = None
     welcome_message: Optional[str] = None
     executive_summary: Optional[str] = None
     welcome_video_url: Optional[str] = None
@@ -161,6 +196,9 @@ class DealRoomPublicResponse(BaseModel):
     room_url: str
     materials_by_section: dict  # {section_name: [RoomMaterialResponse]}
     action_plan: List[ActionPlanItemResponse]
+    created_by_name: Optional[str] = None
+    created_by_avatar_url: Optional[str] = None
+    activity: Optional[list] = None
 
     class Config:
         from_attributes = True

@@ -24,6 +24,7 @@ from app.schemas.deal_room import (
     DealRoomUpdate,
     DealRoomResponse,
     DealRoomPublicResponse,
+    DealRoomShareRequest,
     DealRoomMaterialCreate,
     DealRoomMaterialUpdate,
     ActionPlanItemCreate,
@@ -209,6 +210,8 @@ async def update_deal_room(
         room.is_active = data.is_active
     if data.expires_in_days is not None:
         room.expires_at = datetime.utcnow() + timedelta(days=data.expires_in_days)
+    if getattr(data, "password_protected", None) is not None:
+        room.password_protected = data.password_protected
 
     db.commit()
     db.refresh(room)
@@ -284,6 +287,40 @@ async def delete_deal_room(
         raise HTTPException(status_code=403, detail="Not authorized")
     room.is_active = False
     db.commit()
+
+
+@router.post("/{room_id}/send-email")
+async def send_room_email(
+    room_id: int,
+    data: DealRoomShareRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Send the deal room link to recipients via email."""
+    _ensure_sales_or_above(current_user)
+    room = _get_room_for_edit(room_id, current_user, db)
+    room_url = _get_room_url(room.unique_token)
+    shared_by = current_user.full_name or current_user.email
+    platform_url = getattr(settings, "PLATFORM_URL", "http://localhost:3003")
+
+    from app.core.email import send_deal_room_notification
+
+    sent = []
+    for email in data.recipients:
+        email = (email or "").strip()
+        if not email or "@" not in email:
+            continue
+        ok = send_deal_room_notification(
+            to_email=email,
+            subject=data.subject,
+            room_name=room.name,
+            room_url=room_url,
+            shared_by_name=shared_by,
+            custom_message=data.message,
+            platform_url=platform_url,
+        )
+        sent.append({"email": email, "sent": ok})
+    return {"message": "Emails sent", "results": sent}
 
 
 # --- Materials & Action Plan ---
@@ -606,12 +643,37 @@ async def get_room_by_token(
         if sec not in ordered_sections:
             ordered_sections[sec] = sections[sec]
 
+    # Activity feed - recent material views/downloads
+    activity = []
+    usage_rows = (
+        db.query(MaterialUsage, Material)
+        .join(Material, Material.id == MaterialUsage.material_id)
+        .filter(MaterialUsage.deal_room_id == room.id)
+        .order_by(MaterialUsage.used_at.desc())
+        .limit(20)
+        .all()
+    )
+    for u, mat in usage_rows:
+        action_label = "viewed" if u.action == "view" else "downloaded"
+        activity.append({
+            "material_name": mat.name if mat else "Document",
+            "action": u.action,
+            "action_label": action_label,
+            "used_at": u.used_at.isoformat() if u.used_at else None,
+        })
+
+    # Creator info
+    creator = room.created_by_user
+    created_by_name = creator.full_name or creator.email if creator else None
+    created_by_avatar_url = creator.avatar_url if creator else None
+
     return DealRoomPublicResponse(
         id=room.id,
         unique_token=room.unique_token,
         name=room.name,
         description=room.description,
         company_name=room.company_name,
+        customer_name=room.customer_name,
         welcome_message=room.welcome_message,
         executive_summary=getattr(room, "executive_summary", None),
         welcome_video_url=getattr(room, "welcome_video_url", None),
@@ -620,6 +682,9 @@ async def get_room_by_token(
         room_url=_get_room_url(token),
         materials_by_section=ordered_sections,
         action_plan=[_action_plan_to_response(a) for a in room.action_plan_items],
+        created_by_name=created_by_name,
+        created_by_avatar_url=created_by_avatar_url,
+        activity=activity,
     )
 
 
@@ -676,6 +741,8 @@ async def download_room_material(
         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "mp4": "video/mp4", "webm": "video/webm", "mov": "video/quicktime",
+        "avi": "video/x-msvideo", "mkv": "video/x-matroska",
     }
     media_type = media_type_map.get(file_format.lower(), "application/octet-stream")
     filename = material.file_name or f"material_{material.id}.{file_format}"
@@ -782,6 +849,8 @@ async def view_room_material(
         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "mp4": "video/mp4", "webm": "video/webm", "mov": "video/quicktime",
+        "avi": "video/x-msvideo", "mkv": "video/x-matroska",
     }
     media_type = media_type_map.get(file_format.lower(), "application/octet-stream")
     filename = material.file_name or f"material_{material.id}.{file_format}"

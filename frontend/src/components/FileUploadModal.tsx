@@ -809,10 +809,10 @@ export default function FileUploadModal({ isOpen, onClose, onUploadSuccess, allo
                       type="file"
                       className="hidden"
                       onChange={handleFileChange}
-                      accept=".pdf,.pptx,.docx,.ppt,.doc"
+                      accept=".pdf,.pptx,.docx,.ppt,.doc,.mp4,.webm,.mov,.avi,.mkv"
                     />
                   </div>
-                  <p className="text-xs text-slate-400">PDF, PPTX, DOCX up to 50MB</p>
+                  <p className="text-xs text-slate-400">PDF, PPTX, DOCX, MP4, WebM, MOV, AVI, MKV up to 50MB</p>
                 </div>
               )}
             </div>

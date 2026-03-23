@@ -10,10 +10,13 @@ module.exports = {
       colors: {
         ovh: {
           primary: '#0050d7',
-          'primary-dark': '#00185e',
-          'primary-light': '#007bff',
+          'primary-dark': '#003d9e',
+          'primary-light': '#3b82f6',
           secondary: '#0d9488',
           accent: '#e6f0ff',
+          coral: '#f97316',
+          violet: '#7c3aed',
+          emerald: '#10b981',
           white: '#ffffff',
           black: '#1a1a1a',
         },
@@ -41,18 +44,42 @@ module.exports = {
           800: '#115e59',
           900: '#134e4a',
         },
+        // Warmer, less grey neutrals
+        warm: {
+          50: '#fefdfb',
+          100: '#fcf9f5',
+          200: '#f7f2eb',
+          300: '#efe8de',
+          400: '#dfd4c4',
+          500: '#b8a990',
+          600: '#8b7d6b',
+          700: '#6b5f52',
+          800: '#4a4037',
+          900: '#2d2621',
+        },
         slate: {
           50: '#faf9f7',
-          100: '#f5f4f1',
-          200: '#ebe9e5',
-          300: '#d4d1cc',
-          400: '#a8a29e',
+          100: '#f5f3f0',
+          200: '#ebe8e2',
+          300: '#d6d0c6',
+          400: '#a39e94',
           500: '#78716c',
           600: '#57534e',
           700: '#44403c',
           800: '#292524',
           900: '#1c1917',
         },
+      },
+      // Consistent icon sizes across the app
+      width: {
+        'icon-sm': '20px',
+        'icon': '24px',
+        'icon-lg': '28px',
+      },
+      height: {
+        'icon-sm': '20px',
+        'icon': '24px',
+        'icon-lg': '28px',
       },
       fontFamily: {
         sans: [

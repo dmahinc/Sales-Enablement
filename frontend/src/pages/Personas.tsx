@@ -84,7 +84,7 @@ export default function Personas() {
                 <div className="space-y-3">
                   {persona.goals && (
                     <div className="flex items-start space-x-2">
-                      <Target className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <Target className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="text-xs font-medium text-slate-500 uppercase">Goals</p>
                         <p className="text-sm text-slate-700 line-clamp-2">{persona.goals}</p>
@@ -94,7 +94,7 @@ export default function Personas() {
                   
                   {persona.challenges && (
                     <div className="flex items-start space-x-2">
-                      <Briefcase className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <Briefcase className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="text-xs font-medium text-slate-500 uppercase">Challenges</p>
                         <p className="text-sm text-slate-700 line-clamp-2">{persona.challenges}</p>

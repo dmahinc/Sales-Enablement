@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, FileSpreadsheet, Presentation, Loader } from 'lucide-react'
+import { FileText, FileSpreadsheet, Presentation, Loader, Video } from 'lucide-react'
 import { api } from '../services/api'
 
 const THUMB_WIDTH = 96
@@ -22,6 +22,7 @@ function FileIconFallback({ format }: { format?: string }) {
   const fmt = (format || '').toLowerCase()
   if (fmt === 'pptx' || fmt === 'ppt') return <Presentation className="w-8 h-8 text-amber-600" />
   if (fmt === 'xlsx' || fmt === 'xls') return <FileSpreadsheet className="w-8 h-8 text-emerald-600" />
+  if (['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(fmt)) return <Video className="w-8 h-8 text-violet-600" />
   return <FileText className="w-8 h-8 text-red-600" />
 }
 

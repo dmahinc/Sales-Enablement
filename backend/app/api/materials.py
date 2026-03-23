@@ -939,7 +939,7 @@ async def upload_material_file(
         file_size = len(file_content)
         
         # Validate file size (60GB limit)
-        from app.core.constants import MAX_FILE_SIZE
+        from app.core.constants import MAX_FILE_SIZE, ALLOWED_FILE_EXTENSIONS
         if file_size > MAX_FILE_SIZE:
             max_size_gb = MAX_FILE_SIZE / (1024 * 1024 * 1024)
             raise HTTPException(
@@ -948,12 +948,11 @@ async def upload_material_file(
             )
         
         # Validate file type
-        allowed_extensions = ['.pdf', '.pptx', '.ppt', '.docx', '.doc']
         file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
-        if file_ext not in allowed_extensions:
+        if file_ext not in ALLOWED_FILE_EXTENSIONS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}"
+                detail=f"File type not allowed. Allowed types: {', '.join(ALLOWED_FILE_EXTENSIONS)}"
             )
         
         # Map frontend values to database enum names
@@ -1309,6 +1308,8 @@ async def view_material_file(
         'doc': 'application/msword',
         'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'xls': 'application/vnd.ms-excel',
+        'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
+        'avi': 'video/x-msvideo', 'mkv': 'video/x-matroska',
     }
     media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
     filename = material.file_name or (f"{material.name}.{file_format}" if material.file_format else material.name)
@@ -1387,6 +1388,8 @@ async def download_material_file(
         'doc': 'application/msword',
         'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'xls': 'application/vnd.ms-excel',
+        'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
+        'avi': 'video/x-msvideo', 'mkv': 'video/x-matroska',
     }
     media_type = media_type_map.get(file_format.lower(), 'application/octet-stream')
     
@@ -1731,7 +1734,7 @@ async def batch_upload_materials(
                 file_size = len(file_content)
                 
                 # Validate file size (60GB limit)
-                from app.core.constants import MAX_FILE_SIZE
+                from app.core.constants import MAX_FILE_SIZE, ALLOWED_FILE_EXTENSIONS
                 if file_size > MAX_FILE_SIZE:
                     max_size_gb = MAX_FILE_SIZE / (1024 * 1024 * 1024)
                     results["failure_count"] += 1
@@ -1742,13 +1745,12 @@ async def batch_upload_materials(
                     continue
                 
                 # Validate file type
-                allowed_extensions = ['.pdf', '.pptx', '.ppt', '.docx', '.doc']
                 file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
-                if file_ext not in allowed_extensions:
+                if file_ext not in ALLOWED_FILE_EXTENSIONS:
                     results["failure_count"] += 1
                     results["failures"].append({
                         "filename": file.filename,
-                        "error": f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}"
+                        "error": f"File type not allowed. Allowed types: {', '.join(ALLOWED_FILE_EXTENSIONS)}"
                     })
                     continue
                 

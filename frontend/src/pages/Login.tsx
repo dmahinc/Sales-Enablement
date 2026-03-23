@@ -65,7 +65,7 @@ export default function Login() {
               />
             </div>
             <h1 className="text-2xl font-semibold text-primary-700 dark:text-primary-400">Product Enablement & Customer Engagement Platform</h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2">Sign in to your account</p>
+            <p className="text-warm-600 dark:text-slate-400 mt-2">Sign in to your account</p>
           </div>
 
           {/* Error Message */}
@@ -79,11 +79,11 @@ export default function Login() {
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-warm-800 dark:text-slate-300 mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400 dark:text-slate-500" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-primary-400 dark:text-slate-500" />
                 <input
                   id="email"
                   type="email"
@@ -135,7 +135,7 @@ export default function Login() {
 
           {/* Footer */}
           <div className="mt-8 text-center">
-            <p className="text-xs text-slate-400 dark:text-slate-500">
+            <p className="text-xs text-warm-500 dark:text-slate-500">
               © 2026 OVHcloud Product Enablement & Customer Engagement Platform
             </p>
           </div>

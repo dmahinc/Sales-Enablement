@@ -437,12 +437,12 @@ export default function ProductReleases() {
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <div className="flex items-center space-x-4 text-xs text-slate-500">
                   <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4" />
+                    <Calendar className="w-5 h-5" />
                     <span>{formatDate(release.published_at || release.created_at)}</span>
                   </div>
                   {release.created_by_name && (
                     <div className="flex items-center space-x-2">
-                      <User className="w-4 h-4" />
+                      <User className="w-5 h-5" />
                       <span>{release.created_by_name}</span>
                     </div>
                   )}
@@ -451,7 +451,7 @@ export default function ProductReleases() {
                   onClick={() => handleView(release)}
                   className="flex items-center space-x-1 text-primary-600 hover:text-primary-700 text-sm font-medium"
                 >
-                  <Eye className="w-4 h-4" />
+                  <Eye className="w-5 h-5" />
                   <span>View</span>
                 </button>
               </div>
@@ -550,12 +550,12 @@ function ProductReleaseViewModal({ release, isOpen, onClose }: ProductReleaseVie
         {/* Metadata */}
         <div className="flex items-center space-x-4 text-sm text-slate-500 pb-4 border-b border-slate-200">
           <div className="flex items-center space-x-2">
-            <Calendar className="w-4 h-4" />
+            <Calendar className="w-5 h-5" />
             <span>{formatDate(release.published_at || release.created_at)}</span>
           </div>
           {release.created_by_name && (
             <div className="flex items-center space-x-2">
-              <User className="w-4 h-4" />
+              <User className="w-5 h-5" />
               <span>{release.created_by_name}</span>
             </div>
           )}
@@ -590,7 +590,7 @@ function ProductReleaseViewModal({ release, isOpen, onClose }: ProductReleaseVie
                 onClick={handleDownload}
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors flex items-center space-x-2"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-5 h-5" />
                 <span>Download</span>
               </button>
             </div>

@@ -156,12 +156,12 @@ export default function Users() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {user.is_active ? (
                         <span className="inline-flex items-center text-sm text-emerald-600">
-                          <UserCheck className="w-4 h-4 mr-1" />
+                          <UserCheck className="w-5 h-5 mr-1" />
                           Active
                         </span>
                       ) : (
                         <span className="inline-flex items-center text-sm text-red-600">
-                          <UserX className="w-4 h-4 mr-1" />
+                          <UserX className="w-5 h-5 mr-1" />
                           Inactive
                         </span>
                       )}
@@ -169,7 +169,7 @@ export default function Users() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {user.is_superuser && (
                         <span className="inline-flex items-center text-sm text-amber-600">
-                          <Shield className="w-4 h-4 mr-1" />
+                          <Shield className="w-5 h-5 mr-1" />
                           Superuser
                         </span>
                       )}

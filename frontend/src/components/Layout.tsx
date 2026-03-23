@@ -189,7 +189,7 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className={`sidebar-ovh flex-shrink-0 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
         {/* Logo */}
-        <div className={`px-5 py-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-center transition-colors duration-300 ${sidebarCollapsed ? 'px-2' : ''}`}>
+        <div className={`px-5 py-5 border-b border-primary-100/60 dark:border-slate-700 flex items-center justify-center transition-colors duration-300 ${sidebarCollapsed ? 'px-2' : ''}`}>
           {sidebarCollapsed ? (
             <img 
               src={theme === 'dark' ? "/logo-icon-white.svg" : "/logo-icon.svg"} 
@@ -213,7 +213,7 @@ export default function Layout() {
                 if (sidebarCollapsed) return null // Hide section labels when collapsed
                 return (
                   <div key={`section-${index}`} className="px-3 pt-6 pb-3 first:pt-0">
-                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-primary-600/80 dark:text-primary-400/90 uppercase tracking-wider">
                       {item.label}
                     </span>
                   </div>
@@ -230,15 +230,15 @@ export default function Layout() {
                     to={item.path}
                     className={`group relative flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-2.5 text-[13px] font-medium rounded-lg transition-all duration-200 ${
                       isActive
-                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
+                        : 'text-warm-700 dark:text-slate-400 hover:bg-primary-50/50 dark:hover:bg-slate-800 hover:text-primary-600 dark:hover:text-slate-200'
                     }`}
                     title={sidebarCollapsed ? item.label : undefined}
                   >
-                    <Icon className={`w-[18px] h-[18px] ${sidebarCollapsed ? '' : 'mr-2.5'} flex-shrink-0 transition-colors ${
+                    <Icon className={`w-5 h-5 ${sidebarCollapsed ? '' : 'mr-2.5'} flex-shrink-0 transition-colors ${
                       isActive 
-                        ? 'text-primary-500 dark:text-primary-400' 
-                        : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-400'
+                        ? 'text-primary-600 dark:text-primary-400' 
+                        : 'text-warm-500 dark:text-slate-500 group-hover:text-primary-500 dark:group-hover:text-slate-400'
                     }`} />
                     {!sidebarCollapsed && (
                       <>
@@ -266,21 +266,21 @@ export default function Layout() {
       {/* Main Content Area - includes page content and agent panel */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between transition-colors duration-300 flex-shrink-0">
-          <h1 className={`text-lg font-semibold text-slate-800 dark:text-slate-200 tracking-tight font-display ${isCustomer ? 'text-base' : ''}`}>
+        <div className="bg-white/98 dark:bg-slate-800/95 backdrop-blur-sm border-b border-primary-100/60 dark:border-slate-700 px-6 py-4 flex items-center justify-between transition-colors duration-300 flex-shrink-0 shadow-sm">
+          <h1 className={`text-lg font-semibold text-warm-800 dark:text-slate-200 tracking-tight font-display ${isCustomer ? 'text-base' : ''}`}>
             {isCustomer ? 'OVHcloud Customer Portal' : 'Product Enablement & Customer Engagement Platform'}
           </h1>
           <div className="flex items-center gap-2">
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-slate-300 transition-colors duration-150"
+              className="p-2.5 rounded-lg text-warm-600 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-slate-700 dark:hover:text-slate-300 transition-colors duration-150"
               aria-label="Toggle theme"
             >
               {theme === 'dark' ? (
-                <Sun className="w-[18px] h-[18px]" />
+                <Sun className="w-5 h-5" />
               ) : (
-                <Moon className="w-[18px] h-[18px]" />
+                <Moon className="w-5 h-5" />
               )}
             </button>
             <NotificationBell />
@@ -303,7 +303,7 @@ export default function Layout() {
                     </span>
                   )}
                 </div>
-                <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-5 h-5 text-warm-500 dark:text-slate-500 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`} />
               </button>
               
               {/* Dropdown Menu */}
@@ -324,7 +324,7 @@ export default function Layout() {
                     onClick={logout}
                     className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                   >
-                    <LogOut className="w-4 h-4 mr-2.5" />
+                    <LogOut className="w-5 h-5 mr-2.5" />
                     <span>Log out</span>
                   </button>
                 </div>

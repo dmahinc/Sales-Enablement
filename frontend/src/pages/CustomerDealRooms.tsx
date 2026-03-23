@@ -108,7 +108,7 @@ export default function CustomerDealRooms() {
                   </div>
                   <span className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm font-medium text-[#006dc7] dark:text-[#21dadb]">
                     Open
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-5 h-5" />
                   </span>
                 </div>
               </Link>

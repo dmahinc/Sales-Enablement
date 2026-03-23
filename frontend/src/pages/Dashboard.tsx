@@ -61,7 +61,7 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
-        <span className="ml-3 text-slate-500">Loading dashboard...</span>
+        <span className="ml-3 text-warm-600">Loading dashboard...</span>
       </div>
     )
   }
@@ -165,7 +165,7 @@ export default function Dashboard() {
             to="/materials"
             className="btn-ovh-primary mt-4 sm:mt-0"
           >
-            <FileText className="w-4 h-4 mr-2" />
+            <FileText className="w-5 h-5 mr-2" />
             Add Material
           </Link>
         )}
@@ -183,7 +183,7 @@ export default function Dashboard() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-500">{stat.name}</p>
+                  <p className="text-sm font-medium text-warm-600">{stat.name}</p>
                   <p className="mt-2 text-3xl font-semibold text-primary-700">{stat.value}</p>
                 </div>
                 <div className={`${stat.bgColor} p-3 rounded-xl`}>
@@ -192,7 +192,7 @@ export default function Dashboard() {
               </div>
               <div className="mt-4 flex items-center text-sm text-primary-500 group-hover:text-primary-600">
                 <span>View details</span>
-                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
           )
@@ -211,10 +211,10 @@ export default function Dashboard() {
               <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-primary-700">Recent Materials</h2>
                 <Link to="/materials" className="text-sm text-primary-500 hover:text-primary-600 flex items-center">
-                  View all <ArrowRight className="w-4 h-4 ml-1" />
+                  View all <ArrowRight className="w-5 h-5 ml-1" />
                 </Link>
               </div>
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-warm-100">
                 {recentMaterials.length > 0 ? (
                   recentMaterials.map((material: any) => (
                     <div key={material.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
@@ -224,7 +224,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-900 truncate">{material.name}</p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-warm-600">
                             {material.material_type} • {material.universe_name || 'No Universe'}
                           </p>
                         </div>
@@ -240,7 +240,7 @@ export default function Dashboard() {
                   ))
                 ) : (
                   <div className="px-6 py-12 text-center">
-                    <FileText className="mx-auto h-12 w-12 text-slate-300" />
+                    <FileText className="mx-auto h-12 w-12 text-primary-300" />
                     <p className="mt-2 text-sm text-slate-500">No materials yet</p>
                     <Link to="/materials" className="mt-4 btn-ovh-primary inline-flex">
                       Add your first material
@@ -267,7 +267,7 @@ export default function Dashboard() {
                     <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600">
                       Manage Materials
                     </h3>
-                    <p className="text-xs text-slate-500">Upload and organize your sales materials</p>
+                    <p className="text-xs text-warm-600">Upload and organize your sales materials</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
                 </Link>
@@ -283,7 +283,7 @@ export default function Dashboard() {
                     <h3 className="text-sm font-medium text-slate-900 group-hover:text-emerald-600">
                       Sales Enablement Tracks
                     </h3>
-                    <p className="text-xs text-slate-500">Structured learning paths for products and solutions</p>
+                    <p className="text-xs text-warm-600">Structured learning paths for products and solutions</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
                 </Link>
@@ -299,7 +299,7 @@ export default function Dashboard() {
                     <h3 className="text-sm font-medium text-slate-900 group-hover:text-primary-600">
                       Explore Materials
                     </h3>
-                    <p className="text-xs text-slate-500">Browse product and solution materials</p>
+                    <p className="text-xs text-warm-600">Browse product and solution materials</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
                 </Link>

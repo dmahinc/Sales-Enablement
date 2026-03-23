@@ -271,7 +271,7 @@ function BrowseMaterialCard({ material, onDownload, onShare, onEdit, onDelete, o
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100 z-20">
           <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
-            <Eye className="w-4 h-4 text-slate-700" />
+            <Eye className="w-5 h-5 text-slate-700" />
             <span className="text-sm font-medium text-slate-700">Preview</span>
           </div>
         </div>
@@ -629,7 +629,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 <div>
                   <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Last Updated</h4>
                   <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <Calendar className="w-5 h-5 text-slate-400" />
                     <p className="text-sm text-slate-900">
                       {new Date(material.last_updated).toLocaleDateString()}
                     </p>
@@ -640,7 +640,7 @@ function MaterialPreviewModal({ material, isOpen, onClose, onDownload, onShare, 
                 <div>
                   <h4 className="text-xs font-semibold text-slate-500 uppercase mb-1">Freshness</h4>
                   <div className="flex items-center space-x-2">
-                    <Clock className={`w-4 h-4 ${freshness.color}`} />
+                    <Clock className={`w-5 h-5 ${freshness.color}`} />
                     <p className={`text-sm font-medium ${freshness.color}`}>
                       {freshness.label} ({freshness.days} days)
                     </p>
@@ -1888,7 +1888,7 @@ export default function Materials() {
                 onClick={() => setIsRequestMaterialModalOpen(true)}
                 className="btn-ovh-primary"
               >
-                <FileText className="w-4 h-4 mr-2" />
+                <FileText className="w-5 h-5 mr-2" />
                 Request Material
               </button>
             ) : (
@@ -1916,8 +1916,8 @@ export default function Materials() {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left Sidebar - Hierarchical Navigation */}
-          <div className="w-80 border-r border-slate-200 bg-white overflow-y-auto flex-shrink-0 shadow-sm">
-            <div className="p-4 sticky top-0 bg-white border-b border-slate-200 z-10">
+          <div className="w-[340px] min-w-[340px] border-r border-slate-200 bg-white overflow-y-auto flex-shrink-0 shadow-sm">
+            <div className="px-4 pt-4 pb-4 pr-8 sticky top-0 bg-white border-b border-slate-200 z-10">
               {/* Product vs GTM Hierarchy Toggle */}
               <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50 mb-3">
                 <button
@@ -1960,7 +1960,7 @@ export default function Materials() {
                 {hierarchyMode === 'product' ? 'Browse by universe, category, and product' : 'Browse by market segments'}
               </p>
             </div>
-            <div className="p-4 pt-2">
+            <div className="px-4 pt-2 pb-4 pr-8">
               
               {/* All Materials */}
               <button
@@ -1977,7 +1977,7 @@ export default function Materials() {
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                <Home className="w-4 h-4" />
+                <Home className="w-5 h-5" />
                 <span>All Materials</span>
               </button>
 
@@ -2008,7 +2008,7 @@ export default function Materials() {
                         <div key={parent.id} className="mb-1">
                           <button
                             onClick={() => handleBrowseSegmentSelect(parent.id)}
-                            className={`w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 ${
+                            className={`w-full text-left px-3 py-2 rounded-lg grid grid-cols-[auto_auto_1fr_auto] items-center gap-2 ${
                               browseSelectedSegmentId === parent.id
                                 ? 'bg-primary-50 text-primary-700 font-medium'
                                 : 'text-slate-600 hover:bg-slate-100'
@@ -2017,16 +2017,16 @@ export default function Materials() {
                             {hasChildren ? (
                               <button
                                 onClick={(e) => { e.stopPropagation(); toggleSegment(parent.id) }}
-                                className="p-0.5"
+                                className="p-0.5 flex-shrink-0"
                               >
-                                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                               </button>
                             ) : (
-                              <div className="w-4 h-4" />
+                              <div className="w-5 h-5 flex-shrink-0" />
                             )}
-                            <Target className="w-4 h-4" />
-                            <span className="flex-1">{parent.name}</span>
-                            <span className="text-xs text-slate-400">
+                            <Target className="w-5 h-5 flex-shrink-0" />
+                            <span className="min-w-0 truncate">{parent.name}</span>
+                            <span className="text-xs text-slate-400 tabular-nums pl-1">
                               {materials?.filter((m: any) => (m.segment_ids || []).includes(parent.id)).length || 0}
                             </span>
                           </button>
@@ -2034,15 +2034,15 @@ export default function Materials() {
                             <button
                               key={child.id}
                               onClick={() => handleBrowseSegmentSelect(child.id)}
-                              className={`w-full text-left px-3 py-2 rounded-lg ml-6 mt-1 flex items-center space-x-2 ${
+                              className={`w-full text-left px-3 py-2 rounded-lg ml-6 mt-1 grid grid-cols-[auto_1fr_auto] items-center gap-2 ${
                                 browseSelectedSegmentId === child.id
                                   ? 'bg-primary-50 text-primary-700 font-medium'
                                   : 'text-slate-600 hover:bg-slate-100'
                               }`}
                             >
-                              <FileText className="w-4 h-4" />
-                              <span className="flex-1">{child.name}</span>
-                              <span className="text-xs text-slate-400">
+                              <FileText className="w-5 h-5 flex-shrink-0" />
+                              <span className="min-w-0 truncate">{child.name}</span>
+                              <span className="text-xs text-slate-400 tabular-nums pl-1">
                                 {materials?.filter((m: any) => (m.segment_ids || []).includes(child.id)).length || 0}
                               </span>
                             </button>
@@ -2070,7 +2070,7 @@ export default function Materials() {
                   <div key={universe.id} className="mb-1">
                     <button
                       onClick={() => handleBrowseUniverseSelect(universe.id)}
-                      className={`w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 ${
+                      className={`w-full text-left px-3 py-2 pr-4 rounded-lg flex items-center gap-2 min-w-0 ${
                         isSelected
                           ? 'bg-primary-50 text-primary-700 font-medium'
                           : 'text-slate-600 hover:bg-slate-100'
@@ -2085,17 +2085,17 @@ export default function Materials() {
                           className="p-0.5"
                         >
                           {isExpanded ? (
-                            <ChevronDown className="w-4 h-4" />
+                            <ChevronDown className="w-5 h-5" />
                           ) : (
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronRight className="w-5 h-5" />
                           )}
                         </button>
                       ) : (
-                        <div className="w-4 h-4" />
+                        <div className="w-5 h-5" />
                       )}
-                      <FolderOpen className="w-4 h-4" />
-                      <span className="flex-1">{universe.display_name}</span>
-                      <span className="text-xs text-slate-400">
+                      <FolderOpen className="w-5 h-5 flex-shrink-0" />
+                      <span className="flex-1 min-w-0 truncate">{universe.display_name}</span>
+                      <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
                         {materials?.filter((m: any) => m.universe_name === universe.name).length || 0}
                       </span>
                     </button>
@@ -2110,7 +2110,7 @@ export default function Materials() {
                         <div key={category.id} className="ml-6 mt-1">
                           <button
                             onClick={() => handleBrowseCategorySelect(category.id)}
-                            className={`w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2 ${
+                            className={`w-full text-left px-3 py-2 pr-4 rounded-lg flex items-center gap-2 min-w-0 ${
                               isCategorySelected
                                 ? 'bg-primary-50 text-primary-700 font-medium'
                                 : 'text-slate-600 hover:bg-slate-100'
@@ -2122,20 +2122,20 @@ export default function Materials() {
                                   e.stopPropagation()
                                   toggleCategory(category.id)
                                 }}
-                                className="p-0.5"
+                                className="p-0.5 flex-shrink-0"
                               >
                                 {isCategoryExpanded ? (
-                                  <ChevronDown className="w-4 h-4" />
+                                  <ChevronDown className="w-5 h-5" />
                                 ) : (
-                                  <ChevronRight className="w-4 h-4" />
+                                  <ChevronRight className="w-5 h-5" />
                                 )}
                               </button>
                             ) : (
-                              <div className="w-4 h-4" />
+                              <div className="w-5 h-5 flex-shrink-0" />
                             )}
-                            <Folder className="w-4 h-4" />
-                            <span className="flex-1">{category.display_name}</span>
-                            <span className="text-xs text-slate-400">
+                            <Folder className="w-5 h-5 flex-shrink-0" />
+                            <span className="flex-1 min-w-0 truncate">{category.display_name}</span>
+                            <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
                               {materials?.filter((m: any) => {
                                 const productNames = categoryProducts.map((p: any) => p.name).concat(categoryProducts.map((p: any) => p.display_name))
                                 return m.product_name && productNames.includes(m.product_name)
@@ -2151,15 +2151,15 @@ export default function Materials() {
                               <button
                                 key={product.id}
                                 onClick={() => handleBrowseProductSelect(product.id)}
-                                className={`w-full text-left px-3 py-2 rounded-lg ml-6 mt-1 flex items-center space-x-2 ${
+                                className={`w-full text-left px-3 py-2 pr-4 rounded-lg ml-6 mt-1 flex items-center gap-2 min-w-0 ${
                                   isProductSelected
                                     ? 'bg-primary-50 text-primary-700 font-medium'
                                     : 'text-slate-600 hover:bg-slate-100'
                                 }`}
                               >
-                                <FileText className="w-4 h-4" />
-                                <span className="flex-1">{product.display_name}</span>
-                                <span className="text-xs text-slate-400">
+                                <FileText className="w-5 h-5 flex-shrink-0" />
+                                <span className="flex-1 min-w-0 truncate">{product.display_name}</span>
+                                <span className="text-xs text-slate-400 flex-shrink-0 tabular-nums">
                                   {materials?.filter((m: any) => 
                                     m.product_name === product.name || m.product_name === product.display_name
                                   ).length || 0}
@@ -2184,7 +2184,7 @@ export default function Materials() {
             <div className="flex items-center space-x-2 mb-4">
               {browseBreadcrumbs.map((crumb, index) => (
                 <div key={index} className="flex items-center space-x-2">
-                  {index > 0 && <ChevronRight className="w-4 h-4 text-slate-400" />}
+                  {index > 0 && <ChevronRight className="w-5 h-5 text-slate-400" />}
                   {crumb.onClick ? (
                     <button
                       onClick={crumb.onClick}
@@ -2214,7 +2214,7 @@ export default function Materials() {
                   onClick={() => setSearchQuery('')}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               )}
             </div>
@@ -2567,7 +2567,7 @@ export default function Materials() {
                   onClick={() => setIsRequestMaterialModalOpen(true)}
                   className="btn-ovh-primary"
                 >
-                  <FileText className="w-4 h-4 mr-2" />
+                  <FileText className="w-5 h-5 mr-2" />
                   Request Material
                 </button>
               ) : (
@@ -2609,7 +2609,7 @@ export default function Materials() {
                   onClick={() => setSearchQuery('')}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               )}
             </div>
@@ -2924,7 +2924,7 @@ export default function Materials() {
                     onClick={() => setIsRequestMaterialModalOpen(true)}
                     className="btn-ovh-primary"
                   >
-                    <FileText className="w-4 h-4 mr-2" />
+                    <FileText className="w-5 h-5 mr-2" />
                     Request Material
                   </button>
                 ) : (

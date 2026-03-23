@@ -263,7 +263,7 @@ export default function TrackEditView() {
       {/* Edit mode banner - same as DSR */}
       <div className="bg-amber-500 text-white px-4 py-3 flex items-center justify-between gap-4">
         <span className="font-medium flex items-center gap-2 shrink-0">
-          <Pencil className="w-4 h-4" />
+          <Pencil className="w-5 h-5" />
           Editing mode — changes are saved as you edit
         </span>
         <div className="flex items-center gap-3 flex-wrap">
@@ -273,14 +273,14 @@ export default function TrackEditView() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-white/80 bg-transparent hover:bg-white/20 text-white font-semibold text-sm transition-colors"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-5 h-5" />
             Preview
           </a>
           <button
             onClick={() => navigate('/tracks')}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-white/60 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5" />
             Back to list
           </button>
           <button
@@ -289,9 +289,9 @@ export default function TrackEditView() {
             className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-white text-amber-600 hover:bg-amber-50 font-bold text-sm shadow-md transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {updateTrackMutation.isPending ? (
-              <Loader className="w-4 h-4 animate-spin" />
+              <Loader className="w-5 h-5 animate-spin" />
             ) : (
-              <Save className="w-4 h-4" />
+              <Save className="w-5 h-5" />
             )}
             Save
           </button>
@@ -413,7 +413,7 @@ export default function TrackEditView() {
                 onClick={() => setAddMaterialOpen(true)}
                 className="btn-ovh-secondary text-sm py-2 px-4 flex items-center gap-2 mx-auto"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
                 Add material
               </button>
             </div>
@@ -431,7 +431,7 @@ export default function TrackEditView() {
                       className="p-1 rounded text-slate-400 hover:text-[#006dc7] disabled:opacity-30"
                       title="Move up"
                     >
-                      <GripVertical className="w-4 h-4 rotate-90" />
+                      <GripVertical className="w-5 h-5 rotate-90" />
                     </button>
                     <span className="text-xs font-medium text-slate-500">{index + 1}</span>
                     <button
@@ -440,7 +440,7 @@ export default function TrackEditView() {
                       className="p-1 rounded text-slate-400 hover:text-[#006dc7] disabled:opacity-30"
                       title="Move down"
                     >
-                      <GripVertical className="w-4 h-4 -rotate-90" />
+                      <GripVertical className="w-5 h-5 -rotate-90" />
                     </button>
                   </div>
                   <MaterialThumbnail
@@ -483,7 +483,7 @@ export default function TrackEditView() {
                             data: { is_required: e.target.checked },
                           })
                         }
-                        className="w-4 h-4 rounded text-[#006dc7] focus:ring-[#006dc7]/30"
+                        className="w-5 h-5 rounded text-[#006dc7] focus:ring-[#006dc7]/30"
                       />
                       <span className="text-sm text-slate-600 dark:text-slate-400">Required step</span>
                     </label>
@@ -498,7 +498,7 @@ export default function TrackEditView() {
                         }
                         className="inline-flex items-center gap-2 text-sm font-medium text-[#006dc7] dark:text-[#21dadb] hover:underline"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-5 h-5" />
                         View
                       </button>
                       <button
@@ -507,9 +507,9 @@ export default function TrackEditView() {
                         className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 disabled:opacity-50"
                       >
                         {downloading === tm.material_id ? (
-                          <Loader className="w-4 h-4 animate-spin" />
+                          <Loader className="w-5 h-5 animate-spin" />
                         ) : (
-                          <Download className="w-4 h-4" />
+                          <Download className="w-5 h-5" />
                         )}
                         Download
                       </button>
@@ -520,7 +520,7 @@ export default function TrackEditView() {
                     className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-200 dark:hover:bg-red-900/50 transition-opacity"
                     title="Remove"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
               ))}

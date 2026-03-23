@@ -157,7 +157,7 @@ export default function Tracks() {
                         to={`/tracks/${track.id}`}
                         className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#006dc7] hover:bg-[#005294] dark:bg-[#21dadb] dark:hover:bg-[#1cc0c1] text-white font-semibold text-sm transition-colors"
                       >
-                        <Play className="w-4 h-4" />
+                        <Play className="w-5 h-5" />
                         View Track
                       </Link>
                       <Link
