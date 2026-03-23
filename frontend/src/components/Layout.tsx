@@ -1,8 +1,9 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers, ClipboardList, Building2 } from 'lucide-react'
+import { FileText, Activity, Search, LogOut, LayoutDashboard, BarChart3, BookOpen, Users, Share2, Newspaper, Megaphone, LucideIcon, ChevronDown, Moon, Sun, Bell, UserCircle, MessageSquare, Layers, ClipboardList, Building2, Camera, Trash2 } from 'lucide-react'
 import NotificationBell from './NotificationBell'
 import AgentPanel from './AgentPanel'
 import { useQuery } from '@tanstack/react-query'
@@ -13,13 +14,16 @@ type NavItem =
   | { type: 'section'; label: string }
 
 export default function Layout() {
-  const { user, logout, loading } = useAuth()
+  const { user, logout, loading, refreshUser } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [agentOpen, setAgentOpen] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const userMenuButtonRef = useRef<HTMLButtonElement>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const handleAgentToggle = (isOpen: boolean) => {
     setAgentOpen(isOpen)
@@ -162,7 +166,10 @@ export default function Layout() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      const inMenu = userMenuRef.current?.contains(target)
+      const inPortal = document.getElementById('user-menu-portal')?.contains(target)
+      if (!inMenu && !inPortal) {
         setUserMenuOpen(false)
       }
     }
@@ -173,6 +180,49 @@ export default function Layout() {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [userMenuOpen])
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const allowed = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+    const ext = '.' + (file.name || '').split('.').pop()?.toLowerCase() || ''
+    if (!allowed.includes(ext)) {
+      alert('Allowed formats: PNG, JPEG, GIF, WebP')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File too large (max 5MB)')
+      return
+    }
+    setAvatarUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      await api.post('/auth/me/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      await refreshUser()
+      setUserMenuOpen(false)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to upload picture')
+    } finally {
+      setAvatarUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleAvatarRemove = async () => {
+    setAvatarUploading(true)
+    try {
+      await api.delete('/auth/me/avatar')
+      await refreshUser()
+      setUserMenuOpen(false)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to remove picture')
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
 
   const initials = (user?.full_name || 'U')
     .split(' ')
@@ -286,9 +336,19 @@ export default function Layout() {
             <NotificationBell />
             {/* User Menu */}
             <div className="relative" ref={userMenuRef}>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.gif,.webp"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
               <button
+                ref={userMenuButtonRef}
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                aria-expanded={userMenuOpen}
+                aria-haspopup="true"
               >
                 <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center ring-2 ring-primary-200/50 dark:ring-primary-700/30 overflow-hidden">
                   {avatarSrc ? (
@@ -306,9 +366,16 @@ export default function Layout() {
                 <ChevronDown className={`w-5 h-5 text-warm-500 dark:text-slate-500 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`} />
               </button>
               
-              {/* Dropdown Menu */}
-              {userMenuOpen && (
-                <div className="absolute right-0 mt-1.5 w-60 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50 transition-colors duration-300">
+              {/* Dropdown Menu - rendered via portal to avoid clipping */}
+              {userMenuOpen && userMenuButtonRef.current && createPortal(
+                <div
+                  id="user-menu-portal"
+                  className="fixed w-60 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-[9999] transition-colors duration-300"
+                  style={{
+                    top: userMenuButtonRef.current.getBoundingClientRect().bottom + 6,
+                    left: Math.max(8, userMenuButtonRef.current.getBoundingClientRect().right - 240),
+                  }}
+                >
                   <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
                     <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
                       {user?.full_name}
@@ -321,13 +388,32 @@ export default function Layout() {
                     </span>
                   </div>
                   <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading}
+                    className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50"
+                  >
+                    <Camera className="w-5 h-5 mr-2.5" />
+                    <span>{avatarUploading ? 'Uploading…' : 'Change picture'}</span>
+                  </button>
+                  {avatarSrc && (
+                    <button
+                      onClick={handleAvatarRemove}
+                      disabled={avatarUploading}
+                      className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="w-5 h-5 mr-2.5" />
+                      <span>Remove picture</span>
+                    </button>
+                  )}
+                  <button
                     onClick={logout}
                     className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                   >
                     <LogOut className="w-5 h-5 mr-2.5" />
                     <span>Log out</span>
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
