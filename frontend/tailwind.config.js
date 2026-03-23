@@ -42,10 +42,10 @@ module.exports = {
           900: '#134e4a',
         },
         slate: {
-          50: '#fafaf8',
-          100: '#f5f3f0',
-          200: '#ebe8e4',
-          300: '#d6d3ce',
+          50: '#faf9f7',
+          100: '#f5f4f1',
+          200: '#ebe9e5',
+          300: '#d4d1cc',
           400: '#a8a29e',
           500: '#78716c',
           600: '#57534e',
@@ -66,6 +66,7 @@ module.exports = {
           'Arial',
           'sans-serif',
         ],
+        display: ['DM Sans', 'Inter', 'sans-serif'],
       },
       fontSize: {
         'heading-1': ['2rem', { lineHeight: '1.2', fontWeight: '600', letterSpacing: '-0.025em' }],

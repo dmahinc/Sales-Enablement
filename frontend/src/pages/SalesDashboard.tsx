@@ -154,7 +154,7 @@ export default function SalesDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-primary-700">Sales Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-primary-700 font-display">Sales Dashboard</h1>
           <p className="mt-1 text-slate-500">Discover and share materials with prospects and customers</p>
         </div>
       </div>

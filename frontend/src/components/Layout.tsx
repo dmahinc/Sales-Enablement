@@ -29,7 +29,7 @@ export default function Layout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--ovh-bg)] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-primary-500 border-t-transparent mx-auto"></div>
           <p className="mt-4 text-slate-500 font-medium text-sm">Loading...</p>
@@ -40,7 +40,7 @@ export default function Layout() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--ovh-bg)] dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <p className="text-slate-500">Not authenticated. Redirecting to login...</p>
         </div>
@@ -185,7 +185,7 @@ export default function Layout() {
   const avatarSrc = user?.avatar_data_url || user?.avatar_url || ''
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex transition-colors duration-300">
+    <div className="min-h-screen bg-[var(--ovh-bg)] dark:bg-slate-900 flex transition-colors duration-300">
       {/* Sidebar */}
       <aside className={`sidebar-ovh flex-shrink-0 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-60'}`}>
         {/* Logo */}
@@ -207,13 +207,13 @@ export default function Layout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 overflow-y-auto">
-          <div className="space-y-0.5">
+          <div className="space-y-2">
             {navItems.map((item, index) => {
               if ('type' in item && item.type === 'section') {
                 if (sidebarCollapsed) return null // Hide section labels when collapsed
                 return (
-                  <div key={`section-${index}`} className="px-3 pt-6 pb-2 first:pt-0">
-                    <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-[0.08em]">
+                  <div key={`section-${index}`} className="px-3 pt-6 pb-3 first:pt-0">
+                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-wider">
                       {item.label}
                     </span>
                   </div>
@@ -228,7 +228,7 @@ export default function Layout() {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`group relative flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-2 text-[13px] font-medium rounded-lg transition-all duration-150 ${
+                    className={`group relative flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'px-3'} py-2.5 text-[13px] font-medium rounded-lg transition-all duration-200 ${
                       isActive
                         ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
@@ -266,8 +266,8 @@ export default function Layout() {
       {/* Main Content Area - includes page content and agent panel */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-3.5 flex items-center justify-between transition-colors duration-300 flex-shrink-0">
-          <h1 className={`text-lg font-semibold text-slate-800 dark:text-slate-200 tracking-tight ${isCustomer ? 'text-base' : ''}`}>
+        <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between transition-colors duration-300 flex-shrink-0">
+          <h1 className={`text-lg font-semibold text-slate-800 dark:text-slate-200 tracking-tight font-display ${isCustomer ? 'text-base' : ''}`}>
             {isCustomer ? 'OVHcloud Customer Portal' : 'Product Enablement & Customer Engagement Platform'}
           </h1>
           <div className="flex items-center gap-2">
@@ -339,7 +339,7 @@ export default function Layout() {
           <AgentPanel onToggle={handleAgentToggle} isOpen={agentOpen} />
           
           {/* Page Content */}
-          <div className={`flex-1 overflow-y-auto py-6 px-4 sm:px-6 lg:px-8 bg-slate-50 dark:bg-slate-900 transition-all duration-300 ${agentOpen ? 'min-w-0' : ''}`}>
+          <div className={`flex-1 overflow-y-auto py-8 px-5 sm:px-6 lg:px-10 bg-[var(--ovh-bg)] dark:bg-slate-900 transition-all duration-300 ${agentOpen ? 'min-w-0' : ''}`}>
             <Outlet />
           </div>
         </div>

@@ -1857,7 +1857,7 @@ export default function Materials() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 px-4 pt-4">
           <div>
-            <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
+            <h1 className="text-2xl font-semibold text-primary-700 font-display">Materials</h1>
             <p className="mt-1 text-slate-500">Browse materials by hierarchy</p>
           </div>
           <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-3">
@@ -1878,41 +1878,6 @@ export default function Materials() {
               >
                 <Grid className="w-5 h-5" />
                 <span>Browse</span>
-              </button>
-            </div>
-            {/* Product/GTM Toggle - visible in header for Browse view */}
-            <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-              <button
-                onClick={() => {
-                  setHierarchyMode('product')
-                  setBrowseSelectedSegmentId(null)
-                  setFilterSegmentIds([])
-                }}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all ${
-                  hierarchyMode === 'product' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title="Product Hierarchy"
-              >
-                <Layers className="w-4 h-4" />
-                Product
-              </button>
-              <button
-                onClick={() => {
-                  setHierarchyMode('gtm')
-                  setBrowseSelectedUniverseId(null)
-                  setBrowseSelectedCategoryId(null)
-                  setBrowseSelectedProductId(null)
-                  setSelectedUniverses([])
-                  setFilterCategoryIds([])
-                  setFilterProductIds([])
-                }}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-l border-slate-200 ${
-                  hierarchyMode === 'gtm' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title="GTM Hierarchy"
-              >
-                <Target className="w-4 h-4" />
-                GTM
               </button>
             </div>
             {isSales ? (
@@ -2556,11 +2521,11 @@ export default function Materials() {
   return (
     <>
       {activeLinksWarningModal}
-      <div className="space-y-6">
+      <div className="space-y-8">
       {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-semibold text-primary-700">Materials</h1>
+              <h1 className="text-2xl font-semibold text-primary-700 font-display">Materials</h1>
               <p className="mt-1 text-slate-500">
                 {hierarchyMode === 'product'
                   ? selectedUniverses.length === 0
@@ -2575,39 +2540,6 @@ export default function Materials() {
               </p>
             </div>
             <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-3">
-              {/* Product/GTM Toggle - in header for visibility */}
-              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                <button
-                  onClick={() => {
-                    setHierarchyMode('product')
-                    setFilterSegmentIds([])
-                    setFilterTypes((prev) => prev.filter(t => PRODUCT_MATERIAL_TYPES.some(pt => pt.value === t)))
-                  }}
-                  className={`px-4 py-2.5 text-sm font-medium transition-all flex items-center gap-2 ${
-                    hierarchyMode === 'product' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title="Product Hierarchy"
-                >
-                  <Layers className="w-4 h-4" />
-                  Product
-                </button>
-                <button
-                  onClick={() => {
-                    setHierarchyMode('gtm')
-                    setSelectedUniverses([])
-                    setFilterCategoryIds([])
-                    setFilterProductIds([])
-                    setFilterTypes((prev) => prev.filter(t => GTM_MATERIAL_TYPES.some(gt => gt.value === t)))
-                  }}
-                  className={`px-4 py-2.5 text-sm font-medium transition-all border-l border-slate-200 flex items-center gap-2 ${
-                    hierarchyMode === 'gtm' ? 'bg-primary-500 text-white' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title="GTM Hierarchy"
-                >
-                  <Target className="w-4 h-4" />
-                  GTM
-                </button>
-              </div>
               {/* View Toggle */}
               <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
                 <button
@@ -2678,6 +2610,64 @@ export default function Materials() {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Product / GTM Widgets - before filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <button
+              onClick={() => {
+                setHierarchyMode('product')
+                setFilterSegmentIds([])
+                setFilterTypes((prev) => prev.filter(t => PRODUCT_MATERIAL_TYPES.some(pt => pt.value === t)))
+              }}
+              className={`card-ovh p-5 text-left transition-all duration-200 ${
+                hierarchyMode === 'product'
+                  ? 'ring-2 ring-primary-500 ring-offset-2 bg-primary-50/50 dark:bg-primary-900/20'
+                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl ${hierarchyMode === 'product' ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-slate-100 dark:bg-slate-700'}`}>
+                  <Layers className={`w-6 h-6 ${hierarchyMode === 'product' ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500'}`} />
+                </div>
+                <div>
+                  <h3 className={`font-semibold ${hierarchyMode === 'product' ? 'text-primary-700 dark:text-primary-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                    Product Materials
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Filter by universe, category, and product
+                  </p>
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                setHierarchyMode('gtm')
+                setSelectedUniverses([])
+                setFilterCategoryIds([])
+                setFilterProductIds([])
+                setFilterTypes((prev) => prev.filter(t => GTM_MATERIAL_TYPES.some(gt => gt.value === t)))
+              }}
+              className={`card-ovh p-5 text-left transition-all duration-200 ${
+                hierarchyMode === 'gtm'
+                  ? 'ring-2 ring-primary-500 ring-offset-2 bg-primary-50/50 dark:bg-primary-900/20'
+                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl ${hierarchyMode === 'gtm' ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-slate-100 dark:bg-slate-700'}`}>
+                  <Target className={`w-6 h-6 ${hierarchyMode === 'gtm' ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500'}`} />
+                </div>
+                <div>
+                  <h3 className={`font-semibold ${hierarchyMode === 'gtm' ? 'text-primary-700 dark:text-primary-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                    GTM Materials
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Filter by market segments
+                  </p>
+                </div>
+              </div>
+            </button>
           </div>
 
           {/* Filters */}
