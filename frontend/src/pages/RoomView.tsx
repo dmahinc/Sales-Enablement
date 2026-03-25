@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, AlertCircle, Loader, Calendar, MessageSquare, Send, Eye, Check, Users, Activity } from 'lucide-react'
+import { Download, AlertCircle, Loader, Calendar, MessageSquare, Send, Eye, Check, Users, Activity, UserPlus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import ContentViewerModal from '../components/ContentViewerModal'
+import DsRoomInviteModal from '../components/DsRoomInviteModal'
 import MaterialThumbnail from '../components/MaterialThumbnail'
 import { parseVideoEmbedUrl } from '../utils/videoEmbed'
 
@@ -23,6 +24,7 @@ export default function RoomView() {
   const [downloading, setDownloading] = useState<number | null>(null)
   const [messageText, setMessageText] = useState('')
   const [viewerMaterial, setViewerMaterial] = useState<{ id: number; name: string; fileFormat?: string } | null>(null)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { data: room, isLoading, error } = useQuery({
@@ -39,7 +41,19 @@ export default function RoomView() {
     retry: false,
   })
 
-  const canMessage = !!user && !messagesError
+  const perms = (room as {
+    my_permissions?: {
+      can_message?: boolean
+      can_download_materials?: boolean
+      can_update_action_plan?: boolean
+      can_invite_participants?: boolean
+    }
+    id?: number
+  })?.my_permissions
+  const canDownloadMaterials = !perms || perms.can_download_materials !== false
+  const canUpdateActionPlan = !perms || perms.can_update_action_plan !== false
+  const canMessage = !!user && !messagesError && (!perms || perms.can_message !== false)
+  const canInviteOthers = !!perms?.can_invite_participants
 
   const sendMessageMutation = useMutation({
     mutationFn: (message: string) => api.post(`/deal-rooms/${room!.id}/messages`, { message }),
@@ -56,6 +70,17 @@ export default function RoomView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deal-room', token] })
     },
+  })
+
+  const { data: participantList = [] } = useQuery({
+    queryKey: ['deal-room-participants', room?.id],
+    queryFn: () => api.get(`/deal-rooms/${room!.id}/participants`).then(res => res.data),
+    enabled: !!room?.id && !!user && canInviteOthers,
+  })
+
+  const deleteParticipantMutation = useMutation({
+    mutationFn: (participantId: number) => api.delete(`/deal-rooms/${room!.id}/participants/${participantId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deal-room-participants', room?.id] }),
   })
 
   // Force scroll to top on mount and when room content loads (prevents anchor/browser scroll to middle)
@@ -112,7 +137,7 @@ export default function RoomView() {
   }
 
   const canMarkComplete = (item: { assignee?: string }) => {
-    if (!user) return false
+    if (!user || !canUpdateActionPlan) return false
     return item.assignee === 'customer' || item.assignee === 'both'
   }
 
@@ -304,7 +329,8 @@ export default function RoomView() {
                           </button>
                           <button
                             onClick={() => handleDownload(m.material_id)}
-                            disabled={downloading === m.material_id}
+                            disabled={!canDownloadMaterials || downloading === m.material_id}
+                            title={!canDownloadMaterials ? 'Download not enabled for your access level' : undefined}
                             className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
                           >
                             {downloading === m.material_id ? (
@@ -431,6 +457,55 @@ export default function RoomView() {
               </div>
             </div>
 
+            {canInviteOthers && user && (
+              <div className="xl:sticky xl:top-24 mt-4">
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-primary-500" />
+                  Invite people
+                </h2>
+                <div className="rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Add someone with an existing contact linked to this room&apos;s owner, or create a customer account (email + password) so they can
+                    sign in. Viewer: view and messages. Contributor: also download. Co-host: can invite others.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setInviteModalOpen(true)}
+                    className="w-full py-2 rounded-lg bg-[#006dc7] hover:bg-[#005294] dark:bg-[#21dadb] dark:hover:bg-[#1cc0c1] text-white text-sm font-medium"
+                  >
+                    Invite someone…
+                  </button>
+                  {room?.id && (
+                    <DsRoomInviteModal
+                      roomId={room.id}
+                      isOpen={inviteModalOpen}
+                      onClose={() => setInviteModalOpen(false)}
+                      onInvited={() => queryClient.invalidateQueries({ queryKey: ['deal-room-participants', room.id] })}
+                    />
+                  )}
+                  {Array.isArray(participantList) && participantList.length > 0 && (
+                    <ul className="text-xs border-t border-slate-200 dark:border-slate-600 pt-3 space-y-2 max-h-40 overflow-y-auto">
+                      {(participantList as { id: number; email: string; role: string }[]).map(p => (
+                        <li key={p.id} className="flex items-start justify-between gap-2">
+                          <span className="text-slate-700 dark:text-slate-300 break-all">{p.email}</span>
+                          <span className="text-slate-500 shrink-0 capitalize">{p.role.replace('_', ' ')}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Remove ${p.email}?`)) deleteParticipantMutation.mutate(p.id)
+                            }}
+                            className="text-red-600 hover:underline shrink-0"
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Activity */}
             {(room as any).activity && (room as any).activity.length > 0 && (
               <div>
@@ -469,7 +544,7 @@ export default function RoomView() {
                 </h2>
                 {messagesError ? (
                   <p className="text-slate-500 dark:text-slate-400 p-4 rounded-xl bg-slate-50 dark:bg-slate-800 text-sm">
-                    You need to be the room owner or the invited customer to view and send messages.
+                    You do not have access to messages in this room. Sign in with the email you were invited with, or contact your sales representative.
                   </p>
                 ) : (
                   <div className="rounded-xl overflow-hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -552,7 +627,7 @@ export default function RoomView() {
           materialName={viewerMaterial.name}
           fileFormat={viewerMaterial.fileFormat}
           token={token}
-          onDownload={() => handleDownload(viewerMaterial.id)}
+          onDownload={canDownloadMaterials ? () => handleDownload(viewerMaterial.id) : undefined}
         />
       )}
     </div>

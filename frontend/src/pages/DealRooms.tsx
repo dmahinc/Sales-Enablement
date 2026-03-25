@@ -13,9 +13,11 @@ import {
   FileText,
   X,
   Share2,
+  UserPlus,
 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import ShareRoomModal from '../components/ShareRoomModal'
+import Modal from '../components/Modal'
 
 const JOURNEY_SECTIONS = [
   '1. Problem & Business Case',
@@ -130,9 +132,20 @@ export default function DealRooms() {
       action_plan: [],
     })
 
+  const [removeRoom, setRemoveRoom] = useState<Room | null>(null)
+
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.delete(`/deal-rooms/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deal-rooms'] }),
+    mutationFn: ({ id, permanent }: { id: number; permanent: boolean }) =>
+      permanent
+        ? api.post(`/deal-rooms/${id}/purge`)
+        : api.delete(`/deal-rooms/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-rooms'] })
+      setRemoveRoom(null)
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.detail || 'Failed to update room')
+    },
   })
 
   const copyUrl = (url: string) => {
@@ -259,84 +272,159 @@ export default function DealRooms() {
       ) : (
         <div className="grid gap-4">
           {rooms.map(room => (
-            <div
-              key={room.id}
-              className="card-ovh p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-semibold text-slate-800">{room.name}</h3>
-                  {!room.is_active && (
-                    <span className="text-xs px-2 py-0.5 bg-slate-200 text-slate-600 rounded">Inactive</span>
+            <div key={room.id} className="card-ovh p-4 flex flex-col gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h3 className="font-semibold text-slate-800">{room.name}</h3>
+                    {!room.is_active && (
+                      <span className="text-xs px-2 py-0.5 bg-slate-200 text-slate-600 rounded">Inactive</span>
+                    )}
+                  </div>
+                  {room.company_name && (
+                    <p className="text-sm text-slate-500 mt-1">{room.company_name}</p>
                   )}
+                  <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-600">
+                    <span className="flex items-center gap-1">
+                      <FileText className="w-5 h-5" />
+                      {room.materials?.length || 0} materials
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <BarChart3 className="w-5 h-5" />
+                      {room.access_count} views
+                    </span>
+                    {room.last_accessed_at && (
+                      <span>Last viewed: {new Date(room.last_accessed_at).toLocaleDateString()}</span>
+                    )}
+                  </div>
                 </div>
-                {room.company_name && (
-                  <p className="text-sm text-slate-500 mt-1">{room.company_name}</p>
-                )}
-                <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-600">
-                  <span className="flex items-center gap-1">
-                    <FileText className="w-5 h-5" />
-                    {room.materials?.length || 0} materials
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <BarChart3 className="w-5 h-5" />
-                    {room.access_count} views
-                  </span>
-                  {room.last_accessed_at && (
-                    <span>Last viewed: {new Date(room.last_accessed_at).toLocaleDateString()}</span>
-                  )}
+                {/* flex-wrap + full width: every action stays on-screen (no horizontal clip) */}
+                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto lg:max-w-[min(100%,42rem)] lg:justify-end shrink-0">
+                  <a
+                    href={`${platformUrl}/room/${room.unique_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-ovh-secondary text-sm py-2 px-3 inline-flex items-center gap-2"
+                  >
+                    <ExternalLink className="w-5 h-5 shrink-0" />
+                    Open
+                  </a>
+                  <button
+                    type="button"
+                    data-dsr-action="invite"
+                    onClick={() => navigate(`/deal-rooms/${room.id}/edit?section=people`)}
+                    className="btn-ovh-primary text-sm py-2 px-3 inline-flex items-center gap-2"
+                    title="Add people who sign in with their email (viewer / contributor / co-host)"
+                  >
+                    <UserPlus className="w-5 h-5 shrink-0" />
+                    Invite access
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShareRoom(room)}
+                    className="btn-ovh-secondary text-sm py-2 px-3 inline-flex items-center gap-2 font-medium border-primary-500/40"
+                    title="Email the room link (no sign-in roles)"
+                  >
+                    <Share2 className="w-5 h-5 shrink-0" />
+                    Share link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyUrl(`${platformUrl}/room/${room.unique_token}`)}
+                    className="btn-ovh-secondary text-sm py-2 px-3 inline-flex items-center gap-2"
+                  >
+                    <Copy className="w-5 h-5 shrink-0" />
+                    Copy URL
+                  </button>
+                  <Link
+                    to={`/deal-rooms/${room.id}/edit`}
+                    className="btn-ovh-secondary text-sm py-2 px-3 inline-flex items-center gap-2"
+                  >
+                    <Edit className="w-5 h-5 shrink-0" />
+                    Edit
+                  </Link>
+                  <Link
+                    to={`/deal-rooms/${room.id}/analytics`}
+                    className="btn-ovh-secondary text-sm py-2 px-3 inline-flex items-center gap-2"
+                  >
+                    <BarChart3 className="w-5 h-5 shrink-0" />
+                    Analytics
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setRemoveRoom(room)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded"
+                    title="Remove room"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={`${platformUrl}/room/${room.unique_token}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
-                >
-                  <ExternalLink className="w-5 h-5" />
-                  Open
-                </a>
-                <button
-                  onClick={() => setShareRoom(room)}
-                  className="btn-ovh-primary text-sm py-2 px-3 flex items-center gap-2"
-                >
-                  <Share2 className="w-5 h-5" />
-                  Share
-                </button>
-                <button
-                  onClick={() => copyUrl(`${platformUrl}/room/${room.unique_token}`)}
-                  className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
-                >
-                  <Copy className="w-5 h-5" />
-                  Copy URL
-                </button>
-                <Link
-                  to={`/deal-rooms/${room.id}/edit`}
-                  className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
-                >
-                  <Edit className="w-5 h-5" />
-                  Edit
-                </Link>
-                <Link
-                  to={`/deal-rooms/${room.id}/analytics`}
-                  className="btn-ovh-secondary text-sm py-2 px-3 flex items-center gap-2"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  Analytics
-                </Link>
-                <button
-                  onClick={() => deleteMutation.mutate(room.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded"
-                  title="Deactivate room"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <Modal
+        isOpen={!!removeRoom}
+        onClose={() => !deleteMutation.isPending && setRemoveRoom(null)}
+        title="Remove Digital Sales Room"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            <span className="font-medium text-slate-800">{removeRoom?.name}</span>
+          </p>
+          <div className="space-y-3 text-sm text-slate-600">
+            <p>
+              <span className="font-medium text-slate-800">Inactivate</span> — The room can no longer be opened by
+              visitors. It stays in this list as inactive; you can still edit or view analytics.
+            </p>
+            <p>
+              <span className="font-medium text-slate-800">Delete permanently</span> — Removes the room and its
+              configuration from the system. It will no longer appear in this list. This cannot be undone.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setRemoveRoom(null)}
+              disabled={deleteMutation.isPending}
+              className="btn-ovh-secondary order-3 sm:order-1 sm:mr-auto"
+            >
+              Cancel
+            </button>
+            {removeRoom?.is_active && (
+              <button
+                type="button"
+                onClick={() => removeRoom && deleteMutation.mutate({ id: removeRoom.id, permanent: false })}
+                disabled={deleteMutation.isPending}
+                className="btn-ovh-primary order-1 sm:order-2"
+              >
+                {deleteMutation.isPending ? 'Working…' : 'Inactivate'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  !removeRoom ||
+                  !window.confirm(
+                    'Permanently delete this Digital Sales Room? This cannot be undone.'
+                  )
+                ) {
+                  return
+                }
+                deleteMutation.mutate({ id: removeRoom.id, permanent: true })
+              }}
+              disabled={deleteMutation.isPending}
+              className="order-2 sm:order-3 px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleteMutation.isPending ? 'Working…' : 'Delete permanently'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Share Room Modal */}
       {shareRoom && (

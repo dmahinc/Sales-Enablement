@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Loader,
@@ -24,10 +24,12 @@ import {
   GripVertical,
   ChevronDown,
   ChevronRight,
+  UserPlus,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import ContentViewerModal from '../components/ContentViewerModal'
+import DsRoomInviteModal from '../components/DsRoomInviteModal'
 import MaterialThumbnail from '../components/MaterialThumbnail'
 import { parseVideoEmbedUrl } from '../utils/videoEmbed'
 
@@ -98,6 +100,7 @@ function buildMaterialsBySection(materials: RoomMaterial[]): Record<string, Room
 export default function RoomEditView() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const roomId = id ? parseInt(id, 10) : NaN
@@ -110,6 +113,7 @@ export default function RoomEditView() {
   const [downloading, setDownloading] = useState<number | null>(null)
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null)
   const [recentsExpanded, setRecentsExpanded] = useState(false)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
 
   const { data: room, isLoading, error } = useQuery<Room>({
@@ -124,7 +128,37 @@ export default function RoomEditView() {
     enabled: !!room,
   })
 
+  type ParticipantRow = { id: number; email: string; role: string }
+  const { data: participants = [] } = useQuery<ParticipantRow[]>({
+    queryKey: ['deal-room-participants', roomId],
+    queryFn: () => api.get(`/deal-rooms/${roomId}/participants`).then(res => res.data),
+    enabled: !isNaN(roomId) && !!room,
+  })
+
+  const updateParticipantMutation = useMutation({
+    mutationFn: ({ id, role }: { id: number; role: string }) =>
+      api.patch(`/deal-rooms/${roomId}/participants/${id}`, { role }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deal-room-participants', roomId] }),
+  })
+
+  const deleteParticipantMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/deal-rooms/${roomId}/participants/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['deal-room-participants', roomId] }),
+  })
+
   const roomData = localRoom ?? room
+
+  useEffect(() => {
+    if (searchParams.get('section') !== 'people' || isLoading || !room) return
+    const timer = window.setTimeout(() => {
+      document.getElementById('people-access')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 150)
+    const next = new URLSearchParams(searchParams)
+    next.delete('section')
+    setSearchParams(next, { replace: true })
+    return () => window.clearTimeout(timer)
+  }, [isLoading, room, searchParams, setSearchParams])
+
   const sections = useMemo(() => {
     if (!roomData?.materials) return {}
     return buildMaterialsBySection(roomData.materials)
@@ -330,6 +364,14 @@ export default function RoomEditView() {
           Editing mode — changes are saved as you edit
         </span>
         <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={() => document.getElementById('people-access')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-white/80 bg-transparent hover:bg-white/20 text-white font-semibold text-sm transition-colors"
+          >
+            <UserPlus className="w-5 h-5" />
+            Invite people
+          </button>
           <a
             href={`${platformUrl}/room/${roomData?.unique_token}`}
             target="_blank"
@@ -511,6 +553,67 @@ export default function RoomEditView() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Invited participants — near top so hosts find “Invite” without scrolling past all documents */}
+      <section id="people-access" className="scroll-mt-28 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+          <UserPlus className="w-5 h-5 text-[#006dc7] dark:text-[#21dadb]" />
+          People &amp; access
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-3xl">
+          Add people who can sign in: pick a contact already linked to this room&apos;s owner, or create a customer account with email and password.
+          The primary customer email on this room already has full access — do not duplicate here.
+        </p>
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-4">
+          <button
+            type="button"
+            onClick={() => setInviteModalOpen(true)}
+            className="btn-ovh-primary text-sm py-2 px-4 inline-flex items-center gap-2"
+          >
+            <UserPlus className="w-4 h-4" />
+            Invite someone…
+          </button>
+          <DsRoomInviteModal
+            roomId={roomId}
+            isOpen={inviteModalOpen}
+            onClose={() => setInviteModalOpen(false)}
+            onInvited={() => queryClient.invalidateQueries({ queryKey: ['deal-room-participants', roomId] })}
+          />
+          {participants.length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">No additional participants yet.</p>
+          ) : (
+            <ul className="divide-y divide-slate-200 dark:divide-slate-600">
+              {participants.map(p => (
+                <li key={p.id} className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 first:pt-0">
+                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200 flex-1 break-all">{p.email}</span>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={p.role}
+                      onChange={e => updateParticipantMutation.mutate({ id: p.id, role: e.target.value })}
+                      disabled={updateParticipantMutation.isPending}
+                      className="input-ovh text-sm py-1.5"
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="contributor">Contributor</option>
+                      <option value="co_host">Co-host</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Remove access for ${p.email}?`)) deleteParticipantMutation.mutate(p.id)
+                      }}
+                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                      title="Remove"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

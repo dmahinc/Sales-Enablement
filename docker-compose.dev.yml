@@ -2,6 +2,9 @@ version: '3.8'
 
 # Development override for docker-compose.yml
 # Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Bind-mount ./backend:/app keeps Alembic scripts (e.g. alembic/versions/*.py) and app code
+# in sync with the host without rebuilding the image.
 
 services:
   backend:

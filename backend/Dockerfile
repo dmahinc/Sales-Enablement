@@ -23,4 +23,5 @@ RUN mkdir -p storage storage/avatars storage/deal_room_logos
 EXPOSE 8001 8443
 
 # Wait for database, run migrations, start server
-CMD ["sh", "-c", "until pg_isready -h sales-enablement-db -p 5432 -U ${POSTGRES_USER:-postgres}; do sleep 2; done && (alembic upgrade head || echo 'Migration warning - continuing anyway') && uvicorn app.main:app --host 0.0.0.0 --port 8001"]
+# Target f3e021285562 (023 + empty mergepoint): avoids `alembic upgrade head` failing when multiple legacy branches exist (019, 09c95dcb15cd, add_material_id).
+CMD ["sh", "-c", "until pg_isready -h sales-enablement-db -p 5432 -U ${POSTGRES_USER:-postgres}; do sleep 2; done && alembic upgrade f3e021285562 && uvicorn app.main:app --host 0.0.0.0 --port 8001"]

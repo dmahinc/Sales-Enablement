@@ -2,6 +2,7 @@
 Deal Rooms (Digital Sales Rooms) API - branded microsites per opportunity
 """
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -9,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFi
 from fastapi.responses import FileResponse
 from pathlib import Path
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -17,7 +18,7 @@ from app.core.security import get_current_active_user
 from app.models.user import User
 from app.models.material import Material
 from app.models.persona import Persona
-from app.models.deal_room import DealRoom, DealRoomMaterial, ActionPlanItem, RoomMessage
+from app.models.deal_room import DealRoom, DealRoomMaterial, DealRoomParticipant, ActionPlanItem, RoomMessage
 from app.models.usage import MaterialUsage, UsageAction
 from app.schemas.deal_room import (
     DealRoomCreate,
@@ -34,6 +35,11 @@ from app.schemas.deal_room import (
     RoomMessageResponse,
     RoomMaterialResponse,
     ActionPlanItemResponse,
+    DealRoomParticipantCreate,
+    DealRoomParticipantUpdate,
+    DealRoomParticipantResponse,
+    DealRoomInviteCustomerCandidate,
+    RoomPermissionsResponse,
 )
 from app.services.storage import storage_service
 from app.core.config import settings
@@ -58,15 +64,121 @@ def _get_room_url(token: str) -> str:
     return f"{platform_url.rstrip('/')}/room/{token}"
 
 
-def _can_access_room(room: DealRoom, user: User) -> bool:
-    """Check if user can access this deal room (for confidential content)."""
+# Invited participant roles (RBAC)
+ROOM_ROLE_VIEWER = "viewer"
+ROOM_ROLE_CONTRIBUTOR = "contributor"
+ROOM_ROLE_CO_HOST = "co_host"
+VALID_ROOM_ROLES = frozenset({ROOM_ROLE_VIEWER, ROOM_ROLE_CONTRIBUTOR, ROOM_ROLE_CO_HOST})
+
+
+def _normalize_room_email(email: Optional[str]) -> str:
+    return (email or "").strip().lower()
+
+
+@dataclass
+class RoomAccessContext:
+    """Effective access for the current user to a deal room."""
+    has_access: bool
+    is_staff_host: bool = False
+    is_primary_customer: bool = False
+    participant: Optional[DealRoomParticipant] = None
+    role_in_room: str = "none"
+
+    def can_download_materials(self) -> bool:
+        if not self.has_access:
+            return False
+        if self.is_staff_host:
+            return True
+        if self.is_primary_customer:
+            return True
+        if self.participant and self.participant.role in (ROOM_ROLE_CONTRIBUTOR, ROOM_ROLE_CO_HOST):
+            return True
+        return False
+
+    def can_invite_participants(self) -> bool:
+        if not self.has_access:
+            return False
+        if self.is_staff_host:
+            return True
+        if self.participant and self.participant.role == ROOM_ROLE_CO_HOST:
+            return True
+        return False
+
+    def can_update_action_plan_as_guest(self) -> bool:
+        """Customer-side action plan updates (assignee customer/both)."""
+        if not self.has_access:
+            return False
+        if self.is_staff_host:
+            return True
+        if self.is_primary_customer:
+            return True
+        if self.participant and self.participant.role in (ROOM_ROLE_CONTRIBUTOR, ROOM_ROLE_CO_HOST):
+            return True
+        return False
+
+    def to_permissions_response(self) -> RoomPermissionsResponse:
+        return RoomPermissionsResponse(
+            role_in_room=self.role_in_room,
+            can_message=self.has_access,
+            can_download_materials=self.can_download_materials(),
+            can_invite_participants=self.can_invite_participants(),
+            can_update_action_plan=self.can_update_action_plan_as_guest(),
+        )
+
+
+def get_room_access_context(room: DealRoom, user: User, db: Session) -> RoomAccessContext:
+    """Resolve RBAC for this user: staff host, primary customer, or invited participant."""
+    email = _normalize_room_email(user.email)
+
     if user.role in ("admin", "director", "pmm"):
-        return True
+        return RoomAccessContext(
+            has_access=True,
+            is_staff_host=True,
+            role_in_room="staff",
+        )
     if user.role == "sales" and room.created_by_user_id == user.id:
-        return True
-    if user.role == "customer" and room.customer_email:
-        return room.customer_email.strip().lower() == user.email.strip().lower()
-    return False
+        return RoomAccessContext(
+            has_access=True,
+            is_staff_host=True,
+            role_in_room="staff",
+        )
+
+    if room.customer_email and _normalize_room_email(room.customer_email) == email:
+        return RoomAccessContext(
+            has_access=True,
+            is_primary_customer=True,
+            role_in_room="primary_customer",
+        )
+
+    part = (
+        db.query(DealRoomParticipant)
+        .filter(
+            DealRoomParticipant.deal_room_id == room.id,
+            DealRoomParticipant.email == email,
+        )
+        .first()
+    )
+    if part:
+        return RoomAccessContext(
+            has_access=True,
+            participant=part,
+            role_in_room=part.role,
+        )
+
+    return RoomAccessContext(has_access=False, role_in_room="none")
+
+
+def _can_access_room(room: DealRoom, user: User, db: Session) -> bool:
+    return get_room_access_context(room, user, db).has_access
+
+
+def _message_sent_as_guest(room: DealRoom, user: User) -> bool:
+    """UI alignment: guest (customer) vs internal host; maps to sent_by_customer."""
+    if user.role in ("admin", "director", "pmm"):
+        return False
+    if user.role == "sales" and room.created_by_user_id == user.id:
+        return False
+    return True
 
 
 def _ensure_sales_or_above(user: User):
@@ -272,13 +384,30 @@ async def remove_room_logo(
     return _room_to_response(room, db)
 
 
+@router.post("/{room_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
+async def purge_deal_room(
+    room_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Permanently delete a deal room (removes row; cascades to materials, messages, etc.)."""
+    _ensure_sales_or_above(current_user)
+    room = db.query(DealRoom).filter(DealRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Deal room not found")
+    if current_user.role == "sales" and room.created_by_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    db.delete(room)
+    db.commit()
+
+
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deal_room(
     room_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Deactivate a deal room (soft delete by setting is_active=False)."""
+    """Inactivate a deal room (is_active=False)."""
     _ensure_sales_or_above(current_user)
     room = db.query(DealRoom).filter(DealRoom.id == room_id).first()
     if not room:
@@ -425,15 +554,18 @@ async def add_action_plan_item(
     return _action_plan_to_response(api)
 
 
-def _can_update_action_plan_item(room: DealRoom, item: ActionPlanItem, user: User) -> bool:
-    """Customer can update only when assignee is customer/both; sales/pmm/director/admin have full access."""
-    if user.role in ("pmm", "director", "admin") or user.is_superuser:
+def _can_update_action_plan_item(room: DealRoom, item: ActionPlanItem, user: User, db: Session) -> bool:
+    """Customer-side updates when assignee allows; staff full access; contributors/co-hosts same as primary customer."""
+    if user.is_superuser:
         return True
-    if user.role == "sales" and room.created_by_user_id == user.id:
+    ctx = get_room_access_context(room, user, db)
+    if not ctx.has_access:
+        return False
+    if ctx.is_staff_host:
         return True
-    if user.role == "customer" and room.customer_email and room.customer_email.lower() == user.email.lower():
-        return item.assignee in ("customer", "both")
-    return False
+    if item.assignee not in ("customer", "both"):
+        return False
+    return ctx.can_update_action_plan_as_guest()
 
 
 @router.patch("/{room_id}/action-plan/{item_id}/status", response_model=ActionPlanItemResponse)
@@ -458,7 +590,7 @@ async def update_action_plan_item_status(
     if not item:
         raise HTTPException(status_code=404, detail="Action plan item not found")
 
-    if not _can_update_action_plan_item(room, item, current_user):
+    if not _can_update_action_plan_item(room, item, current_user, db):
         raise HTTPException(status_code=403, detail="Not authorized to update this item")
 
     item.status = data.status
@@ -520,6 +652,374 @@ async def delete_action_plan_item(
         db.commit()
 
 
+def _can_manage_participants(room: DealRoom, user: User, db: Session) -> bool:
+    return get_room_access_context(room, user, db).can_invite_participants()
+
+
+def _participant_to_response(
+    p: DealRoomParticipant,
+    notification_email_sent: Optional[bool] = None,
+    account_created: Optional[bool] = None,
+    welcome_email_sent: Optional[bool] = None,
+) -> DealRoomParticipantResponse:
+    return DealRoomParticipantResponse(
+        id=p.id,
+        email=p.email,
+        role=p.role,
+        invited_by_user_id=p.invited_by_user_id,
+        created_at=p.created_at,
+        notification_email_sent=notification_email_sent,
+        account_created=account_created,
+        welcome_email_sent=welcome_email_sent,
+    )
+
+
+def _can_provision_customer_for_room(room: DealRoom, user: User) -> bool:
+    """Create platform customer accounts for an invite (room owner or staff, not guest co-hosts)."""
+    if user.role in ("admin", "director", "pmm"):
+        return True
+    if room.created_by_user_id and user.id == room.created_by_user_id:
+        return True
+    return False
+
+
+def _invite_customer_portfolio_user_ids(room: DealRoom, inviter: User) -> set[int]:
+    """
+    Which user ids define "my customers" for this invite flow.
+
+    Includes the room creator (when set) and the person inviting. That way:
+    - sales co-hosts see their own portfolio plus the room owner's;
+    - rooms with a missing creator still show the inviter's customers;
+    - staff inviting on someone else's room see that owner's contacts plus any they created/own.
+    """
+    ids: set[int] = set()
+    if room.created_by_user_id is not None:
+        ids.add(room.created_by_user_id)
+    ids.add(inviter.id)
+    return ids
+
+
+def _customer_eligible_for_room_invite(room: DealRoom, customer: User, inviter: User) -> bool:
+    """Customer is assigned to or created by someone in the invite portfolio for this room."""
+    if customer.role != "customer":
+        return False
+    owner_ids = _invite_customer_portfolio_user_ids(room, inviter)
+    return (
+        customer.assigned_sales_id in owner_ids
+        or customer.created_by_id in owner_ids
+    )
+
+
+def _provision_customer_for_room_invite(
+    *,
+    email: str,
+    room: DealRoom,
+    current_user: User,
+    first_name: str,
+    last_name: str,
+    password: str,
+    send_welcome_email: bool,
+    db: Session,
+) -> tuple[User, bool]:
+    """Create customer User; assign to room owner when they are sales."""
+    owner_id = room.created_by_user_id
+    if not owner_id:
+        raise HTTPException(
+            status_code=400,
+            detail="This room has no owner; cannot create a customer for this invite.",
+        )
+    owner = db.query(User).filter(User.id == owner_id).first()
+    assigned_sales_id = owner_id if owner and owner.role == "sales" else None
+
+    from app.core.security import get_password_hash
+    from app.core.email import send_user_creation_notification
+
+    full_name = f"{first_name.strip()} {last_name.strip()}".strip()
+    new_user = User(
+        email=email,
+        full_name=full_name or email,
+        hashed_password=get_password_hash(password),
+        role="customer",
+        is_active=True,
+        assigned_sales_id=assigned_sales_id,
+        created_by_id=current_user.id,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    welcome_ok = False
+    if send_welcome_email:
+        try:
+            welcome_ok = bool(
+                send_user_creation_notification(
+                    user_email=new_user.email,
+                    user_name=new_user.full_name,
+                    user_password=password,
+                    user_role="customer",
+                    platform_url=getattr(settings, "PLATFORM_URL", "http://localhost:3003"),
+                )
+            )
+        except Exception:
+            welcome_ok = False
+    return new_user, welcome_ok
+
+
+@router.get("/{room_id}/participants", response_model=List[DealRoomParticipantResponse])
+async def list_room_participants(
+    room_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """List invited participants (room hosts and co-hosts only)."""
+    room = db.query(DealRoom).filter(DealRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Deal room not found")
+    if not _can_manage_participants(room, current_user, db):
+        raise HTTPException(status_code=403, detail="Not authorized to manage participants")
+    rows = (
+        db.query(DealRoomParticipant)
+        .filter(DealRoomParticipant.deal_room_id == room.id)
+        .order_by(DealRoomParticipant.created_at)
+        .all()
+    )
+    return [_participant_to_response(p) for p in rows]
+
+
+@router.get(
+    "/{room_id}/invite-customer-candidates",
+    response_model=List[DealRoomInviteCustomerCandidate],
+)
+async def list_invite_customer_candidates(
+    room_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Customers linked to the room creator and/or the inviting user (for one-click invite)."""
+    room = db.query(DealRoom).filter(DealRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Deal room not found")
+    if not _can_manage_participants(room, current_user, db):
+        raise HTTPException(status_code=403, detail="Not authorized to manage participants")
+
+    owner_ids = _invite_customer_portfolio_user_ids(room, current_user)
+    id_list = list(owner_ids)
+
+    customers = (
+        db.query(User)
+        .filter(
+            User.role == "customer",
+            or_(
+                User.assigned_sales_id.in_(id_list),
+                User.created_by_id.in_(id_list),
+            ),
+        )
+        .order_by(User.full_name)
+        .all()
+    )
+    return [
+        DealRoomInviteCustomerCandidate(
+            id=c.id,
+            email=c.email,
+            full_name=c.full_name,
+        )
+        for c in customers
+    ]
+
+
+@router.post(
+    "/{room_id}/participants",
+    response_model=DealRoomParticipantResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_room_participant(
+    room_id: int,
+    data: DealRoomParticipantCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Grant room access by email. The email must match an existing platform user, unless
+    create_customer_if_missing is true (creates a customer tied to this room's owner).
+    Alternatively pass customer_user_id to invite a contact from the room owner's list.
+    """
+    room = db.query(DealRoom).filter(DealRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Deal room not found")
+    if not _can_manage_participants(room, current_user, db):
+        raise HTTPException(status_code=403, detail="Not authorized to manage participants")
+
+    if data.customer_user_id is not None:
+        cust = db.query(User).filter(User.id == data.customer_user_id).first()
+        if not cust:
+            raise HTTPException(status_code=404, detail="Customer not found")
+        if not _customer_eligible_for_room_invite(room, cust, current_user):
+            raise HTTPException(
+                status_code=400,
+                detail="This contact is not linked to the room owner's customer list.",
+            )
+        email = _normalize_room_email(cust.email)
+    else:
+        email = _normalize_room_email(str(data.email or ""))
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Invalid email")
+
+    if room.customer_email and _normalize_room_email(room.customer_email) == email:
+        raise HTTPException(
+            status_code=400,
+            detail="This email is already the primary customer for this room; they have full access.",
+        )
+
+    if data.role not in VALID_ROOM_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    existing_row = (
+        db.query(DealRoomParticipant)
+        .filter(
+            DealRoomParticipant.deal_room_id == room.id,
+            DealRoomParticipant.email == email,
+        )
+        .first()
+    )
+    if existing_row:
+        raise HTTPException(status_code=400, detail="This email is already invited to this room")
+
+    account_user = db.query(User).filter(User.email == email).first()
+    account_created = False
+    welcome_email_sent: Optional[bool] = None
+
+    if not account_user:
+        if not data.create_customer_if_missing:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No platform account exists for this email. Choose someone from your contacts, "
+                    "or turn on Create account and enter their name and password."
+                ),
+            )
+        if not _can_provision_customer_for_room(room, current_user):
+            raise HTTPException(
+                status_code=403,
+                detail="Only the room owner or staff can create new customer accounts from here.",
+            )
+        fn = (data.new_customer_first_name or "").strip()
+        ln = (data.new_customer_last_name or "").strip()
+        pw = data.new_customer_password or ""
+        if not fn or not ln:
+            raise HTTPException(
+                status_code=400,
+                detail="First and last name are required to create a new customer account.",
+            )
+        if not pw or len(pw) < 8:
+            raise HTTPException(
+                status_code=400,
+                detail="Password must be at least 8 characters to create a new customer account.",
+            )
+        account_user, welcome_email_sent = _provision_customer_for_room_invite(
+            email=email,
+            room=room,
+            current_user=current_user,
+            first_name=fn,
+            last_name=ln,
+            password=pw,
+            send_welcome_email=data.new_customer_send_welcome_email,
+            db=db,
+        )
+        account_created = True
+
+    row = DealRoomParticipant(
+        deal_room_id=room.id,
+        email=email,
+        role=data.role,
+        invited_by_user_id=current_user.id,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    notification_email_sent: Optional[bool] = None
+    if data.send_notification_email:
+        from app.core.email import send_deal_room_participant_invite_email
+
+        ok = send_deal_room_participant_invite_email(
+            to_email=email,
+            room_name=room.name,
+            room_url=_get_room_url(room.unique_token),
+            invited_by_name=current_user.full_name or current_user.email,
+            role=data.role,
+        )
+        notification_email_sent = ok
+
+    return _participant_to_response(
+        row,
+        notification_email_sent=notification_email_sent,
+        account_created=account_created if account_created else None,
+        welcome_email_sent=welcome_email_sent,
+    )
+
+
+@router.patch("/{room_id}/participants/{participant_id}", response_model=DealRoomParticipantResponse)
+async def update_room_participant(
+    room_id: int,
+    participant_id: int,
+    data: DealRoomParticipantUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    room = db.query(DealRoom).filter(DealRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Deal room not found")
+    if not _can_manage_participants(room, current_user, db):
+        raise HTTPException(status_code=403, detail="Not authorized to manage participants")
+
+    row = (
+        db.query(DealRoomParticipant)
+        .filter(
+            DealRoomParticipant.id == participant_id,
+            DealRoomParticipant.deal_room_id == room.id,
+        )
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    if data.role is not None:
+        if data.role not in VALID_ROOM_ROLES:
+            raise HTTPException(status_code=400, detail="Invalid role")
+        row.role = data.role
+
+    db.commit()
+    db.refresh(row)
+    return _participant_to_response(row)
+
+
+@router.delete("/{room_id}/participants/{participant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_room_participant(
+    room_id: int,
+    participant_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    room = db.query(DealRoom).filter(DealRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Deal room not found")
+    if not _can_manage_participants(room, current_user, db):
+        raise HTTPException(status_code=403, detail="Not authorized to manage participants")
+
+    row = (
+        db.query(DealRoomParticipant)
+        .filter(
+            DealRoomParticipant.id == participant_id,
+            DealRoomParticipant.deal_room_id == room.id,
+        )
+        .first()
+    )
+    if row:
+        db.delete(row)
+        db.commit()
+
+
 # --- Messaging ---
 
 @router.get("/{room_id}/messages", response_model=List[RoomMessageResponse])
@@ -528,19 +1028,12 @@ async def get_room_messages(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Get messages in a deal room (sales or customer with access)."""
+    """Get messages in a deal room (any user with room access, including invited participants)."""
     room = db.query(DealRoom).filter(DealRoom.id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="Deal room not found")
-    # Sales: creator; Customer: must match customer_email
-    if current_user.role == "sales":
-        if room.created_by_user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized")
-    elif current_user.role == "customer":
-        if room.customer_email and room.customer_email.lower() != current_user.email.lower():
-            raise HTTPException(status_code=403, detail="Not authorized")
-    else:
-        _ensure_sales_or_above(current_user)
+    if not _can_access_room(room, current_user, db):
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     msgs = db.query(RoomMessage).filter(RoomMessage.deal_room_id == room.id).order_by(RoomMessage.created_at).all()
     return [
@@ -570,14 +1063,10 @@ async def send_room_message(
     if not room.is_valid():
         raise HTTPException(status_code=404, detail="Deal room expired or deactivated")
 
-    sent_by_customer = current_user.role == "customer"
-    if sent_by_customer:
-        if room.customer_email and room.customer_email.lower() != current_user.email.lower():
-            raise HTTPException(status_code=403, detail="Not authorized for this room")
-    else:
-        _ensure_sales_or_above(current_user)
-        if room.created_by_user_id != current_user.id and current_user.role == "sales":
-            raise HTTPException(status_code=403, detail="Not authorized")
+    if not _can_access_room(room, current_user, db):
+        raise HTTPException(status_code=403, detail="Not authorized for this room")
+
+    sent_by_customer = _message_sent_as_guest(room, current_user)
 
     msg = RoomMessage(
         deal_room_id=room.id,
@@ -618,8 +1107,11 @@ async def get_room_by_token(
         raise HTTPException(status_code=404, detail="Room not found or expired")
     if not room.is_valid():
         raise HTTPException(status_code=404, detail="Room not found or expired")
-    if not _can_access_room(room, current_user):
+    if not _can_access_room(room, current_user, db):
         raise HTTPException(status_code=403, detail="You do not have access to this room")
+
+    ctx = get_room_access_context(room, current_user, db)
+    my_permissions = ctx.to_permissions_response()
 
     room.record_access()
     db.commit()
@@ -685,6 +1177,7 @@ async def get_room_by_token(
         created_by_name=created_by_name,
         created_by_avatar_url=created_by_avatar_url,
         activity=activity,
+        my_permissions=my_permissions,
     )
 
 
@@ -700,8 +1193,11 @@ async def download_room_material(
     room = db.query(DealRoom).filter(DealRoom.unique_token == token).first()
     if not room or not room.is_valid():
         raise HTTPException(status_code=404, detail="Room not found or expired")
-    if not _can_access_room(room, current_user):
+    if not _can_access_room(room, current_user, db):
         raise HTTPException(status_code=403, detail="You do not have access to this room")
+    ctx = get_room_access_context(room, current_user, db)
+    if not ctx.can_download_materials():
+        raise HTTPException(status_code=403, detail="You do not have permission to download materials in this room")
 
     rm = db.query(DealRoomMaterial).filter(
         DealRoomMaterial.deal_room_id == room.id,
@@ -764,7 +1260,7 @@ async def thumbnail_room_material(
     room = db.query(DealRoom).filter(DealRoom.unique_token == token).first()
     if not room or not room.is_valid():
         raise HTTPException(status_code=404, detail="Room not found or expired")
-    if not _can_access_room(room, current_user):
+    if not _can_access_room(room, current_user, db):
         raise HTTPException(status_code=403, detail="You do not have access to this room")
 
     rm = db.query(DealRoomMaterial).filter(
@@ -807,7 +1303,7 @@ async def view_room_material(
     room = db.query(DealRoom).filter(DealRoom.unique_token == token).first()
     if not room or not room.is_valid():
         raise HTTPException(status_code=404, detail="Room not found or expired")
-    if not _can_access_room(room, current_user):
+    if not _can_access_room(room, current_user, db):
         raise HTTPException(status_code=403, detail="You do not have access to this room")
 
     rm = db.query(DealRoomMaterial).filter(

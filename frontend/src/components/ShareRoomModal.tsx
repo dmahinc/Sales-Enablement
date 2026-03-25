@@ -86,8 +86,14 @@ export default function ShareRoomModal({
     <Modal isOpen={isOpen} onClose={onClose} title="Share Digital Sales Room" size="lg">
       <div className="space-y-6">
         {/* Recipients */}
-        <div>
-          <label className="block text-sm font-medium text-warm-800 mb-2">Email Recipients</label>
+      <p className="text-sm text-warm-600 bg-warm-50 border border-warm-200 rounded-lg p-3">
+        <strong>Account access:</strong> To invite someone who will <strong>sign in</strong> with a role (viewer, contributor, co-host), use the{' '}
+        <strong>Invite</strong> button on the Digital Sales Rooms list or open <strong>Edit room</strong> → <strong>People &amp; access</strong>. This
+        modal sends an email with the room link only.
+      </p>
+
+      <div>
+        <label className="block text-sm font-medium text-warm-800 mb-2">Email Recipients</label>
           <div className="flex flex-wrap gap-2 p-3 border border-warm-300 rounded-lg bg-white">
             {recipients.map((email) => (
               <span

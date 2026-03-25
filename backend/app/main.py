@@ -24,7 +24,7 @@ from app.models.product_release import ProductRelease  # noqa: F401
 from app.models.marketing_update import MarketingUpdate  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.shared_link import SharedLink  # noqa: F401
-from app.models.deal_room import DealRoom, DealRoomMaterial, ActionPlanItem, RoomMessage  # noqa: F401
+from app.models.deal_room import DealRoom, DealRoomMaterial, DealRoomParticipant, ActionPlanItem, RoomMessage  # noqa: F401
 from app.models.customer_message import CustomerMessage  # noqa: F401
 from app.models.material_request import MaterialRequest  # noqa: F401
 # AICorrection model may not exist in all deployments

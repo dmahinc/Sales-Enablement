@@ -66,6 +66,12 @@ class DealRoom(BaseModel):
         cascade="all, delete-orphan",
         order_by="RoomMessage.created_at",
     )
+    participants = relationship(
+        "DealRoomParticipant",
+        back_populates="deal_room",
+        cascade="all, delete-orphan",
+        order_by="DealRoomParticipant.created_at",
+    )
 
     __table_args__ = (
         Index("idx_deal_rooms_created_by", "created_by_user_id"),
@@ -86,6 +92,28 @@ class DealRoom(BaseModel):
     def record_access(self):
         self.access_count += 1
         self.last_accessed_at = datetime.utcnow()
+
+
+class DealRoomParticipant(BaseModel):
+    """
+    Invited access to a Digital Sales Room with a scoped role (RBAC).
+    Roles: viewer (read + messages), contributor (+ download & customer action-plan updates),
+    co_host (+ invite/manage participants).
+    Email is normalized to lowercase; unique per room.
+    """
+    __tablename__ = "deal_room_participants"
+
+    deal_room_id = Column(Integer, ForeignKey("deal_rooms.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    role = Column(String(32), nullable=False, default="viewer")  # viewer | contributor | co_host
+    invited_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    deal_room = relationship("DealRoom", back_populates="participants")
+    invited_by = relationship("User", foreign_keys=[invited_by_user_id])
+
+    __table_args__ = (
+        Index("idx_deal_room_participants_room_email", "deal_room_id", "email", unique=True),
+    )
 
 
 class DealRoomMaterial(BaseModel):

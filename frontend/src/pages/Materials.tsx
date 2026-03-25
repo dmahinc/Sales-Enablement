@@ -13,6 +13,17 @@ import { useAuth } from '../contexts/AuthContext'
 import ProductIcon from '../components/ProductIcon'
 import { getMaterialCategory, PRODUCT_MATERIAL_TYPES, GTM_MATERIAL_TYPES } from '../utils/materialTypes'
 
+/** Compare segment ids robustly (API may return numbers or strings). */
+function materialMatchesSegmentFilter(
+  materialSegmentIds: unknown[] | undefined,
+  filterSegmentIds: number[]
+): boolean {
+  if (filterSegmentIds.length === 0) return true
+  const ids = (materialSegmentIds || []).map((x) => Number(x))
+  const wanted = filterSegmentIds.map((x) => Number(x))
+  return ids.some((id) => wanted.includes(id))
+}
+
 // Helper function to get icon for material type
 function getMaterialTypeIcon(materialType: string | null | undefined): LucideIcon {
   if (!materialType) {
@@ -864,6 +875,8 @@ export default function Materials() {
   const [expandedUniverses, setExpandedUniverses] = useState<Set<number>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
   const [expandedSegments, setExpandedSegments] = useState<Set<number>>(new Set())
+  /** List view: GTM segment bento cards expanded to show all materials (not just first 5). */
+  const [expandedGtmListSegmentIds, setExpandedGtmListSegmentIds] = useState<Set<number>>(new Set())
   const [downloadingMaterial, setDownloadingMaterial] = useState<any>(null)
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [activeLinksWarning, setActiveLinksWarning] = useState<{
@@ -1056,7 +1069,7 @@ export default function Materials() {
           if (!showArchivedByUniverse[universeName]) return false
         } else {
           const segIds = m.segment_ids || []
-          if (segIds.length === 0 || !segIds.some((sid: number) => showArchivedBySegment[sid])) return false
+          if (segIds.length === 0 || !segIds.some((sid: unknown) => showArchivedBySegment[Number(sid)])) return false
         }
       }
       
@@ -1101,8 +1114,7 @@ export default function Materials() {
 
       // GTM segment filter - only applies to GTM materials
       if (hierarchyMode === 'gtm' && filterSegmentIds.length > 0) {
-        const segIds = m.segment_ids || []
-        if (!segIds.some((sid: number) => filterSegmentIds.includes(sid))) return false
+        if (!materialMatchesSegmentFilter(m.segment_ids, filterSegmentIds)) return false
       }
       
       return true
@@ -1187,9 +1199,11 @@ export default function Materials() {
     const gtmMaterials = (materials || []).filter((m: any) => getMaterialCategory(m.material_type) === 'gtm')
     gtmMaterials.forEach((material: any) => {
       const segIds = material.segment_ids || []
-      segIds.forEach((sid: number) => {
-        if (!acc[sid]) acc[sid] = []
-        acc[sid].push(material)
+      segIds.forEach((sid: unknown) => {
+        const id = Number(sid)
+        if (Number.isNaN(id)) return
+        if (!acc[id]) acc[id] = []
+        acc[id].push(material)
       })
     })
     return acc
@@ -1201,10 +1215,12 @@ export default function Materials() {
     const acc: Record<number, any[]> = {}
     filteredMaterials.forEach((material: any) => {
       const segIds = material.segment_ids || []
-      segIds.forEach((sid: number) => {
-        if (material.status === 'archived' && !showArchivedBySegment[sid]) return
-        if (!acc[sid]) acc[sid] = []
-        acc[sid].push(material)
+      segIds.forEach((sid: unknown) => {
+        const id = Number(sid)
+        if (Number.isNaN(id)) return
+        if (material.status === 'archived' && !showArchivedBySegment[id]) return
+        if (!acc[id]) acc[id] = []
+        acc[id].push(material)
       })
     })
     return acc
@@ -1425,10 +1441,11 @@ export default function Materials() {
     }
 
     // GTM segment filter (only when in GTM mode)
-    if (hierarchyMode === 'gtm' && browseSelectedSegmentId) {
+    if (hierarchyMode === 'gtm' && browseSelectedSegmentId != null) {
+      const want = Number(browseSelectedSegmentId)
       filtered = filtered.filter((m: any) => {
-        const segIds = m.segment_ids || []
-        return segIds.includes(browseSelectedSegmentId)
+        const segIds = (m.segment_ids || []).map((x: unknown) => Number(x))
+        return segIds.includes(want)
       })
     }
 
@@ -1472,10 +1489,7 @@ export default function Materials() {
 
     // GTM segment filter - only for GTM materials
     if (hierarchyMode === 'gtm' && filterSegmentIds.length > 0) {
-      filtered = filtered.filter((m: any) => {
-        const segIds = m.segment_ids || []
-        return segIds.some((sid: number) => filterSegmentIds.includes(sid))
-      })
+      filtered = filtered.filter((m: any) => materialMatchesSegmentFilter(m.segment_ids, filterSegmentIds))
     }
 
     // Use semantic search results when available
@@ -1504,7 +1518,7 @@ export default function Materials() {
           return showArchivedByUniverse[universeName] || false
         } else {
           const segIds = m.segment_ids || []
-          return segIds.length > 0 && segIds.some((sid: number) => showArchivedBySegment[sid])
+          return segIds.length > 0 && segIds.some((sid: unknown) => showArchivedBySegment[Number(sid)])
         }
       }
       return true
@@ -2814,6 +2828,7 @@ export default function Materials() {
               onClick={() => {
                 setHierarchyMode('product')
                 setFilterSegmentIds([])
+                setExpandedGtmListSegmentIds(new Set())
                 setFilterTypes((prev) => prev.filter(t => PRODUCT_MATERIAL_TYPES.some(pt => pt.value === t)))
               }}
               className={`card-ovh p-5 text-left transition-all duration-200 ${
@@ -2843,6 +2858,7 @@ export default function Materials() {
                 setFilterCategoryIds([])
                 setFilterProductIds([])
                 setFilterSegmentIds([])
+                setExpandedGtmListSegmentIds(new Set())
                 setFilterTypes((prev) => prev.filter(t => GTM_MATERIAL_TYPES.some(gt => gt.value === t)))
               }}
               className={`card-ovh p-5 text-left transition-all duration-200 ${
@@ -2986,6 +3002,7 @@ export default function Materials() {
                       setFilterProductIds([])
                       setFilterSegmentIds([])
                       setSelectedUniverses([])
+                      setExpandedGtmListSegmentIds(new Set())
                     }}
                     className="text-sm text-primary-500 hover:text-primary-600 flex items-center space-x-1"
                   >
@@ -3000,8 +3017,8 @@ export default function Materials() {
           {/* Materials List */}
           {filteredMaterials.length > 0 ? (
             <>
-              {hierarchyMode === 'gtm' ? (
-                // GTM: Grouped by Segment View - bento 2 columns (always when in GTM mode)
+              {hierarchyMode === 'gtm' && filterSegmentIds.length === 0 ? (
+                // GTM: Grouped by Segment View - bento 2 columns (overview; "View more" sets segment filter → full grid below)
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {(() => {
                     const segsWithMaterials = segmentsForBento.filter(seg => (materialsBySegment[seg.id]?.length ?? 0) > 0)
@@ -3068,19 +3085,38 @@ export default function Materials() {
                             </div>
                           </div>
                           <div className="divide-y divide-slate-100">
-                            {segMaterials.slice(0, 5).map((material: any) => (
+                            {(expandedGtmListSegmentIds.has(seg.id) ? segMaterials : segMaterials.slice(0, 5)).map((material: any) => (
                               <div key={material.id} className="p-4 hover:bg-slate-50 transition-colors">
                                 {renderMaterialRow(material)}
                               </div>
                             ))}
                             {segMaterials.length > 5 && (
                               <div className="p-4 text-center">
-                                <button
-                                  onClick={() => setFilterSegmentIds([seg.id])}
-                                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                                >
-                                  View {segMaterials.length - 5} more materials →
-                                </button>
+                                {expandedGtmListSegmentIds.has(seg.id) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedGtmListSegmentIds((prev) => {
+                                        const next = new Set(prev)
+                                        next.delete(seg.id)
+                                        return next
+                                      })
+                                    }
+                                    className="text-sm text-slate-600 hover:text-slate-800 font-medium"
+                                  >
+                                    Show fewer materials
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedGtmListSegmentIds((prev) => new Set(prev).add(seg.id))
+                                    }
+                                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                                  >
+                                    View {segMaterials.length - 5} more materials →
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>

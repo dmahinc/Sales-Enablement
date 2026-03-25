@@ -21,9 +21,20 @@ export default function Login() {
     try {
       await login(email, password)
       navigate('/')
-    } catch (err: any) {
-      const d = err?.response?.data
-      setError(d?.detail ?? d?.message ?? err?.message ?? 'Login failed. Please check your credentials.')
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : (() => {
+              const d = (err as { response?: { data?: { detail?: unknown; message?: string } } })?.response?.data
+              if (typeof d?.detail === 'string') return d.detail
+              if (Array.isArray(d?.detail)) {
+                return d.detail.map((x: { msg?: string }) => x?.msg || String(x)).join(' ')
+              }
+              if (typeof d?.message === 'string') return d.message
+              return 'Login failed. Please check your credentials.'
+            })()
+      setError(message)
     } finally {
       setIsLoading(false)
     }

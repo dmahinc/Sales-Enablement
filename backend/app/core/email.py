@@ -555,3 +555,60 @@ def send_deal_room_notification(
     """
     text_body = f"OVHcloud - Digital Sales Room\n\n{room_name}\n\nShared by {shared_by_name}.\n\nAccess: {room_url}"
     return send_email(to_email=to_email, subject=subject, html_body=html_body, text_body=text_body)
+
+
+def send_deal_room_participant_invite_email(
+    to_email: str,
+    room_name: str,
+    room_url: str,
+    invited_by_name: str,
+    role: str,
+) -> bool:
+    """
+    Notify an invited participant that they have access to a Digital Sales Room.
+    They must sign in with the invited email address.
+    """
+    role_key = (role or "viewer").lower()
+    role_descriptions = {
+        "viewer": "You can browse materials and use Messages in this room.",
+        "contributor": "You can browse materials, download files, use Messages, and update action-plan items when assigned.",
+        "co_host": "You can browse materials, download, use Messages, update action-plan items when assigned, and invite others to the room.",
+    }
+    role_line = role_descriptions.get(role_key, role_descriptions["viewer"])
+
+    subject = f"You've been invited — {room_name}"
+    safe_room = room_name.replace("<", "&lt;").replace(">", "&gt;")
+    safe_inviter = invited_by_name.replace("<", "&lt;").replace(">", "&gt;")
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #0050d7 0%, #003d9e 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin:0;">OVHcloud</h1>
+        </div>
+        <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb;">
+            <p>You've been invited to a <strong>Digital Sales Room</strong>.</p>
+            <p><strong>{safe_room}</strong></p>
+            <p style="color:#4b5563;font-size:14px;">{role_line}</p>
+            <p style="margin-top:16px;">Sign in with <strong>{to_email}</strong> to open the room.</p>
+            <p style="text-align: center; margin: 25px 0;">
+                <a href="{room_url}" style="display: inline-block; background-color: #0050d7; color: #ffffff; padding: 14px 35px; text-decoration: none; border-radius: 6px; font-weight: bold;">Open Digital Sales Room</a>
+            </p>
+            <p>Invited by <strong>{safe_inviter}</strong>.</p>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
+                © 2026 OVHcloud. This is an automated message.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    text_body = (
+        f"You've been invited to a Digital Sales Room: {room_name}\n\n"
+        f"{role_line}\n\n"
+        f"Sign in with {to_email} to access the room.\n\n"
+        f"{room_url}\n\n"
+        f"Invited by {invited_by_name}."
+    )
+    return send_email(to_email=to_email, subject=subject, html_body=html_body, text_body=text_body)

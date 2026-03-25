@@ -32,10 +32,11 @@ except (ImportError, Exception):
     CUSTOMER_MESSAGES_AVAILABLE = False
 
 try:
-    from app.models.deal_room import DealRoom
+    from app.models.deal_room import DealRoom, DealRoomParticipant
     DEAL_ROOMS_AVAILABLE = True
 except (ImportError, Exception):
     DealRoom = None
+    DealRoomParticipant = None
     DEAL_ROOMS_AVAILABLE = False
 
 router = APIRouter(prefix="/api/customers", tags=["customers"])
@@ -80,8 +81,8 @@ async def get_customer_deal_rooms(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    List deal rooms shared with this customer (where customer_email matches).
-    Customers see their Digital Sales Rooms here.
+    List Digital Sales Rooms for this customer: primary room customer_email matches,
+    or they were granted access via People & access (DealRoomParticipant).
     """
     if current_user.role != "customer":
         raise HTTPException(
@@ -92,12 +93,33 @@ async def get_customer_deal_rooms(
         return []
 
     email_lower = current_user.email.strip().lower()
-    rooms = db.query(DealRoom).filter(
+
+    primary_match = and_(
         DealRoom.customer_email.isnot(None),
         func.lower(func.trim(DealRoom.customer_email)) == email_lower,
-        DealRoom.is_active == True,
-        DealRoom.expires_at > datetime.utcnow(),
-    ).order_by(DealRoom.updated_at.desc()).all()
+    )
+    access_filters = [primary_match]
+    if DealRoomParticipant is not None:
+        invited_ids = [
+            row[0]
+            for row in db.query(DealRoomParticipant.deal_room_id)
+            .filter(func.lower(DealRoomParticipant.email) == email_lower)
+            .distinct()
+            .all()
+        ]
+        if invited_ids:
+            access_filters.append(DealRoom.id.in_(invited_ids))
+
+    rooms = (
+        db.query(DealRoom)
+        .filter(
+            DealRoom.is_active == True,
+            DealRoom.expires_at > datetime.utcnow(),
+            or_(*access_filters),
+        )
+        .order_by(DealRoom.updated_at.desc())
+        .all()
+    )
 
     return [
         {

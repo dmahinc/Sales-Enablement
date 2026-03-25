@@ -64,13 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
+    const uid = email.trim().toLowerCase()
     try {
       // Challenge-response authentication to avoid Bitdefender detection
       // Uses generic /api/data endpoints that don't look like authentication
       
       // Step 1: Request challenge (looks like generic API call)
       const challengeReq = await api.post('/data/request', {
-        uid: email
+        uid,
       })
       
       if (!challengeReq.data || !challengeReq.data.challenge_id || !challengeReq.data.challenge) {
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { challenge_id, challenge } = challengeReq.data
       
       // Step 2: Create simple hash response (using built-in crypto)
-      const hashString = `${challenge}${email}`
+      const hashString = `${challenge}${uid}`
       let hash = 0
       for (let i = 0; i < hashString.length; i++) {
         const char = hashString.charCodeAt(i)
@@ -91,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Step 3: Exchange data (obfuscated payload, looks like generic API)
       const payload = JSON.stringify({
-        uid: email,
+        uid,
         key: password,  // Password sent in HTTPS encrypted body
         cid: challenge_id,
         response: responseHash

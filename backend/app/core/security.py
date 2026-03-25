@@ -7,6 +7,7 @@ from jose import JWTError, jwt
 import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.core.config import settings
 # Import AICorrection first to ensure it's registered before User tries to set up relationship
@@ -43,14 +44,26 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
+
+def _normalize_email(email: Optional[str]) -> str:
+    """Lowercase + trim for login and JWT lookups (matches deal-room invite email normalization)."""
+    return (email or "").strip().lower()
+
+
 def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
-    """Authenticate a user"""
-    user = db.query(User).filter(User.email == email).first()
+    """Authenticate a user (email match is case-insensitive, like deal-room invites)."""
+    email_key = _normalize_email(email)
+    if not email_key:
+        return None
+    user = db.query(User).filter(func.lower(User.email) == email_key).first()
     if not user:
+        return None
+    if not user.hashed_password:
         return None
     if not verify_password(password, user.hashed_password):
         return None
     return user
+
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -64,9 +77,10 @@ async def get_current_user(
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        sub = payload.get("sub")
+        if sub is None:
             raise credentials_exception
+        email_key = _normalize_email(sub)
     except JWTError as e:
         # Log the error for debugging
         import logging
@@ -74,7 +88,7 @@ async def get_current_user(
         logger.error(f"JWT decode error: {str(e)}, token preview: {token[:50] if token else 'None'}...")
         raise credentials_exception
     
-    user = db.query(User).filter(User.email == email).first()
+    user = db.query(User).filter(func.lower(User.email) == email_key).first()
     if user is None:
         raise credentials_exception
     return user
